@@ -354,6 +354,9 @@ trait helperfunctions {
      * case-insensitively.
      */
     public function sccpActiveDeviceKeyUsed($key, array $activeDevices) {
+        if ($key === null || $key === '') {
+            return null;
+        }
         if (array_key_exists($key, $activeDevices)) {
             return $key;
         }
@@ -472,7 +475,7 @@ trait helperfunctions {
         // permitted chan-sccp settings array
         $permittedSettings = array(
                           'debug', 'servername', 'keepalive', 'context', 'dateformat', 'bindaddr', 'port', 'secbindaddr', 'secport', 'disallow', 'allow', 'deny', 'permit',
-                          'localnet', 'externip', 'externrefresh', 'firstdigittimeout', 'digittimeout', 'digittimeoutchar', 'recorddigittimeoutchar', 'simulate_enbloc',
+                          'localnet', 'externip', 'externhost', 'externrefresh', 'firstdigittimeout', 'digittimeout', 'digittimeoutchar', 'recorddigittimeoutchar', 'simulate_enbloc',
                           'ringtype', 'autoanswer_ring_time', 'autoanswer_tone', 'remotehangup_tone', 'transfer', 'transfer_tone', 'transfer_on_hangup', 'dnd_tone',
                           'callwaiting_tone', 'callwaiting_interval', 'musicclass', 'language', 'callevents', 'accountcode', 'sccp_tos', 'sccp_cos', 'audio_tos',
                           'audio_cos', 'video_tos', 'video_cos', 'echocancel', 'silencesuppression', 'earlyrtp', 'dndFeature', 'private', 'mwilamp', 'mwioncall',
