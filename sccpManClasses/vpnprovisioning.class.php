@@ -203,7 +203,7 @@ class vpnprovisioning
     /**
      * Keep the signed configuration synchronized on every SCCP Manager save.
      * Once a phone has an ITL, continue signing it even if removed from the
-     * VPN allowlist: an unsigned replacement could then be rejected.
+     * VPN preference: an unsigned replacement could then be rejected.
      */
     public function publish($deviceId, $xmlPath)
     {
