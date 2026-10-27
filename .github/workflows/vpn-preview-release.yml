@@ -23,11 +23,13 @@ jobs:
           php -l Sccp_manager.class.php
           php -l sccpManClasses/vpnprovisioning.class.php
           php -l sccpManClasses/xmlinterface.class.php
+          php -l sccpManClasses/aminterface.class.php
           php -l page.sccp_vpn.php
           php -r 'simplexml_load_file("module.xml") ?: exit(1);'
           python3 -m py_compile scripts/sccp-manager-vpn-helper
           bash -n scripts/install-vpn-helper.sh
           php tests/vpn-provisioning.php
+          php tests/regression-sccp.php
           git clone --depth 1 https://github.com/usecallmanagernz/certutils.git /tmp/certutils-test
           python3 -m venv /tmp/vpn-checks
           /tmp/vpn-checks/bin/pip install cryptography
