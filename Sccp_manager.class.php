@@ -362,6 +362,10 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             "sccpinfo" => array(
                 "name" => _("SCCP info"),
                 "page" => 'views/server.info.php'
+              ),
+            "sccpvpn" => array(
+                "name" => _("VPN Phones"),
+                "page" => 'views/server.vpn.php'
               )
             );
         // If view is set to simple, remove the ntp, codec and advanced tabs
