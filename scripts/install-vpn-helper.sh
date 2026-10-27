@@ -24,14 +24,28 @@ command -v visudo >/dev/null || { echo "sudo/visudo is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "Python 3 is required" >&2; exit 1; }
 getent passwd asterisk >/dev/null || { echo "Missing asterisk service account" >&2; exit 1; }
 
-if ! python3 -c "import cryptography" >/dev/null 2>&1; then
+# Install the missing system dependencies as part of the module install.
+# The package-manager installation is idempotent and needs no extra script.
+OCSERV=""
+for bin in /usr/local/sbin/ocserv /usr/sbin/ocserv; do
+  if [[ -x "$bin" ]]; then OCSERV="$bin"; break; fi
+done
+if [[ -z "$OCSERV" ]] || ! python3 -c "import cryptography" >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
-    DEBIAN_FRONTEND=noninteractive apt-get install -y python3-cryptography
+    needed=(openssl)
+    [[ -n "$OCSERV" ]] || needed+=(ocserv)
+    if ! python3 -c "import cryptography" >/dev/null 2>&1; then needed+=(python3-cryptography); fi
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "${needed[@]}"
   else
-    echo "Install the Python cryptography library for your distribution" >&2
+    echo "SCCP VPN automatic dependency installation currently supports Debian/apt" >&2
     exit 1
   fi
 fi
+OCSERV=""
+for bin in /usr/local/sbin/ocserv /usr/sbin/ocserv; do
+  if [[ -x "$bin" ]]; then OCSERV="$bin"; break; fi
+done
+[[ -n "$OCSERV" ]] || { echo "ocserv did not install" >&2; exit 1; }
 
 install -d -m 0700 -o root -g root "$KEYS"
 if [[ ! -f "$KEYS/sast.pem" || ! -f "$KEYS/tftp.pem" ]]; then
@@ -56,6 +70,7 @@ for f in sgnfile tlvfile; do
   install -m 0755 -o root -g root "$VENDOR/$f" "$BIN_DIR/$f"
 done
 install -m 0755 -o root -g root "$MODULE_DIR/scripts/sccp-manager-vpn-helper" "$HELPER"
+install -m 0755 -o root -g root "$MODULE_DIR/scripts/sccp-manager-ocserv-setup" /usr/local/libexec/sccp-manager-ocserv-setup
 
 # Only this immutable system copy may be invoked as root by FreePBX.
 temp_rule="$(mktemp /etc/sudoers.d/.sccp-vpn-XXXXXX)"
@@ -68,40 +83,30 @@ mv -f "$temp_rule" "$SUDOERS"
 chmod 0440 "$SUDOERS"
 trap - EXIT
 
-# Use an already configured VPN server, avoiding any interruption of
-# current Cisco calls or clobbering of a package-owned ocserv.service.
-OCSERV=""
-for bin in /usr/local/sbin/ocserv /usr/sbin/ocserv; do
-  if [[ -x "$bin" ]]; then OCSERV="$bin"; break; fi
-done
-if [[ -n "$OCSERV" && -f /etc/ocserv/ocserv.conf ]]; then
-  if [[ ! -e "$UNIT" ]]; then
-    cat > "$UNIT" <<EOF
+# SCCP Manager owns its own ocserv configuration, not the distribution's
+# /etc/ocserv/ocserv.conf. This avoids accidentally overriding other VPNs.
+# Service starts only when configured in the FreePBX interface.
+if [[ ! -e "$UNIT" ]]; then
+  cat > "$UNIT" <<EOF
 [Unit]
-Description=SCCP Manager Cisco built-in phone VPN
+Description=SCCP Manager Cisco phone VPN (ocserv)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=$OCSERV -f -c /etc/ocserv/ocserv.conf
+ExecStart=$OCSERV -f -c /etc/ocserv/sccp-manager.conf
 Restart=on-failure
 RestartSec=3
+NoNewPrivileges=false
 
 [Install]
 WantedBy=multi-user.target
 EOF
-    chown root:root "$UNIT"
-    chmod 0644 "$UNIT"
-  fi
-  systemctl daemon-reload
-  systemctl enable sccp-ocserv.service
-  # Do not start a second instance while a manually-started ocserv is running.
-  if ! pgrep -x ocserv >/dev/null; then
-    systemctl start sccp-ocserv.service
-  fi
-else
-  echo "ocserv not configured; signing is installed, VPN service setup pending."
+  chown root:root "$UNIT"
+  chmod 0644 "$UNIT"
 fi
+systemctl daemon-reload
 
-echo "SCCP Manager VPN components installed automatically."
+echo "SCCP Manager VPN dependencies, isolated service and signing tools installed."
+echo "Open FreePBX > SCCP Manager > VPN & Signing to configure and start VPN."
