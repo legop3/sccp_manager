@@ -237,7 +237,7 @@ class vpnprovisioning
 
     private function runHelper(array $args)
     {
-        return $this->run(array_merge(array('sudo', '-n', self::HELPER), $args));
+        return $this->run(array_merge(array('/usr/bin/sudo', '-n', self::HELPER), $args));
     }
 
     private function run(array $command)
