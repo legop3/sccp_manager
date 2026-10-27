@@ -305,7 +305,11 @@ class xmlinterface
 
                                 $srstSlot = 0;
                                 foreach ($srst_addrs as $netValue) {
-                                    // the template numbers these from one (ipAddr1..ipAddr3)
+                                    // Blank or malformed saved rows have no ip key.
+                                    // Skip them before allocating one of three SRST slots.
+                                    if (!is_array($netValue) || empty($netValue['ip'])) {
+                                        continue;
+                                    }
                                     $srstSlot++;
                                     if ($srstSlot > 3) {
                                         break;
@@ -313,7 +317,7 @@ class xmlinterface
                                     $nodeName = "ipAddr{$srstSlot}";
                                     $xnode->$nodeName = $netValue['ip'];
                                     $nodeName = "port{$srstSlot}";
-                                    $xnode->$nodeName = $netValue['port'];
+                                    $xnode->$nodeName = $netValue['port'] ?? ($data_values['port'] ?? '2000');
                                 }
                                 break;
                             case 'connectionmonitorduration':
@@ -487,7 +491,15 @@ class xmlinterface
             $ccm_address = $this->convertCsvToArray($data_values['ccm_address'], true);
             // This is a sanitised list of ipaddresses and ports
             foreach ($ccm_address as $netValue) {
-                $res[$netValue['ip']] = $netValue;
+                // The CSV decoder can also return 'setvar' and net/mask
+                // rows; neither can be used as a CallManager host.
+                if (!is_array($netValue) || empty($netValue['ip'])) {
+                    continue;
+                }
+                $res[$netValue['ip']] = array(
+                    'ip' => $netValue['ip'],
+                    'port' => $netValue['port'] ?? ($data_values['port'] ?? '2000')
+                );
             }
             if (!empty($res)) {
                 // an explicit CallManager list means exactly that - do not append every local interface
