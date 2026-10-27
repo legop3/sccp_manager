@@ -1,7 +1,7 @@
 # SCCP Manager
 
-> **Development build 17.1.2 — integrated Cisco phone VPN.** The
-> [installable preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.2)
+> **Development build 17.1.3 — integrated Cisco phone VPN.** The
+> [installable preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.3)
 > bundles SCCP Manager, Cisco VPN profile generation, signed provisioning,
 > certificate tooling and managed ocserv integration. No separate helper install.
 > On an existing working PBX, a **root-run FreePBX module upgrade** installs
