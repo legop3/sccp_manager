@@ -4,6 +4,9 @@ if (!defined('FREEPBX_IS_AUTH')) {
 }
 $module = FreePBX::create()->Sccp_manager;
 $settings = $module->vpnSettings();
+$actionUrl = (($_REQUEST['display'] ?? '') === 'sccpsettings')
+    ? 'config.php?display=sccpsettings#sccpvpn'
+    : 'config.php?display=sccp_vpn';
 $escape = function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 };
@@ -46,7 +49,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
         </table>
     <?php endif; ?>
 
-    <form method="post" action="config.php?display=sccp_vpn">
+    <form method="post" action="<?php echo $actionUrl; ?>">
         <input type="hidden" name="display" value="sccp_vpn">
         <input type="hidden" name="vpn_action" value="start">
         <button type="submit" class="btn btn-default" <?php echo $statusError || $serviceRunning ? 'disabled' : ''; ?>>
@@ -58,7 +61,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
     <hr>
     <h3><?php echo _('VPN login for your phones'); ?></h3>
     <p><?php echo _('Create or update a login shared by multiple phones. Existing unrelated ocserv accounts are preserved. The password is sent to the privileged helper without being stored in FreePBX.'); ?></p>
-    <form method="post" action="config.php?display=sccp_vpn" autocomplete="off">
+    <form method="post" action="<?php echo $actionUrl; ?>" autocomplete="off">
         <input type="hidden" name="display" value="sccp_vpn">
         <input type="hidden" name="vpn_action" value="account">
         <div class="form-group">
@@ -78,7 +81,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
 
     <hr>
     <h3><?php echo _('Cisco phone configuration'); ?></h3>
-    <form method="post" action="config.php?display=sccp_vpn">
+    <form method="post" action="<?php echo $actionUrl; ?>">
         <input type="hidden" name="display" value="sccp_vpn">
         <input type="hidden" name="save_vpn" value="1">
         <div class="form-group">
@@ -112,7 +115,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
     <hr>
     <h3><?php echo _('Publish signed phone configurations'); ?></h3>
     <p><?php echo _('After saving, regenerate the selected phones to create or update each signed configuration and trust list. Signing uses a root-owned helper; keys stay outside the web server.'); ?></p>
-    <form method="post" action="config.php?display=sccp_vpn">
+    <form method="post" action="<?php echo $actionUrl; ?>">
         <input type="hidden" name="display" value="sccp_vpn">
         <input type="hidden" name="vpn_action" value="regenerate">
         <button type="submit" class="btn btn-default"
