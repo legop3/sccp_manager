@@ -49,7 +49,6 @@ class vpnprovisioning
         }
         $settings += array(
             'enabled' => false,
-            'devices' => array(),
             'managed_signer' => true,
             'vpn_default' => 'off',
             'sign_default' => 'auto',
@@ -61,9 +60,6 @@ class vpnprovisioning
         }
         if (!in_array($settings['sign_default'], array('auto', 'on', 'off'), true)) {
             throw new \RuntimeException('Invalid global signing default');
-        }
-        if (!is_array($settings['devices'])) {
-            throw new \RuntimeException('Legacy VPN device list must be an array');
         }
         if (!empty($settings['enabled'])) {
             self::validateGateway((string) $settings['gateway']);
@@ -105,12 +101,6 @@ class vpnprovisioning
         }
         $saved = $this->parent->getConfig('vpn_device_' . $deviceId);
         if (!is_array($saved)) {
-            // Display a legacy allowlisted phone as explicitly enabled.
-            // Otherwise saving its normal phone form would silently convert
-            // old VPN "on" into inherited global "off".
-            if (in_array($deviceId, $this->settings()['devices'], true)) {
-                $defaults['vpn'] = 'on';
-            }
             return $defaults;
         }
         return array_merge($defaults, array_intersect_key($saved, $defaults));
@@ -125,24 +115,15 @@ class vpnprovisioning
             ? $device['vpn'] : 'inherit';
         $signMode = in_array($device['sign'], array('inherit', 'on', 'off'), true)
             ? $device['sign'] : 'inherit';
-        // Migration: the previous global MAC allowlist is honored until each
-        // phone has an explicit per-device setting. An explicit "inherit"
-        // intentionally switches it to the new server-wide default.
-        $hasDeviceRecord = $this->parent !== null && method_exists($this->parent, 'getConfig')
-            && is_array($this->parent->getConfig('vpn_device_' . $deviceId));
-        $legacy = !$hasDeviceRecord &&
-            in_array($deviceId, $global['devices'], true);
         $vpn = !empty($global['enabled']) &&
-            ($vpnMode === 'on' || ($vpnMode === 'inherit' &&
-            ($legacy || $global['vpn_default'] === 'on')));
+            ($vpnMode === 'on' || ($vpnMode === 'inherit' && $global['vpn_default'] === 'on'));
         $sign = $signMode === 'inherit' ? $global['sign_default'] :
             ($signMode === 'on' ? 'on' : 'off');
         return array(
             'vpn' => $vpn,
             'sign' => $sign,
             'gateway' => $device['gateway'] !== '' ? $device['gateway'] : $global['gateway'],
-            'mtu' => $device['mtu'] !== '' ? (int) $device['mtu'] : (int) $global['mtu'],
-            'legacy' => $legacy
+            'mtu' => $device['mtu'] !== '' ? (int) $device['mtu'] : (int) $global['mtu']
         );
     }
 
