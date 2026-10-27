@@ -7,19 +7,19 @@ No separately downloaded certutils checkout or helper-install script is needed.
 
 ## Existing PBX: one module package
 
-First, take a FreePBX VM snapshot (preferred). The 17.1.6 preview targets an
+First, take a FreePBX VM snapshot (preferred). The 17.1.7 preview targets an
 existing functioning Nortien SCCP Manager 17.1.1 installation.
 Back up existing signing keys and ocserv files if not included in your VM snapshot.
 
 Download the preview module tarball from
-[the fork's preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.6).
+[the fork's preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.7).
 
 Then upgrade the module as root on the PBX, which lets the module install
 its own root-owned components in a single operation:
 
 ```bash
 sudo fwconsole ma downloadinstall \
-  https://github.com/legop3/sccp_manager/releases/download/vpn-preview-17.1.6/sccp_manager.tar.gz
+  https://github.com/legop3/sccp_manager/releases/download/vpn-preview-17.1.7/sccp_manager.tar.gz
 sudo fwconsole reload
 ```
 
@@ -76,8 +76,12 @@ change it. The working account can remain untouched.
 The module now installs ocserv if missing and configures the VPN server itself.
 The public router still needs to forward the gateway TCP port and selected UDP
 port to this PBX (TCP 4443 and UDP 443 on the tested setup). Any host/FreePBX
-firewall must allow those incoming ports; exposing the ports in the FreePBX
-firewall remains separate from the module's current first-run setup.
+firewall must allow those incoming ports. SCCP Manager saves the custom TCP
+and UDP services and VPN client subnet in FreePBX Firewall, but does NOT
+automatically start or restart the firewall. Apply firewall policy changes
+separately after confirming administrative access will remain available.
+A FreePBX Firewall previously stopped using `fwconsole firewall stop` must
+not be reactivated just by saving VPN settings.
 
 ## Checks
 
