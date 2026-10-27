@@ -286,7 +286,17 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             // On a clean installation this creates its TLS certificate,
             // isolated ocserv config, server pool and systemd service.
             $result = $this->vpnprovisioning->configureManagedServer($settings);
-            $this->vpnPageMessage = _('Cisco VPN server configured and running. Phone defaults saved.');
+            require_once __DIR__ . '/sccpManClasses/vpnfirewall.class.php';
+            $firewall = new \FreePBX\modules\Sccp_manager\vpnfirewall($this);
+            $parts = parse_url($settings['gateway']);
+            $firewallStatus = $firewall->configure(
+                (int) $parts['port'],
+                (int) $settings['udp_port'],
+                (string) $settings['vpn_subnet']
+            );
+            $this->vpnPageMessage = !empty($firewallStatus['managed'])
+                ? _('Cisco VPN server and FreePBX firewall configured.')
+                : _('Cisco VPN server configured. FreePBX Firewall module is absent, so firewall permissions are not managed.');
         } else {
             $this->vpnPageMessage = _('Phone VPN provisioning disabled. Existing VPN service is not stopped automatically.');
         }
