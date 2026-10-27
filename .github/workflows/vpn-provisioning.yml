@@ -19,6 +19,7 @@ jobs:
         run: |
           php -l sccpManClasses/vpnprovisioning.class.php
           php -l sccpManClasses/xmlinterface.class.php
+          php -l sccpManClasses/aminterface.class.php
           php -l Sccp_manager.class.php
           php -l sccpManTraits/bmoFunctions.php
           php -l page.sccp_vpn.php
@@ -30,6 +31,7 @@ jobs:
           bash -n scripts/install-vpn-helper.sh
       - name: VPN provisioning tests
         run: php tests/vpn-provisioning.php
+          php tests/regression-sccp.php
       - name: Real certutils integration test
         run: |
           git clone --depth 1 https://github.com/usecallmanagernz/certutils.git /tmp/sccp-test-certutils
