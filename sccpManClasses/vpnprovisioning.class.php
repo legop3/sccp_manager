@@ -257,6 +257,37 @@ class vpnprovisioning
         }
     }
 
+    /**
+     * One module-owned setup operation. The privileged engine accepts only
+     * the limited network fields below; it cannot run arbitrary commands or
+     * access user-supplied paths. Passwords are managed separately.
+     */
+    public function configureManagedServer(array $settings)
+    {
+        $parts = parse_url((string) ($settings['gateway'] ?? ''));
+        self::validateGateway((string) ($settings['gateway'] ?? ''));
+        if (($parts['path'] ?? '') !== '/svc' || isset($parts['query']) ||
+            empty($parts['port'])) {
+            throw new \InvalidArgumentException('Cisco VPN URL must be https://hostname:port/svc');
+        }
+        $request = array(
+            'gateway' => $settings['gateway'],
+            'pbx_ip' => (string) ($settings['pbx_ip'] ?? ''),
+            'vpn_subnet' => (string) ($settings['vpn_subnet'] ?? ''),
+            'udp_port' => (int) ($settings['udp_port'] ?? 443),
+            'max_same_clients' => (int) ($settings['max_same_clients'] ?? 0)
+        );
+        if (!filter_var($request['pbx_ip'], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            throw new \InvalidArgumentException('Enter the PBX internal IPv4 address for phone VPN routing');
+        }
+        $output = $this->runHelper(array('configure'), json_encode($request, JSON_THROW_ON_ERROR));
+        $response = json_decode($output, true);
+        if (!is_array($response) || ($response['service'] ?? '') !== 'active') {
+            throw new \RuntimeException('VPN setup did not confirm an active server');
+        }
+        return $response;
+    }
+
     public function managedStatus()
     {
         $output = $this->runHelper(array('status'));
