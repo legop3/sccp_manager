@@ -55,13 +55,13 @@ class vpnfirewall
         }
         $this->parent->setConfig('vpn_firewall_network', $subnet);
 
-        // Reload only if Firewall is running; do not enable it implicitly or
-        // change an administrator's existing global firewall policy.
-        $enabled = (bool) $firewall->getConfig('status');
-        if ($enabled) {
-            $firewall->startFirewall();
-        }
-        return array('managed' => true, 'reloaded' => $enabled);
+        // Only register the managed rules. FreePBX Firewall's saved "status"
+        // can remain enabled after "fwconsole firewall stop", so it cannot
+        // tell us whether the daemon is actually running. Calling
+        // startFirewall() here unexpectedly reactivates a deliberately
+        // stopped firewall, potentially locking administrators out.
+        // The administrator must choose when to apply firewall changes.
+        return array('managed' => true, 'reloaded' => false, 'apply_pending' => true);
     }
 
     private function upsertService($firewall, $name, $protocol, $port)
