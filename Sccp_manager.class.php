@@ -269,6 +269,10 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         if ($settings['mtu'] < 576 || $settings['mtu'] > 1500) {
             throw new \InvalidArgumentException(_('VPN MTU must be between 576 and 1500.'));
         }
+        if ($settings['enabled'] && $settings['vpn_default'] === 'on' &&
+            $settings['sign_default'] === 'off') {
+            throw new \InvalidArgumentException(_('VPN-enabled phones require signed provisioning; change the signing default.'));
+        }
         $this->setConfig('vpn_provisioning', $settings);
         $this->vpnPageMessage = _('Server defaults saved. Individual phones can override VPN and signing in Phones Manager.');
     }
@@ -297,8 +301,16 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             (!ctype_digit($prefs['mtu']) || (int) $prefs['mtu'] < 576 || (int) $prefs['mtu'] > 1500)) {
             throw new \InvalidArgumentException(_('Device VPN MTU must be 576–1500 or blank.'));
         }
-        if ($prefs['vpn'] === 'on' && empty($this->vpnSettings()['enabled'])) {
+        $global = $this->vpnSettings();
+        if ($prefs['vpn'] === 'on' && empty($global['enabled'])) {
             throw new \InvalidArgumentException(_('Enable and configure the global VPN server before enabling VPN for a phone.'));
+        }
+        $usingVpn = !empty($global['enabled']) &&
+            ($prefs['vpn'] === 'on' || ($prefs['vpn'] === 'inherit' && ($global['vpn_default'] ?? 'off') === 'on'));
+        $signingOff = $prefs['sign'] === 'off' ||
+            ($prefs['sign'] === 'inherit' && ($global['sign_default'] ?? 'auto') === 'off');
+        if ($usingVpn && $signingOff) {
+            throw new \InvalidArgumentException(_('A phone using the built-in VPN must also enable signed provisioning.'));
         }
         return $prefs;
     }
