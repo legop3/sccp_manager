@@ -5,9 +5,8 @@ namespace FreePBX\modules\Sccp_manager;
 /**
  * Optional Cisco SCCP VPN profile generation and signed TFTP publishing.
  *
- * No action is taken unless an administrator installs and enables the external
- * config file. This deliberately does not create or rotate signing keys, modify
- * ocserv, or replace the normal SCCP provisioning templates.
+ * Preferences are stored in FreePBX. The packaged privileged helper manages
+ * protected signing keys; ordinary SCCP phones keep normal provisioning.
  */
 class vpnprovisioning
 {
