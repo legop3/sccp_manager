@@ -111,6 +111,7 @@ def render(values):
         "run-as-user = nobody\n"
         "run-as-group = nogroup\n"
         "socket-file = /run/sccp-ocserv-socket\n"
+        "device = vpns\n"
         "server-cert = /etc/ocserv/server-cert.pem\n"
         "server-key = /etc/ocserv/server-key.pem\n"
         "tcp-port = {tcp}\n"
