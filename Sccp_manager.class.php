@@ -240,7 +240,6 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         return array_merge(array(
             'enabled' => false,
             'managed_signer' => true,
-            'devices' => array(), // previous MAC allowlist, retained during migration
             'vpn_default' => 'off',
             'sign_default' => 'auto',
             'gateway' => '',
