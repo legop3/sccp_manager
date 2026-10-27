@@ -166,14 +166,20 @@ class vpnprovisioning
     public function publish($deviceId, $xmlPath)
     {
         $settings = $this->settings();
-        if (empty($settings['enabled'])) {
-            return;
-        }
         $deviceId = strtoupper((string) $deviceId);
         if (!preg_match('/^SEP[0-9A-F]{12}$/D', $deviceId)) {
             return;
         }
         $itlPath = dirname($xmlPath) . '/ITL' . $deviceId . '.tlv';
+        if (empty($settings['enabled'])) {
+            // Silently generating only unsigned XML can strand a phone that
+            // already trusts signed provisioning. Refuse instead of reporting
+            // a misleading successful regenerate operation.
+            if (is_file($itlPath)) {
+                throw new \RuntimeException('Existing Cisco ITL requires signed provisioning; enable VPN management before regenerating this phone');
+            }
+            return;
+        }
         if (!$this->enabledFor($deviceId) && !is_file($itlPath)) {
             return;
         }
