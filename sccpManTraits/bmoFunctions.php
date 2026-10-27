@@ -13,6 +13,17 @@ trait bmoFunctions {
 */
 
     public function doConfigPageInit($page) {
+        if ($page === 'sccp_vpn') {
+            if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' &&
+                ($_POST['save_vpn'] ?? '') === '1') {
+                try {
+                    $this->vpnSaveFromPost($_POST);
+                } catch (\Throwable $e) {
+                    $this->vpnPageError = $e->getMessage();
+                }
+            }
+            return;
+        }
         if ($page == "extensions") {
         }
         $this->doGeneralPost();
