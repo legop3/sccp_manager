@@ -243,7 +243,11 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             'vpn_default' => 'off',
             'sign_default' => 'auto',
             'gateway' => '',
-            'mtu' => 1290
+            'mtu' => 1290,
+            'pbx_ip' => '',
+            'vpn_subnet' => '10.254.77.0/24',
+            'udp_port' => 443,
+            'max_same_clients' => 0
         ), is_array($stored) ? $stored : array());
     }
 
@@ -261,7 +265,11 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             'vpn_default' => $vpnDefault,
             'sign_default' => $signDefault,
             'gateway' => trim((string) ($post['vpn_gateway'] ?? '')),
-            'mtu' => (int) ($post['vpn_mtu'] ?? 1290)
+            'mtu' => (int) ($post['vpn_mtu'] ?? 1290),
+            'pbx_ip' => trim((string) ($post['vpn_pbx_ip'] ?? '')),
+            'vpn_subnet' => trim((string) ($post['vpn_subnet'] ?? '10.254.77.0/24')),
+            'udp_port' => (int) ($post['vpn_udp_port'] ?? 443),
+            'max_same_clients' => (int) ($post['vpn_max_same_clients'] ?? 0)
         ));
         if (!empty($settings['enabled'])) {
             \FreePBX\modules\Sccp_manager\vpnprovisioning::validateGateway($settings['gateway']);
@@ -273,8 +281,16 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             $settings['sign_default'] === 'off') {
             throw new \InvalidArgumentException(_('VPN-enabled phones require signed provisioning; change the signing default.'));
         }
+        if ($settings['enabled']) {
+            // Configure the actual VPN server before committing the form.
+            // On a clean installation this creates its TLS certificate,
+            // isolated ocserv config, server pool and systemd service.
+            $result = $this->vpnprovisioning->configureManagedServer($settings);
+            $this->vpnPageMessage = _('Cisco VPN server configured and running. Phone defaults saved.');
+        } else {
+            $this->vpnPageMessage = _('Phone VPN provisioning disabled. Existing VPN service is not stopped automatically.');
+        }
         $this->setConfig('vpn_provisioning', $settings);
-        $this->vpnPageMessage = _('Server defaults saved. Individual phones can override VPN and signing in Phones Manager.');
     }
 
     /**
