@@ -1,0 +1,59 @@
+name: SCCP Manager VPN preview package
+
+on:
+  push:
+    branches:
+      - feature/vpn-provisioning
+
+permissions:
+  contents: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: openssl, dom, simplexml
+      - name: Verify included module, PHP, and integration tests
+        run: |
+          php -l install.php
+          php -l Sccp_manager.class.php
+          php -l sccpManClasses/vpnprovisioning.class.php
+          php -l sccpManClasses/xmlinterface.class.php
+          php -l page.sccp_vpn.php
+          php -r 'simplexml_load_file("module.xml") ?: exit(1);'
+          python3 -m py_compile scripts/sccp-manager-vpn-helper
+          bash -n scripts/install-vpn-helper.sh
+          php tests/vpn-provisioning.php
+          git clone --depth 1 https://github.com/usecallmanagernz/certutils.git /tmp/certutils-test
+          python3 -m venv /tmp/vpn-checks
+          /tmp/vpn-checks/bin/pip install cryptography
+          /tmp/vpn-checks/bin/python tests/test_vpn_helper.py /tmp/certutils-test
+      - name: Make FreePBX module tarball
+        run: |
+          mkdir -p "$RUNNER_TEMP/vpn-package/sccp_manager"
+          rsync -a --exclude=.git --exclude=.github --exclude=tests \
+            ./ "$RUNNER_TEMP/vpn-package/sccp_manager/"
+          tar -C "$RUNNER_TEMP/vpn-package" -czf sccp_manager.tar.gz sccp_manager
+          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/module.xml
+          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/vendor/certutils/sgnfile
+          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-vpn-helper
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sccp-manager-vpn-tarball
+          path: sccp_manager.tar.gz
+      - name: Publish fork-only preview asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view vpn-preview-17.1.2 >/dev/null 2>&1; then
+            gh release create vpn-preview-17.1.2 \
+              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.2 VPN preview" \
+              --notes "Development build from feature/vpn-provisioning. Not upstream. Test on a backed-up FreePBX installation." \
+              --prerelease --latest=false sccp_manager.tar.gz
+          else
+            gh release upload vpn-preview-17.1.2 sccp_manager.tar.gz --clobber
+          fi
