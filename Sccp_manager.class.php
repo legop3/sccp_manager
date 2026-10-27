@@ -237,57 +237,41 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
 
     public function vpnSettings() {
         $stored = $this->getConfig('vpn_provisioning');
-        return is_array($stored) ? $stored : array(
+        return array_merge(array(
             'enabled' => false,
             'managed_signer' => true,
-            'devices' => array(),
+            'devices' => array(), // previous MAC allowlist, retained during migration
+            'vpn_default' => 'off',
+            'sign_default' => 'auto',
             'gateway' => '',
-            'mtu' => 1290,
-            'server_certificate' => '',
-            'tftp_certificate' => '',
-            'sast_certificate' => '',
-            'sgnfile' => '',
-            'tlvfile' => ''
-        );
+            'mtu' => 1290
+        ), is_array($stored) ? $stored : array());
     }
 
     public function vpnSaveFromPost(array $post) {
-        $devices = preg_split('/\s+/', trim((string) ($post['vpn_devices'] ?? '')), -1, PREG_SPLIT_NO_EMPTY);
-        $devices = array_values(array_unique(array_map('strtoupper', $devices ?: array())));
-        $settings = array(
+        $old = $this->vpnSettings();
+        $vpnDefault = (string) ($post['vpn_default'] ?? 'off');
+        $signDefault = (string) ($post['sign_default'] ?? 'auto');
+        if (!in_array($vpnDefault, array('on', 'off'), true) ||
+            !in_array($signDefault, array('auto', 'on', 'off'), true)) {
+            throw new \InvalidArgumentException(_('Invalid global provisioning default.'));
+        }
+        $settings = array_merge($old, array(
             'enabled' => ($post['vpn_enabled'] ?? '') === '1',
             'managed_signer' => true,
-            'devices' => $devices,
+            'vpn_default' => $vpnDefault,
+            'sign_default' => $signDefault,
             'gateway' => trim((string) ($post['vpn_gateway'] ?? '')),
-            'mtu' => (int) ($post['vpn_mtu'] ?? 1290),
-            'server_certificate' => trim((string) ($post['vpn_server_certificate'] ?? '')),
-            'tftp_certificate' => trim((string) ($post['vpn_tftp_certificate'] ?? '')),
-            'sast_certificate' => trim((string) ($post['vpn_sast_certificate'] ?? '')),
-            'sgnfile' => trim((string) ($post['vpn_sgnfile'] ?? '')),
-            'tlvfile' => trim((string) ($post['vpn_tlvfile'] ?? ''))
-        );
-        if ($settings['enabled']) {
-            if (!$devices) {
-                throw new \InvalidArgumentException(_('Select at least one phone before enabling VPN provisioning.'));
-            }
-            foreach ($devices as $device) {
-                if (!preg_match('/^SEP[0-9A-F]{12}$/D', $device)) {
-                    throw new \InvalidArgumentException(_('Phone IDs must be SEP followed by twelve hex digits.'));
-                }
-            }
-            $url = parse_url($settings['gateway']);
-            if ($url === false || ($url['scheme'] ?? '') !== 'https' ||
-                empty($url['host']) || isset($url['user']) || isset($url['pass']) || isset($url['fragment'])) {
-                throw new \InvalidArgumentException(_('Enter a valid HTTPS VPN gateway URL.'));
-            }
-            if ($settings['mtu'] < 576 || $settings['mtu'] > 1500) {
-                throw new \InvalidArgumentException(_('VPN MTU must be between 576 and 1500.'));
-            }
-            // Managed signing uses a fixed, root-owned helper and does not
-            // expose private certificate paths to the FreePBX web process.
+            'mtu' => (int) ($post['vpn_mtu'] ?? 1290)
+        ));
+        if (!empty($settings['enabled'])) {
+            \FreePBX\modules\Sccp_manager\vpnprovisioning::validateGateway($settings['gateway']);
+        }
+        if ($settings['mtu'] < 576 || $settings['mtu'] > 1500) {
+            throw new \InvalidArgumentException(_('VPN MTU must be between 576 and 1500.'));
         }
         $this->setConfig('vpn_provisioning', $settings);
-        $this->vpnPageMessage = _('VPN provisioning settings saved. Regenerate selected phone configurations to publish signed files.');
+        $this->vpnPageMessage = _('Server defaults saved. Individual phones can override VPN and signing in Phones Manager.');
     }
 
     /**
@@ -340,25 +324,34 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         $this->vpnPageMessage = _('Managed ocserv service started.');
     }
 
+    /** Rebuild phones that need VPN profiles or signed configurations. */
     public function vpnRegenerateSelected() {
-        $settings = $this->vpnSettings();
-        if (empty($settings['enabled'])) {
-            throw new \RuntimeException(_('Enable VPN provisioning before regenerating phones.'));
-        }
-        $devices = $settings['devices'] ?? array();
-        if (!$devices) {
-            throw new \RuntimeException(_('No phones selected.'));
-        }
+        $devices = $this->dbinterface->getSccpDeviceTableData('SccpDevice', array('type' => 'cisco'));
+        $updated = 0;
         $errors = array();
-        foreach ($devices as $device) {
-            if (!$this->createSccpDeviceXML($device)) {
-                $errors[] = $device;
+        foreach ((array) $devices as $row) {
+            if (!is_array($row) || empty($row['name'])) {
+                continue;
+            }
+            $id = (string) $row['name'];
+            if (!preg_match('/^SEP[0-9A-F]{12}$/D', $id)) {
+                continue;
+            }
+            $effective = $this->vpnprovisioning->resolvedSettings($id);
+            $itl = $this->sccppath['tftp_store_path'] . '/ITL' . $id . '.tlv';
+            if (!$effective['vpn'] && $effective['sign'] !== 'on' && !is_file($itl)) {
+                continue;
+            }
+            if (!$this->createSccpDeviceXML($id)) {
+                $errors[] = $id;
+            } else {
+                $updated++;
             }
         }
         if ($errors) {
-            throw new \RuntimeException(_('Configuration generation failed for: ') . implode(', ', $errors));
+            throw new \RuntimeException(_('Provisioning failed for: ') . implode(', ', $errors));
         }
-        $this->vpnPageMessage = sprintf(_('Regenerated and signed %d phone configurations.'), count($devices));
+        $this->vpnPageMessage = sprintf(_('Successfully regenerated %d managed phone configurations.'), $updated);
     }
 
     /*
