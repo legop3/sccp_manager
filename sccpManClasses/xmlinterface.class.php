@@ -444,7 +444,27 @@ class xmlinterface
         // the exact opposite of what the change set out to do.
         $this->addAddOnModules($xml_work, $dev_config);
 
+        // Optional Cisco SSL VPN provisioning. Absent configuration is a no-op,
+        // and existing non-VPN phones continue to use their normal templates.
+        $vpn = new vpnprovisioning($this->paren_class);
+        try {
+            $vpn->apply($xml_work, $safe_dev_id);
+        } catch (\Throwable $e) {
+            freepbx_log(FPBX_LOG_ERROR, 'sccp_manager: VPN profile generation failed for ' . $safe_dev_id . ': ' . $e->getMessage());
+            return false;
+        }
+
         $this->saveXml($xml_work, $xml_name);  // Save
+
+        // A phone which has installed its ITL expects a freshly signed config
+        // every time FreePBX regenerates it. Report signing errors instead of
+        // silently claiming successful provisioning.
+        try {
+            $vpn->publish($safe_dev_id, $xml_name);
+        } catch (\Throwable $e) {
+            freepbx_log(FPBX_LOG_ERROR, 'sccp_manager: signed provisioning failed for ' . $safe_dev_id . ': ' . $e->getMessage());
+            return false;
+        }
 
         return time();
     }
