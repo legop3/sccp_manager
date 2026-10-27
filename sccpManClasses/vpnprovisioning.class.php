@@ -105,6 +105,12 @@ class vpnprovisioning
         }
         $saved = $this->parent->getConfig('vpn_device_' . $deviceId);
         if (!is_array($saved)) {
+            // Display a legacy allowlisted phone as explicitly enabled.
+            // Otherwise saving its normal phone form would silently convert
+            // old VPN "on" into inherited global "off".
+            if (in_array($deviceId, $this->settings()['devices'], true)) {
+                $defaults['vpn'] = 'on';
+            }
             return $defaults;
         }
         return array_merge($defaults, array_intersect_key($saved, $defaults));
