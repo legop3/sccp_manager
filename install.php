@@ -16,6 +16,52 @@ global $cnf_int;
 global $sccp_compatible;
 global $cnf_wr;
 
+
+// SCCP Manager VPN is bundled with the module. Install the root-owned signer,
+// its vendored dependencies and the existing ocserv service integration during
+// a root-run Module Admin upgrade. The web UI cannot grant root privileges;
+// when it runs without root, show an actionable setup status rather than
+// pretending the privileged service was installed.
+if (!function_exists('sccp_manager_vpn_install')) {
+    function sccp_manager_vpn_install()
+    {
+        $script = __DIR__ . '/scripts/install-vpn-helper.sh';
+        if (!is_file($script)) {
+            return false;
+        }
+        if (!function_exists('posix_geteuid') || posix_geteuid() !== 0) {
+            outn('<li>' . _('SCCP VPN: privileged setup pending. Run the module upgrade once using root-level fwconsole to finish automatic setup.') . '</li>');
+            return false;
+        }
+        $output = array();
+        $exitCode = 0;
+        exec('/bin/bash ' . escapeshellarg($script) . ' 2>&1', $output, $exitCode);
+        if ($exitCode !== 0) {
+            outn('<li>' . _('SCCP VPN component setup failed: ') .
+                htmlspecialchars(implode("\n", array_slice($output, -12)), ENT_QUOTES) . '</li>');
+            return false;
+        }
+        outn('<li>' . _('SCCP VPN components ready (bundled signing tools, managed service and keys).') . '</li>');
+        return true;
+    }
+}
+
+// Avoid running the legacy full SCCP schema/realtime/driver installer on an
+// ordinary update of an already working Nortien installation. VPN uses BMO's
+// key/value settings store, so no SQL schema migration is needed.
+$alreadyInstalledSccp = false;
+try {
+    $existing = $db->query("SELECT COUNT(*) FROM sccpsettings WHERE keyword = 'sccp_compatible'");
+    $alreadyInstalledSccp = $existing && (int) $existing->fetchColumn() > 0;
+} catch (\Throwable $ignored) {
+    // A new installation has no table yet and follows the regular installer.
+}
+if ($alreadyInstalledSccp) {
+    sccp_manager_vpn_install();
+    outn('<li>' . _('Existing SCCP devices, server configuration and driver were preserved.') . '</li>');
+    return;
+}
+
 // review 2026-09, vestigial switch: $mobile_hw is '0' here and assigned nowhere else, so the two
 // branches it guards never run - the alternative schema $db_config_v4M in Get_DB_config() and the
 // CREATE of the sccpuserconfig view in InstallDbCreateViews() (whose DROP runs unconditionally, so
@@ -150,6 +196,7 @@ chownTftpTree();
 
 outn("<br>");
 outn("Install Complete !");
+sccp_manager_vpn_install();
 outn("<br>");
 
 // Functions follow
