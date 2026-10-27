@@ -4,7 +4,6 @@
 // realtime columns (which must contain only valid driver settings).
 $deviceVpn = $this->vpnprovisioning->deviceSettings($dev_id ?? '');
 $globalVpn = $this->vpnSettings();
-$effectiveVpn = $this->vpnprovisioning->resolvedSettings($dev_id ?? '');
 $vpnEscape = function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 };
@@ -13,7 +12,7 @@ $vpnChoices = array('inherit' => _('Use server default'), 'on' => _('Enabled'), 
 <fieldset class="sccp-device-vpn">
     <legend><?php echo _('VPN & Signed Provisioning'); ?></legend>
     <p class="help-block">
-        <?php echo _('These settings apply to this Cisco phone. Server-wide defaults, VPN gateway, accounts and signing keys are managed in SCCP Connectivity > Server Config > VPN Phones.'); ?>
+        <?php echo _('Save this device to update its VPN configuration and signed provisioning automatically. VPN server settings and signing keys are managed under SCCP Connectivity > Server Config > VPN Phones.'); ?>
     </p>
     <div class="element-container">
         <div class="row"><div class="form-group">
@@ -25,7 +24,6 @@ $vpnChoices = array('inherit' => _('Use server default'), 'on' => _('Enabled'), 
                     <?php endforeach; ?>
                 </select>
                 <p class="help-block"><?php echo _('The server default is currently: '), !empty($globalVpn['enabled']) && (($globalVpn['vpn_default'] ?? 'off') === 'on') ? _('Enabled') : _('Disabled'); ?>.
-                    <?php if (!empty($effectiveVpn['legacy'])) echo _('This phone was previously enabled in the global MAC list.'); ?>
                 </p>
             </div>
         </div></div>
