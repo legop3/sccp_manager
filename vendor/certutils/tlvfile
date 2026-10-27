@@ -1,0 +1,624 @@
+#!/usr/bin/env python3
+#
+# Copyright (c) 2020 Gareth Palmer <gareth.palmer3@gmail.com>
+# This program is free software, distributed under the terms of
+# the GNU General Public License Version 2.
+
+import sys
+import os
+import os.path
+import struct
+import binascii
+from datetime import datetime
+import time
+import getopt
+import traceback
+
+from cryptography import x509
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa, ec
+
+
+HEADER_VERSION = 1
+HEADER_LENGTH = 2
+HEADER_SIGNER_INFO = 3
+HEADER_SIGNER_NAME = 4
+HEADER_SERIAL_NUMBER = 5
+HEADER_ISSUER_NAME = 6
+HEADER_SIGNATURE_INFO = 7
+HEADER_HASH_ALGORITHM = 8
+HEADER_SIGNATURE_ALGORITHM_INFO = 9
+HEADER_SIGNATURE_ALGORITHM = 10
+HEADER_SIGNATURE_MODULUS = 11
+HEADER_SIGNATURE = 12
+HEADER_PADDING = 13
+HEADER_FILENAME = 14
+HEADER_TIMESTAMP = 15
+HEADER_SIGNER_VERSION = 28
+
+RECORD_LENGTH = 1
+RECORD_DNS_NAME = 2
+RECORD_SUBJECT_NAME = 3
+RECORD_ROLE = 4
+RECORD_ISSUER_NAME = 5
+RECORD_SERIAL_NUMBER = 6
+RECORD_PUBLIC_KEY = 7
+RECORD_SIGNATURE = 8
+RECORD_CERTIFICATE = 9
+RECORD_IP_ADDRESS = 10
+RECORD_CERTIFICATE_HASH = 11
+RECORD_HASH_ALGORITHM = 12
+
+HASH_SHA1 = 1
+HASH_SHA256 = 2
+HASH_SHA512 = 3
+
+ROLE_SAST = 0
+ROLE_CCM = 1
+ROLE_CCM_TFTP = 2
+ROLE_TFTP = 3
+ROLE_CAPF = 4
+ROLE_APP_SERVER = 7
+ROLE_TVS = 21
+
+
+class ProgramError(Exception):
+    pass
+
+
+def parse_tlv_file(tlv_file):
+    try:
+        with open(tlv_file, 'rb') as file:
+            tlv_data = file.read()
+
+    except (PermissionError, FileNotFoundError, IsADirectoryError) as error:
+        raise ProgramError(f'{error.strerror}: {error.filename}')
+
+    tlv_index = 0
+
+    (tlv_tag, tlv_length) = struct.unpack_from('> B H', tlv_data, tlv_index)
+    tlv_index += 3
+
+    if tlv_tag != HEADER_VERSION:
+        raise ProgramError(f'Tag is not header version: {tlv_tag}')
+
+    (major, minor) = struct.unpack_from('B B', tlv_data, tlv_index)
+    tlv_index += tlv_length
+
+    version = f'{major}.{minor}'
+    print(f'Version:          {version}')
+
+    (tlv_tag, tlv_length) = struct.unpack_from('> B H', tlv_data, tlv_index)
+    tlv_index += 3
+
+    if tlv_tag != HEADER_LENGTH:
+        raise ProgramError(f'Tag is not header length: {tlv_tag}')
+
+    (header_length,) = struct.unpack_from('> H', tlv_data, tlv_index)
+    tlv_index += tlv_length
+
+    print(f'Header Length:    {header_length} bytes')
+
+    sast_serial_number = None
+    sast_certificate = None
+    hash_algorithm = None
+    signature_index = None
+    signature_length = None
+
+    while tlv_index < header_length:
+        tlv_tag = tlv_data[tlv_index]
+        tlv_index += 1
+
+        if tlv_tag == HEADER_PADDING:
+            continue
+
+        (tlv_length,) = struct.unpack_from('> H', tlv_data, tlv_index)
+        tlv_index += 2
+
+        if tlv_tag in (HEADER_SIGNER_INFO, HEADER_SIGNATURE_INFO, HEADER_SIGNATURE_ALGORITHM_INFO):
+            continue
+
+        if tlv_tag == HEADER_SIGNER_VERSION:
+            (major, minor) = struct.unpack_from('B B', tlv_data, tlv_index)
+
+            print(f'Signer Version:   {major}.{minor}')
+
+        elif tlv_tag == HEADER_SIGNER_NAME:
+            signer_name = tlv_data[tlv_index:tlv_index + tlv_length]
+            signer_name = signer_name[:-1].decode('utf-8')
+
+            print(f'Signer Name:      {signer_name}')
+
+        elif tlv_tag == HEADER_SERIAL_NUMBER:
+            serial_number = binascii.hexlify(tlv_data[tlv_index:tlv_index + tlv_length])
+            serial_number = serial_number.decode('utf-8')
+
+            print(f'Serial Number:    {serial_number}')
+
+            sast_serial_number = serial_number
+
+        elif tlv_tag == HEADER_ISSUER_NAME:
+            issuer_name = tlv_data[tlv_index:tlv_index + tlv_length]
+            issuer_name = issuer_name[:-1].decode('utf-8')
+
+            print(f'Issuer Name:      {issuer_name}')
+
+        elif tlv_tag == HEADER_HASH_ALGORITHM:
+            hash_algorithm = tlv_data[tlv_index]
+
+            print('Digest Algorithm: ', end = '')
+
+            if hash_algorithm == HASH_SHA1:
+                print('SHA1')
+            elif hash_algorithm == HASH_SHA512:
+                print('SHA512')
+            else:
+                print(f'{hash_algorithm}')
+
+        elif tlv_tag in (HEADER_SIGNATURE_ALGORITHM, HEADER_SIGNATURE_MODULUS):
+            pass
+
+        elif tlv_tag == HEADER_SIGNATURE:
+            signature = tlv_data[tlv_index:tlv_index + tlv_length]
+
+            print(f'Signature:        {len(signature)} bytes')
+
+            signature_index = tlv_index - 3
+            signature_length = tlv_length
+
+        elif tlv_tag == HEADER_FILENAME:
+            filename = tlv_data[tlv_index:tlv_index + tlv_length]
+            filename = filename[:-1].decode('utf-8')
+
+            print(f'Filename:         {filename}')
+
+        elif tlv_tag == HEADER_TIMESTAMP:
+            (timestamp,) = struct.unpack_from('> I', tlv_data, tlv_index)
+            timestamp = datetime.fromtimestamp(timestamp)
+
+            print(timestamp.strftime('Timestamp:        %Y-%m-%d %H:%M:%S'))
+
+        else:
+            raise ProgramError(f'Unknown header tag: {tlv_tag}')
+
+        tlv_index += tlv_length
+
+    print('')
+
+    if sast_serial_number is None:
+        raise ProgramError('Missing header serial number')
+
+    if hash_algorithm is None:
+        raise ProgramError('Missing header hash algorithm')
+
+    if hash_algorithm not in (HASH_SHA1, HASH_SHA512):
+        raise ProgramError(f'Unsupported header hash algorithm: {hash_algorithm}')
+
+    if signature_index is None:
+        raise ProgramError('Missing header signature')
+
+    while tlv_index < len(tlv_data):
+        record_index = tlv_index
+
+        (tlv_tag, tlv_length) = struct.unpack_from('> B H', tlv_data, tlv_index)
+        tlv_index += 3
+
+        if tlv_tag != RECORD_LENGTH:
+            raise ProgramError(f'Tag is not record length: {tlv_tag}')
+
+        (record_length,) = struct.unpack_from('> H', tlv_data, tlv_index)
+        tlv_index += tlv_length
+
+        print(f'Record Length:    {record_length} bytes')
+
+        role = None
+        serial_number = None
+        certificate = None
+
+        while tlv_index < record_index + record_length:
+            (tlv_tag, tlv_length) = struct.unpack_from('> B H', tlv_data, tlv_index)
+            tlv_index += 3
+
+            if tlv_tag == RECORD_DNS_NAME:
+                dns_name = tlv_data[tlv_index:tlv_index + tlv_length]
+                dns_name = dns_name[:-1].decode('utf-8')
+
+                print(f'DNS Name:         {dns_name}')
+
+            elif tlv_tag == RECORD_SUBJECT_NAME:
+                subject_name = tlv_data[tlv_index:tlv_index + tlv_length]
+                subject_name = subject_name[:-1].decode('utf-8')
+
+                print(f'Subject Name:     {subject_name}')
+
+            elif tlv_tag == RECORD_ROLE:
+                (role,) = struct.unpack_from('> H', tlv_data, tlv_index)
+
+                print('Role:             ', end = '')
+
+                if role == ROLE_SAST:
+                    print('SAST')
+                elif role == ROLE_CCM:
+                    print('CCM')
+                elif role == ROLE_CCM_TFTP:
+                    print('CCM+TFTP')
+                elif role == ROLE_TFTP:
+                    print('TFTP')
+                elif role == ROLE_CAPF:
+                    print('CAPF')
+                elif role == ROLE_APP_SERVER:
+                    print('APP-SERVER')
+                elif role == ROLE_TVS:
+                    print('TVS')
+                else:
+                    print(f'{role}')
+
+            elif tlv_tag == RECORD_ISSUER_NAME:
+                issuer_name = tlv_data[tlv_index:tlv_index + tlv_length]
+                issuer_name = issuer_name[:-1].decode('utf-8')
+
+                print(f'Issuer Name:      {issuer_name}')
+
+            elif tlv_tag == RECORD_SERIAL_NUMBER:
+                serial_number = binascii.hexlify(tlv_data[tlv_index:tlv_index + tlv_length])
+                serial_number = serial_number.decode('utf-8')
+
+                print(f'Serial Numer:     {serial_number}')
+
+            elif tlv_tag == RECORD_PUBLIC_KEY:
+                public_key = tlv_data[tlv_index:tlv_index + tlv_length]
+
+                print(f'Public Key:       {len(public_key)} bytes')
+
+            elif tlv_tag == RECORD_SIGNATURE:
+                signature = tlv_data[tlv_index:tlv_index + tlv_length]
+
+                print(f'Signature:        {len(signature)} bytes')
+
+            elif tlv_tag == RECORD_CERTIFICATE:
+                certificate = tlv_data[tlv_index:tlv_index + tlv_length]
+
+                print(f'Certificate:      {len(certificate)} bytes')
+
+                try:
+                    certificate = x509.load_der_x509_certificate(certificate)
+                except ValueError:
+                    raise ProgramError('Invalid certificate')
+
+                public_key = certificate.public_key()
+
+                if isinstance(public_key, rsa.RSAPublicKey):
+                    print('Key Algorithm:    RSA')
+                elif isinstance(public_key, ec.EllipticCurvePublicKey):
+                    print('Key Algorithm:    EC')
+                else:
+                    raise ProgramError('Unsupported record certificate type')
+
+                certificate_hash = certificate.fingerprint(hashes.SHA1())
+                certificate_hash = binascii.hexlify(certificate_hash).decode('utf-8')
+
+                print(f'Certificate Hash: {certificate_hash}')
+
+            elif tlv_tag == RECORD_CERTIFICATE_HASH:
+                certificate_hash = tlv_data[tlv_index:tlv_index + tlv_length]
+                certificate_hash = binascii.hexlify(certificate_hash).decode('utf-8')
+
+                print(f'Certificate Hash: {certificate_hash}')
+
+            elif tlv_tag in (RECORD_HASH_ALGORITHM, RECORD_IP_ADDRESS):
+                pass
+
+            else:
+                raise ProgramError(f'Unknown record tag: {tlv_tag}')
+
+            tlv_index += tlv_length
+
+        if role == ROLE_SAST and serial_number == sast_serial_number:
+            sast_certificate = certificate
+
+        print('')
+
+    if sast_certificate is None:
+        raise ProgramError('Missing record with role SAST')
+
+    public_key = sast_certificate.public_key()
+
+    signature = tlv_data[signature_index + 3:signature_index + 3 + signature_length]
+    tlv_data = tlv_data[:signature_index] + tlv_data[signature_index + 3 + signature_length:]
+
+    try:
+        public_key.verify(signature, tlv_data, padding.PKCS1v15(), hashes.SHA512() if hash_algorithm == HASH_SHA512 else hashes.SHA1())
+
+        print('Valid signature')
+    except InvalidSignature:
+        print('Invalid signature')
+
+
+def build_tlv_file(tlv_file, sast_certificate_file, version, hash_algorithm, filename, certificate_records):
+    try:
+        with open(sast_certificate_file, 'rb') as file:
+            certificate = private_key = file.read()
+
+    except (PermissionError, FileNotFoundError, IsADirectoryError) as error:
+        raise ProgramError(f'{error.strerror}: {error.filename}')
+
+    try:
+        certificate = x509.load_pem_x509_certificate(certificate)
+    except ValueError:
+        raise ProgramError(f'No certificate in file: {sast_certificate_file}')
+
+    public_key = certificate.public_key()
+
+    if not isinstance(public_key, rsa.RSAPublicKey):
+        raise ProgramError(f'No RSA public-key in file: {sast_certificate_file}')
+
+    try:
+        private_key = serialization.load_pem_private_key(private_key, None)
+    except ValueError:
+        raise ProgramError(f'No private-key in file: {sast_certificate_file}')
+
+    if not isinstance(private_key, rsa.RSAPrivateKey):
+        raise ProgramError(f'No RSA private-key in file: {sast_certificate_file}')
+
+    signature_length = private_key.key_size // 8
+
+    tlv_data = bytearray()
+    tlv_data += struct.pack('> B H B B', HEADER_VERSION, 2, 1, 2)
+
+    header_length_index = len(tlv_data)
+    tlv_data += struct.pack('> B H H', HEADER_LENGTH, 2, 0)
+
+    signer_name = ','.join([attribute.rfc4514_string() for attribute in certificate.subject]).encode('utf-8') + b'\x00'
+    issuer_name = ','.join([attribute.rfc4514_string() for attribute in certificate.issuer]).encode('utf-8') + b'\x00'
+
+    serial_number = certificate.serial_number
+    serial_number = serial_number.to_bytes((serial_number.bit_length() + 7) // 8, byteorder = 'big')
+
+    signer_info = (struct.pack('> B H', HEADER_SIGNER_NAME, len(signer_name)) + signer_name +
+                   struct.pack('> B H', HEADER_SERIAL_NUMBER, len(serial_number)) + serial_number +
+                   struct.pack('> B H', HEADER_ISSUER_NAME, len(issuer_name)) + issuer_name)
+
+    tlv_data += struct.pack('> B H', HEADER_SIGNER_INFO, len(signer_info)) + signer_info
+    tlv_data += struct.pack('> B H', HEADER_SIGNATURE_INFO, 15)
+    tlv_data += struct.pack('> B H B', HEADER_HASH_ALGORITHM, 1, HASH_SHA512 if hash_algorithm == 'sha512' else HASH_SHA1)
+
+    tlv_data += struct.pack('> B H', HEADER_SIGNATURE_ALGORITHM_INFO, 8)
+    tlv_data += struct.pack('> B H B', HEADER_SIGNATURE_ALGORITHM, 1, 0)
+    tlv_data += struct.pack('> B H B', HEADER_SIGNATURE_MODULUS, 1, [64, 128, 256, 512].index(signature_length))
+
+    # Index where the signature will be inserted
+    signature_index = len(tlv_data)
+
+    filename = filename.encode('utf-8') + b'\x00'
+
+    tlv_data += struct.pack('> B H', HEADER_FILENAME, len(filename)) + filename
+    tlv_data += struct.pack('> B H I', HEADER_TIMESTAMP, 4, int(time.time()))
+
+    (major, minor) = version.split('.')
+    tlv_data += struct.pack('> B H B B', HEADER_SIGNER_VERSION, 2, int(major), int(minor))
+
+    # Pad to 4 byte boundary
+    while (len(tlv_data) + 3 + signature_length) % 4:
+        tlv_data.append(HEADER_PADDING)
+
+    header_length = len(tlv_data) + 3 + signature_length
+    struct.pack_into('> H', tlv_data, header_length_index + 3, header_length)
+
+    for certificate_file, role in certificate_records:
+        try:
+            with open(certificate_file, 'rb') as file:
+                certificate = file.read()
+
+        except (PermissionError, FileNotFoundError, IsADirectoryError) as error:
+            raise ProgramError(f'{error.strerror}: {error.filename}')
+
+        try:
+            certificate = x509.load_pem_x509_certificate(certificate)
+        except ValueError:
+            raise ProgramError(f'No certificate in file: {certificate_file}')
+
+        public_key = certificate.public_key()
+
+        if not isinstance(public_key, (rsa.RSAPublicKey, ec.EllipticCurvePublicKey)):
+            raise ProgramError(f'No RSA or EC public-key in file: {certificate_file}')
+
+        record_length_index = len(tlv_data)
+        tlv_data += struct.pack('> B H H', RECORD_LENGTH, 2, 0)
+
+        subject_name = ','.join([attribute.rfc4514_string() for attribute in certificate.subject]).encode('utf-8') + b'\x00'
+        issuer_name = ','.join([attribute.rfc4514_string() for attribute in certificate.issuer]).encode('utf-8') + b'\x00'
+
+        serial_number = certificate.serial_number
+        serial_number = serial_number.to_bytes((serial_number.bit_length() + 7) // 8, byteorder = 'big')
+
+        tlv_data += struct.pack('> B H', RECORD_SUBJECT_NAME, len(subject_name)) + subject_name
+        tlv_data += struct.pack('> B H', RECORD_ISSUER_NAME, len(issuer_name)) + issuer_name
+        tlv_data += struct.pack('> B H', RECORD_SERIAL_NUMBER, len(serial_number)) + serial_number
+
+        tlv_data += struct.pack('> B H', RECORD_ROLE, 2)
+
+        if role == 'SAST':
+            tlv_data += struct.pack('> H', ROLE_SAST)
+        elif role == 'CCM':
+            tlv_data += struct.pack('> H', ROLE_CCM)
+        elif role == 'CCM+TFTP':
+            tlv_data += struct.pack('> H', ROLE_CCM_TFTP)
+        elif role == 'TFTP':
+            tlv_data += struct.pack('> H', ROLE_TFTP)
+        elif role == 'CAPF':
+            tlv_data += struct.pack('> H', ROLE_CAPF)
+        elif role == 'APP-SERVER':
+            tlv_data += struct.pack('> H', ROLE_APP_SERVER)
+        elif role == 'TVS':
+            tlv_data += struct.pack('> H', ROLE_TVS)
+        else:
+            raise ProgramError(f'Unsupported record role: {role}')
+
+        if isinstance(public_key, rsa.RSAPublicKey):
+            public_key = public_key.public_bytes(serialization.Encoding.DER, serialization.PublicFormat.PKCS1)
+        elif isinstance(public_key, ec.EllipticCurvePublicKey):
+            public_key = public_key.public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+        else:
+            raise ProgramError('Unsupported certificate public-key type')
+
+        tlv_data += struct.pack('> B H', RECORD_PUBLIC_KEY, len(public_key)) + public_key
+
+        signature = certificate.signature
+        certificate = certificate.public_bytes(serialization.Encoding.DER)
+
+        tlv_data += struct.pack('> B H', RECORD_SIGNATURE, len(signature)) + signature
+        tlv_data += struct.pack('> B H', RECORD_CERTIFICATE, len(certificate)) + certificate
+
+        record_length = len(tlv_data) - record_length_index
+        struct.pack_into('> H', tlv_data, record_length_index + 3, record_length)
+
+    tlv_data = bytes(tlv_data)
+    signature = private_key.sign(tlv_data, padding.PKCS1v15(), hashes.SHA512() if hash_algorithm == 'sha512' else hashes.SHA1())
+
+    try:
+        with open(tlv_file, 'wb') as file:
+            file.write(tlv_data[:signature_index])
+            file.write(struct.pack('> B H', HEADER_SIGNATURE, len(signature)) + signature)
+            file.write(tlv_data[signature_index:])
+
+    except (PermissionError, IsADirectoryError) as error:
+        raise ProgramError(f'{error.strerror}: {error.filename}')
+
+    print(f'Built {tlv_file}')
+
+
+def main():
+    try:
+        short_options = 'pbv:d:F:s:c:C:t:A:a:T:H'
+        long_options = ['parse', 'build', 'version=', 'digest=', 'filename=', 'sast=', 'ccm=', 'ccm-tftp=', 'tftp=', 'capf=', 'app-server=', 'tvs=', 'help']
+
+        mode = None
+        tlv_file = None
+        version = '1.0'
+        hash_algorithm = 'sha1'
+        filename = None
+        certificate_records = []
+        sast_certificate_file = None
+        help = False
+
+        try:
+            options, arguments = getopt.gnu_getopt(sys.argv[1:], short_options, long_options)
+        except getopt.GetoptError as error:
+            raise ProgramError(error.msg[0].upper() + error.msg[1:] +
+                               '. Try \'' + os.path.basename(sys.argv[0]) + ' --help\' for more information')
+
+        for option, argument in options:
+            if option in ('-p', '--parse'):
+                mode = 'parse'
+
+            elif option in ('-b', '--build'):
+                mode = 'build'
+
+            elif option in ('-v', '--version'):
+                version = argument
+
+                if version not in ('1.0', '1.1'):
+                    raise ProgramError(f'Invalid version: {version}')
+
+            elif option in ('-d', '--digest'):
+                hash_algorithm = argument
+
+                if hash_algorithm not in ('sha1', 'sha512'):
+                    raise ProgramError(f'Invalid digest: {hash_algorithm}')
+
+            elif option in ('-F', '--filename'):
+                filename = argument
+
+            elif option in ('-s', '--sast'):
+                certificate_file = argument
+                certificate_records.append((certificate_file, 'SAST'))
+
+                # First SAST certificate is used for signing
+                if sast_certificate_file is None:
+                    sast_certificate_file = certificate_file
+
+            elif option in ('-c', '--ccm'):
+                certificate_file = argument
+                certificate_records.append((certificate_file, 'CCM'))
+
+            elif option in ('-C', '--ccm-tftp'):
+                certificate_file = argument
+                certificate_records.append((certificate_file, 'CCM+TFTP'))
+
+            elif option in ('-t', '--tftp'):
+                certificate_file = argument
+                certificate_records.append((certificate_file, 'TFTP'))
+
+            elif option in ('-A', '--capf'):
+                certificate_file = argument
+                certificate_records.append((certificate_file, 'CAPF'))
+
+            elif option in ('-a', '--app-server'):
+                certificate_file = argument
+                certificate_records.append((certificate_file, 'APP-SERVER'))
+
+            elif option in ('-T', '--tvs'):
+                certificate_file = argument
+                certificate_records.append((certificate_file, 'TVS'))
+
+            elif option in ('-H', '--help'):
+                help = True
+
+        if help:
+            print('Usage: ' + os.path.basename(sys.argv[0]) + ' [OPTIONS] TLV-FILE\n'
+                  'Parse or build .tlv files.\n'
+                  '\n'
+                  '  -p, --parse                       parse the specified .tlv file\n'
+                  '  -b, --build                       build new .tlv file using options below\n'
+                  '  -v, --version VERSION             signer version: 1.0 or 1.1 (default 1.0)\n'
+                  '  -d, --digest ALGORITHM            digest algorithm for signature: sha1 or sha512 (default sha1)\n'
+                  '  -F, --filename NAME               file name to store in .tlv header\n'
+                  '  -s, --sast SAST-CERT-FILE         add certificate with SAST role\n'
+                  '  -c, --ccm CCM-CERT-FILE           add certificate with CCM role\n'
+                  '  -t, --tftp TFTP-CERT-FILE         add certificate with TFTP role\n'
+                  '  -C, --ccm-tftp CCM-CERT-FILE      add certificate with CCM+TFTP role\n'
+                  '  -A, --capf CAPF-CERT-FILE         add certificate with CAPF role\n'
+                  '  -a, --app-server APP-CERT-FILE    add certificate with APP-SERVER role\n'
+                  '  -T, --tvs TVS-CERT-FILE           add certificate with TVS role\n'
+                  '  -H, --help                        print this help and exit\n')
+
+            return
+
+        if mode is None:
+            raise ProgramError('No mode specified (either parse or build). Try --help')
+
+        if len(arguments):
+            tlv_file = arguments[0]
+
+        if tlv_file is None:
+            raise ProgramError('No .tlv file specified')
+
+        if not tlv_file.endswith('.tlv'):
+            raise ProgramError(f'File name does not end with .tlv: {tlv_file}')
+
+        if mode == 'parse':
+            parse_tlv_file(tlv_file)
+
+        elif mode == 'build':
+            if filename is None:
+                filename = os.path.basename(tlv_file)
+
+            if sast_certificate_file is None:
+                raise ProgramError('No SAST certificate file specified')
+
+            build_tlv_file(tlv_file, sast_certificate_file, version, hash_algorithm, filename, certificate_records)
+
+    except ProgramError as error:
+        print(str(error), file = sys.stderr)
+        exit(1)
+
+    except Exception:
+        traceback.print_exc(file = sys.stderr)
+        exit(1)
+
+    exit(0)
+
+
+if __name__ == '__main__':
+    main()
