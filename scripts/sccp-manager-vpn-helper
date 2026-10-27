@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import stat
 import re
 import shutil
 import ssl
@@ -138,6 +139,84 @@ def status():
 def start_service():
     run(["systemctl", "enable", "--now", SYSTEMD_SERVICE])
     print("Service enabled and started")
+
+
+def set_account(username):
+    # Manage only the configured plain-password file, without modifying other
+    # VPN users. Input is received over stdin, never command arguments or logs.
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", username):
+        raise ValueError("Invalid VPN login username")
+    config = Path("/etc/ocserv/ocserv.conf").read_text(encoding="utf-8")
+    if not re.search(r'^\s*auth\s*=\s*"plain\[passwd=/etc/ocserv/ocpasswd\]"\s*
+    if os.geteuid() != 0:
+        raise PermissionError("This helper must run as root")
+    if len(sys.argv) == 2 and sys.argv[1] == "hash":
+        certificate_hash()
+    elif len(sys.argv) == 2 and sys.argv[1] == "status":
+        status()
+    elif len(sys.argv) == 2 and sys.argv[1] == "start":
+        start_service()
+    elif len(sys.argv) == 3 and sys.argv[1] == "sign":
+        sign(sys.argv[2])
+    elif len(sys.argv) == 3 and sys.argv[1] == "set-account":
+        set_account(sys.argv[2])
+    else:
+        raise ValueError("Usage: sccp-manager-vpn-helper hash|status|start|sign SEP<MAC>|set-account LOGIN")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
+        print("sccp-manager-vpn-helper: " + str(exc), file=sys.stderr)
+        sys.exit(1)
+, config, re.MULTILINE):
+        raise RuntimeError("ocserv must use auth = \"plain[passwd=/etc/ocserv/ocpasswd]\" for account management")
+    password = sys.stdin.buffer.readline(1025).rstrip(b"\r\n")
+    if not password or len(password) > 1024:
+        raise ValueError("Password is empty or too long")
+    result = subprocess.run(["/usr/bin/openssl", "passwd", "-6", "-stdin"],
+                            input=password + b"\n", capture_output=True, check=True)
+    encoded = result.stdout.decode("ascii").strip()
+    if not encoded.startswith("$6$"):
+        raise RuntimeError("OpenSSL returned an unexpected password hash")
+
+    target = Path("/etc/ocserv/ocpasswd")
+    if target.is_symlink():
+        raise RuntimeError("Refusing to update a symlinked password database")
+    entries = target.read_text().splitlines() if target.is_file() else []
+    updated = []
+    found = False
+    for line in entries:
+        if not line or line.startswith("#"):
+            updated.append(line)
+            continue
+        fields = line.split(":", 2)
+        if len(fields) != 3:
+            raise RuntimeError("Unexpected existing ocpasswd format")
+        if fields[0] == username:
+            updated.append(username + ":" + fields[1] + ":" + encoded)
+            found = True
+        else:
+            updated.append(line)
+    if not found:
+        updated.append(username + "::" + encoded)
+    with tempfile.NamedTemporaryFile(prefix=".sccp-ocpasswd-", dir=str(target.parent),
+                                     mode="w", encoding="utf-8", delete=False) as tmp:
+        temp_name = tmp.name
+        tmp.write("\n".join(updated) + "\n")
+    try:
+        if target.is_file():
+            st = target.stat()
+            os.chown(temp_name, st.st_uid, st.st_gid)
+            os.chmod(temp_name, stat.S_IMODE(st.st_mode) & 0o600)
+        else:
+            os.chmod(temp_name, 0o600)
+        os.replace(temp_name, target)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+    print("VPN login updated:", username)
 
 
 def main():
