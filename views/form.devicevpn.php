@@ -30,6 +30,19 @@ $vpnChoices = array('inherit' => _('Use server default'), 'on' => _('Enabled'), 
     </div>
     <div class="element-container">
         <div class="row"><div class="form-group">
+            <div class="col-md-3"><label for="sccp_vpn_auto_detect"><?php echo _('Automatic VPN connection'); ?></label></div>
+            <div class="col-md-9">
+                <select class="form-control" name="sccp_vpn_auto_detect" id="sccp_vpn_auto_detect">
+                    <?php foreach ($vpnChoices as $id => $title): ?>
+                        <option value="<?php echo $vpnEscape($id); ?>" <?php echo $deviceVpn['auto_detect'] === $id ? 'selected' : ''; ?>><?php echo $vpnEscape($title); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="help-block"><?php echo _('Enabled: attempt VPN automatically when TFTP is unreachable, such as when the phone is plugged in off-site. Disabled: VPN must be activated from the phone menu. Server default: '), !empty($globalVpn['auto_detect_default']) ? _('Enabled') : _('Disabled'); ?>.</p>
+            </div>
+        </div></div>
+    </div>
+    <div class="element-container">
+        <div class="row"><div class="form-group">
             <div class="col-md-3"><label for="sccp_sign_mode"><?php echo _('Signed configurations'); ?></label></div>
             <div class="col-md-9">
                 <select class="form-control" name="sccp_sign_mode" id="sccp_sign_mode">
