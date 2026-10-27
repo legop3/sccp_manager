@@ -37,6 +37,18 @@ jobs:
           python3 -m venv /tmp/vpn-checks
           /tmp/vpn-checks/bin/pip install cryptography
           /tmp/vpn-checks/bin/python tests/test_vpn_helper.py /tmp/certutils-test
+      - name: Start managed ocserv from a clean install (integration smoke test)
+        run: |
+          id asterisk || sudo useradd --system --no-create-home asterisk
+          sudo mkdir -p /tftpboot
+          sudo bash scripts/install-vpn-helper.sh
+          sudo -u asterisk sudo -n /usr/local/libexec/sccp-manager-vpn-helper status
+          printf '%s' '{"gateway":"https://vpn.example.test:4443/svc","pbx_ip":"192.168.0.25","vpn_subnet":"10.254.77.0/24","udp_port":443,"max_same_clients":0}' |
+            sudo /usr/local/libexec/sccp-manager-vpn-helper configure
+          sudo systemctl is-active --quiet sccp-ocserv.service
+          python3 -c 'import socket; s=socket.create_connection(("127.0.0.1",4443),5); s.close()'
+          sudo -u asterisk sudo -n /usr/local/libexec/sccp-manager-vpn-helper hash
+          sudo systemctl stop sccp-ocserv.service
       - name: Make FreePBX module tarball
         run: |
           mkdir -p "$RUNNER_TEMP/vpn-package/sccp_manager"
