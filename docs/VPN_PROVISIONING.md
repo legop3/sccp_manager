@@ -5,12 +5,13 @@ a second companion module or a separate tool checkout.
 
 ## Server settings
 
-Find **SCCP Connectivity > Server Config > VPN Phones**. Configure:
+Find **SCCP Connectivity > Server Config > VPN & Signing**. Configure:
 
 - Whether the Cisco built-in VPN provisioning is available.
 - VPN gateway URL (HTTPS URI, such as `https://vpn.example.net:4443/svc`).
 - Global default for new phones: VPN on/off (default off).
 - Signed configuration default: automatic, always, or disabled.
+- Automatic VPN connection when away from local TFTP (default on).
 - Default tunnel MTU (1290 in the tested 7945G deployment).
 - View the existing ocserv status and manage its shared username/password.
 
@@ -26,6 +27,7 @@ Within **VPN & Signed Provisioning**, select:
 
 - Built-in VPN: inherit server default, enabled or disabled.
 - Signed configurations: inherit, enabled or disabled.
+- Automatic VPN connection: inherit, enabled or disabled.
 - Optional VPN gateway override for this one phone.
 - Optional VPN MTU override for this one phone.
 
@@ -53,14 +55,18 @@ its own isolated server on the first VPN settings Save. A TLS certificate is
 generated automatically if one does not exist; existing certificates and
 signing keys are never rotated silently. The reference deployment used
 TCP 4443 and UDP 443, ocserv Cisco SVC compatibility, and the phone's
-built-in Cisco VPN client. SCCP Manager configures TCP and UDP custom services in FreePBX Firewall,
-and assigns the phone VPN pool to its internal zone when that module is
-installed. The router must still forward the chosen TCP/UDP ports to FreePBX.
-If FreePBX Firewall is absent, SCCP Manager leaves other host firewalls alone.
+built-in Cisco VPN client. SCCP Manager saves TCP and UDP custom services in
+FreePBX Firewall and assigns the phone VPN pool to its internal zone when
+that module is installed. Saving VPN settings NEVER starts or restarts FreePBX
+Firewall: an earlier version unexpectedly restarted a deliberately stopped
+firewall and locked an administrator out. Firewall policy changes are applied
+separately by the administrator when it is safe to do so. This does not
+configure other host firewalls. The router must still forward the chosen
+TCP/UDP ports to FreePBX.
 
 ## Development and testing
 
-The development build is 17.1.6. Start with one 7945G and use the
+The development build is 17.1.7. Start with one 7945G and use the
 [test installation guide](TEST_INSTALL.md). The automated CI covers PHP
 syntax, VPN XML generation, per-phone defaults/overrides, signing and ITL
 handling, and real certutils signing. It has not yet been validated against
