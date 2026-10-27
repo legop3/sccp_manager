@@ -19,5 +19,9 @@ jobs:
         run: |
           php -l sccpManClasses/vpnprovisioning.class.php
           php -l sccpManClasses/xmlinterface.class.php
+          php -l Sccp_manager.class.php
+          php -l sccpManTraits/bmoFunctions.php
+          php -l page.sccp_vpn.php
+          php -r 'simplexml_load_file("module.xml") ?: exit(1);'
       - name: VPN provisioning tests
         run: php tests/vpn-provisioning.php
