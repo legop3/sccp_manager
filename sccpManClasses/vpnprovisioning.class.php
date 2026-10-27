@@ -14,6 +14,7 @@ class vpnprovisioning
     private $configFile;
     private $config;
     private $parent;
+    private const HELPER = '/usr/local/libexec/sccp-manager-vpn-helper';
 
     public function __construct($parent = null, $configFile = null)
     {
@@ -67,10 +68,12 @@ class vpnprovisioning
             isset($parts['fragment'])) {
             throw new \RuntimeException('VPN gateway must be an HTTPS URL without credentials or a fragment');
         }
-        foreach (array('server_certificate', 'tftp_certificate', 'sast_certificate', 'sgnfile', 'tlvfile') as $name) {
-            if (empty($settings[$name]) || !is_string($settings[$name]) ||
-                $settings[$name][0] !== '/') {
-                throw new \RuntimeException("VPN setting {$name} must be an absolute path");
+        if (empty($settings['managed_signer'])) {
+            foreach (array('server_certificate', 'tftp_certificate', 'sast_certificate', 'sgnfile', 'tlvfile') as $name) {
+                if (empty($settings[$name]) || !is_string($settings[$name]) ||
+                    $settings[$name][0] !== '/') {
+                    throw new \RuntimeException("VPN setting {$name} must be an absolute path");
+                }
             }
         }
         return $this->config = $settings;
@@ -115,16 +118,23 @@ class vpnprovisioning
         if (!$this->enabledFor($deviceId)) {
             return;
         }
-        $certificate = file_get_contents($settings['server_certificate']);
-        if ($certificate === false ||
-            !preg_match('/-----BEGIN CERTIFICATE-----\s*(.*?)\s*-----END CERTIFICATE-----/s', $certificate, $matches)) {
-            throw new \RuntimeException('Cannot read the VPN server PEM certificate');
+        if (!empty($settings['managed_signer'])) {
+            $hash = trim($this->runHelper(array('hash')));
+            if (!preg_match('/^[A-Za-z0-9+\/]{27}=$/D', $hash)) {
+                throw new \RuntimeException('The privileged helper returned an invalid VPN certificate hash');
+            }
+        } else {
+            $certificate = file_get_contents($settings['server_certificate']);
+            if ($certificate === false ||
+                !preg_match('/-----BEGIN CERTIFICATE-----\s*(.*?)\s*-----END CERTIFICATE-----/s', $certificate, $matches)) {
+                throw new \RuntimeException('Cannot read the VPN server PEM certificate');
+            }
+            $der = base64_decode(preg_replace('/\s+/', '', $matches[1]), true);
+            if ($der === false || openssl_x509_read($certificate) === false) {
+                throw new \RuntimeException('VPN server certificate is invalid');
+            }
+            $hash = base64_encode(sha1($der, true));
         }
-        $der = base64_decode(preg_replace('/\s+/', '', $matches[1]), true);
-        if ($der === false || openssl_x509_read($certificate) === false) {
-            throw new \RuntimeException('VPN server certificate is invalid');
-        }
-        $hash = base64_encode(sha1($der, true));
         $mtu = isset($settings['mtu']) ? (int) $settings['mtu'] : 1290;
         if ($mtu < 576 || $mtu > 1500) {
             throw new \RuntimeException('VPN MTU must be between 576 and 1500');
@@ -186,6 +196,13 @@ class vpnprovisioning
         if (!is_file($xmlPath)) {
             throw new \RuntimeException('Cannot sign a nonexistent phone configuration');
         }
+        if (!empty($settings['managed_signer'])) {
+            $this->runHelper(array('sign', $deviceId));
+            if (!is_file($xmlPath . '.sgn') || !is_file($itlPath)) {
+                throw new \RuntimeException('Managed signer failed to publish the signed configuration and ITL');
+            }
+            return;
+        }
         if (!is_file($itlPath)) {
             $this->run(array(
                 $settings['tlvfile'], '--build', $itlPath,
@@ -204,6 +221,23 @@ class vpnprovisioning
         if (!is_file($xmlPath . '.sgn')) {
             throw new \RuntimeException('Signing utility did not produce the signed configuration');
         }
+    }
+
+    public function managedStatus()
+    {
+        $output = $this->runHelper(array('status'));
+        $status = json_decode($output, true);
+        return is_array($status) ? $status : array('service' => 'unknown');
+    }
+
+    public function startManagedService()
+    {
+        return $this->runHelper(array('start'));
+    }
+
+    private function runHelper(array $args)
+    {
+        return $this->run(array_merge(array('sudo', '-n', self::HELPER), $args));
     }
 
     private function run(array $command)
@@ -226,7 +260,8 @@ class vpnprovisioning
         fclose($pipes[1]);
         fclose($pipes[2]);
         if (proc_close($process) !== 0) {
-            throw new \RuntimeException('VPN signing utility failed: ' . trim($stderr ?: $stdout));
+            throw new \RuntimeException('VPN command failed: ' . trim($stderr ?: $stdout));
         }
+        return (string) $stdout;
     }
 }
