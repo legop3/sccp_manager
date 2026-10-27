@@ -116,6 +116,7 @@ if (!empty($def_val['type']['data'])) {
         echo $this->showGroup('sccp_hw_dev_conference', 1, 'sccp_hw', $def_val);
         echo $this->showGroup('sccp_dev_vendor_conf', 1, 'vendorconfig', $def_val);
         echo $this->showGroup('sccp_hw_dev_network', 1, 'sccp_hw', $def_val);
+        include __DIR__ . '/form.devicevpn.php';
 
     } else if ($_REQUEST['tech_hardware'] == 'cisco-sip') {
         echo '<input type="hidden" name="sccp_device_typeid" value="sipdevice">';
