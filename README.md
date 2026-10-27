@@ -1,13 +1,16 @@
 # SCCP Manager
 
-> **Development build 17.1.4 — integrated Cisco phone VPN.** The
-> [installable preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.4)
+> **Development build 17.1.5 — self-contained Cisco phone VPN setup.** The
+> [installable preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.5)
 > bundles SCCP Manager, Cisco VPN profile generation, signed provisioning,
-> certificate tooling and managed ocserv integration. No separate helper install.
+> signing utilities and ocserv server installation/configuration. No separate
+> helper, VPN server package, certificate script, or manual ocserv config required.
 > On an existing working PBX, a **root-run FreePBX module upgrade** installs
 > its own protected system components. See [first-test and rollback instructions](docs/TEST_INSTALL.md).
 > A web-only upgrade may lack the root privileges needed for the systemd/signing setup.
-> Neither the PBX nor Cisco hardware has been integration-tested with this new module yet.
+> Automated tests include installing ocserv on a clean VM, generating a certificate,
+> parsing the server configuration and starting a live listening service. The final
+> FreePBX/7945G provisioning test must still be done on real hardware.
 >
 
 FreePBX module that runs Cisco SCCP ("Skinny") desk phones through the [chan-sccp](https://github.com/nortien/chan-sccp) driver, with no Cisco CallManager involved. Phones, lines, buttons, speed dials with busy lamps (BLF), softkey sets, phone models and the per-phone configuration files (`SEP<MAC>.cnf.xml`, fetched by the phone over TFTP) are all managed from the FreePBX GUI. New to the terms? The wiki has a [glossary](https://github.com/nortien/sccp_manager/wiki/Glossary).
