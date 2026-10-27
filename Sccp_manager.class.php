@@ -242,6 +242,7 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             'managed_signer' => true,
             'vpn_default' => 'off',
             'sign_default' => 'auto',
+            'auto_detect_default' => true,
             'gateway' => '',
             'mtu' => 1290,
             'pbx_ip' => '',
@@ -264,6 +265,7 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             'managed_signer' => true,
             'vpn_default' => $vpnDefault,
             'sign_default' => $signDefault,
+            'auto_detect_default' => ($post['vpn_auto_detect_default'] ?? '') === '1',
             'gateway' => trim((string) ($post['vpn_gateway'] ?? '')),
             'mtu' => (int) ($post['vpn_mtu'] ?? 1290),
             'pbx_ip' => trim((string) ($post['vpn_pbx_ip'] ?? '')),
@@ -312,10 +314,11 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         $prefs = array(
             'vpn' => (string) ($post['sccp_vpn_mode'] ?? 'inherit'),
             'sign' => (string) ($post['sccp_sign_mode'] ?? 'inherit'),
+            'auto_detect' => (string) ($post['sccp_vpn_auto_detect'] ?? 'inherit'),
             'gateway' => trim((string) ($post['sccp_vpn_gateway'] ?? '')),
             'mtu' => trim((string) ($post['sccp_vpn_mtu'] ?? ''))
         );
-        foreach (array('vpn', 'sign') as $key) {
+        foreach (array('vpn', 'sign', 'auto_detect') as $key) {
             if (!in_array($prefs[$key], array('inherit', 'on', 'off'), true)) {
                 throw new \InvalidArgumentException(_('Invalid phone provisioning mode.'));
             }
