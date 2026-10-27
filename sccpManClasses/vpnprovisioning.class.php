@@ -27,9 +27,6 @@ class vpnprovisioning
         if ($this->config !== null) {
             return $this->config;
         }
-        // FreePBX's BMO key/value store is authoritative when configured
-        // through the module UI. A local JSON file remains a migration/CLI
-        // fallback for installations predating that interface.
         $settings = null;
         if ($this->parent !== null && method_exists($this->parent, 'getConfig')) {
             $saved = $this->parent->getConfig('vpn_provisioning');
@@ -37,10 +34,7 @@ class vpnprovisioning
                 $settings = $saved;
             }
         }
-        if ($settings === null) {
-            if (!is_file($this->configFile)) {
-                return $this->config = array('enabled' => false);
-            }
+        if ($settings === null && is_file($this->configFile)) {
             $contents = file_get_contents($this->configFile);
             if ($contents === false) {
                 throw new \RuntimeException('Cannot read VPN provisioning configuration');
@@ -50,25 +44,35 @@ class vpnprovisioning
                 throw new \RuntimeException('VPN provisioning configuration is not valid JSON');
             }
         }
-        if (!isset($settings['enabled']) || $settings['enabled'] !== true) {
-            return $this->config = array('enabled' => false);
+        if ($settings === null) {
+            $settings = array();
         }
-        if (empty($settings['devices']) || !is_array($settings['devices'])) {
-            throw new \RuntimeException('VPN provisioning needs a nonempty devices allowlist');
+        $settings += array(
+            'enabled' => false,
+            'devices' => array(),
+            'managed_signer' => true,
+            'vpn_default' => 'off',
+            'sign_default' => 'auto',
+            'gateway' => '',
+            'mtu' => 1290
+        );
+        if (!in_array($settings['vpn_default'], array('on', 'off'), true)) {
+            throw new \RuntimeException('Invalid global VPN default');
         }
-        foreach ($settings['devices'] as $device) {
-            if (!is_string($device) || !preg_match('/^SEP[0-9A-F]{12}$/D', $device)) {
-                throw new \RuntimeException('VPN device IDs must be SEP followed by twelve hexadecimal digits');
+        if (!in_array($settings['sign_default'], array('auto', 'on', 'off'), true)) {
+            throw new \RuntimeException('Invalid global signing default');
+        }
+        if (!is_array($settings['devices'])) {
+            throw new \RuntimeException('Legacy VPN device list must be an array');
+        }
+        if (!empty($settings['enabled'])) {
+            self::validateGateway((string) $settings['gateway']);
+            $mtu = (int) $settings['mtu'];
+            if ($mtu < 576 || $mtu > 1500) {
+                throw new \RuntimeException('VPN MTU must be between 576 and 1500');
             }
         }
-        $url = $settings['gateway'] ?? '';
-        $parts = is_string($url) ? parse_url($url) : false;
-        if ($parts === false || ($parts['scheme'] ?? '') !== 'https' ||
-            empty($parts['host']) || isset($parts['user']) || isset($parts['pass']) ||
-            isset($parts['fragment'])) {
-            throw new \RuntimeException('VPN gateway must be an HTTPS URL without credentials or a fragment');
-        }
-        if (empty($settings['managed_signer'])) {
+        if (empty($settings['managed_signer']) && !empty($settings['enabled'])) {
             foreach (array('server_certificate', 'tftp_certificate', 'sast_certificate', 'sgnfile', 'tlvfile') as $name) {
                 if (empty($settings[$name]) || !is_string($settings[$name]) ||
                     $settings[$name][0] !== '/') {
@@ -79,11 +83,66 @@ class vpnprovisioning
         return $this->config = $settings;
     }
 
+    public static function validateGateway($url)
+    {
+        $parts = is_string($url) ? parse_url($url) : false;
+        if ($parts === false || ($parts['scheme'] ?? '') !== 'https' ||
+            empty($parts['host']) || isset($parts['user']) || isset($parts['pass']) ||
+            isset($parts['fragment'])) {
+            throw new \InvalidArgumentException('VPN gateway must be an HTTPS URL without credentials or a fragment');
+        }
+    }
+
+    public function deviceSettings($deviceId)
+    {
+        $defaults = array('vpn' => 'inherit', 'sign' => 'inherit', 'gateway' => '', 'mtu' => '');
+        $deviceId = strtoupper((string) $deviceId);
+        if (!preg_match('/^SEP[0-9A-F]{12}$/D', $deviceId)) {
+            return $defaults;
+        }
+        if ($this->parent === null || !method_exists($this->parent, 'getConfig')) {
+            return $defaults;
+        }
+        $saved = $this->parent->getConfig('vpn_device_' . $deviceId);
+        if (!is_array($saved)) {
+            return $defaults;
+        }
+        return array_merge($defaults, array_intersect_key($saved, $defaults));
+    }
+
+    public function resolvedSettings($deviceId)
+    {
+        $deviceId = strtoupper((string) $deviceId);
+        $global = $this->settings();
+        $device = $this->deviceSettings($deviceId);
+        $vpnMode = in_array($device['vpn'], array('inherit', 'on', 'off'), true)
+            ? $device['vpn'] : 'inherit';
+        $signMode = in_array($device['sign'], array('inherit', 'on', 'off'), true)
+            ? $device['sign'] : 'inherit';
+        // Migration: the previous global MAC allowlist is honored until each
+        // phone has an explicit per-device setting. An explicit "inherit"
+        // intentionally switches it to the new server-wide default.
+        $hasDeviceRecord = $this->parent !== null && method_exists($this->parent, 'getConfig')
+            && is_array($this->parent->getConfig('vpn_device_' . $deviceId));
+        $legacy = !$hasDeviceRecord &&
+            in_array($deviceId, $global['devices'], true);
+        $vpn = !empty($global['enabled']) &&
+            ($vpnMode === 'on' || ($vpnMode === 'inherit' &&
+            ($legacy || $global['vpn_default'] === 'on')));
+        $sign = $signMode === 'inherit' ? $global['sign_default'] :
+            ($signMode === 'on' ? 'on' : 'off');
+        return array(
+            'vpn' => $vpn,
+            'sign' => $sign,
+            'gateway' => $device['gateway'] !== '' ? $device['gateway'] : $global['gateway'],
+            'mtu' => $device['mtu'] !== '' ? (int) $device['mtu'] : (int) $global['mtu'],
+            'legacy' => $legacy
+        );
+    }
+
     public function enabledFor($deviceId)
     {
-        $settings = $this->settings();
-        return !empty($settings['enabled']) &&
-            in_array(strtoupper((string) $deviceId), $settings['devices'], true);
+        return $this->resolvedSettings($deviceId)['vpn'];
     }
 
     /**
@@ -97,6 +156,7 @@ class vpnprovisioning
         if (empty($settings['enabled'])) {
             return;
         }
+        $effective = $this->resolvedSettings($deviceId);
         $root = dom_import_simplexml($xml);
         $doc = $root->ownerDocument;
         $versionStamp = null;
@@ -115,9 +175,10 @@ class vpnprovisioning
             $root->removeChild($child);
         }
 
-        if (!$this->enabledFor($deviceId)) {
+        if (!$effective['vpn']) {
             return;
         }
+        self::validateGateway($effective['gateway']);
         if (!empty($settings['managed_signer'])) {
             $hash = trim($this->runHelper(array('hash')));
             if (!preg_match('/^[A-Za-z0-9+\/]{27}=$/D', $hash)) {
@@ -135,7 +196,7 @@ class vpnprovisioning
             }
             $hash = base64_encode(sha1($der, true));
         }
-        $mtu = isset($settings['mtu']) ? (int) $settings['mtu'] : 1290;
+        $mtu = (int) $effective['mtu'];
         if ($mtu < 576 || $mtu > 1500) {
             throw new \RuntimeException('VPN MTU must be between 576 and 1500');
         }
@@ -152,7 +213,7 @@ class vpnprovisioning
             $this->element($doc, $vpn, $name, $value);
         }
         $addresses = $doc->createElement('addresses');
-        $this->element($doc, $addresses, 'url1', $settings['gateway']);
+        $this->element($doc, $addresses, 'url1', $effective['gateway']);
         $vpn->appendChild($addresses);
         $credentials = $doc->createElement('credentials');
         $this->element($doc, $credentials, 'hashAlg', '0');
@@ -181,16 +242,15 @@ class vpnprovisioning
             return;
         }
         $itlPath = dirname($xmlPath) . '/ITL' . $deviceId . '.tlv';
-        if (empty($settings['enabled'])) {
-            // Silently generating only unsigned XML can strand a phone that
-            // already trusts signed provisioning. Refuse instead of reporting
-            // a misleading successful regenerate operation.
-            if (is_file($itlPath)) {
-                throw new \RuntimeException('Existing Cisco ITL requires signed provisioning; enable VPN management before regenerating this phone');
+        $trusted = is_file($itlPath);
+        $effective = $this->resolvedSettings($deviceId);
+        $sign = $effective['sign'] === 'on' ||
+            ($effective['sign'] === 'auto' && ($effective['vpn'] || $trusted));
+
+        if (!$sign) {
+            if ($trusted) {
+                throw new \RuntimeException('This phone already has an ITL: signing cannot be disabled without a planned trust migration');
             }
-            return;
-        }
-        if (!$this->enabledFor($deviceId) && !is_file($itlPath)) {
             return;
         }
         if (!is_file($xmlPath)) {
@@ -199,11 +259,11 @@ class vpnprovisioning
         if (!empty($settings['managed_signer'])) {
             $this->runHelper(array('sign', $deviceId));
             if (!is_file($xmlPath . '.sgn') || !is_file($itlPath)) {
-                throw new \RuntimeException('Managed signer failed to publish the signed configuration and ITL');
+                throw new \RuntimeException('Managed signer did not publish signed configuration and ITL');
             }
             return;
         }
-        if (!is_file($itlPath)) {
+        if (!$trusted) {
             $this->run(array(
                 $settings['tlvfile'], '--build', $itlPath,
                 '--filename', 'ITLFile.tlv',
