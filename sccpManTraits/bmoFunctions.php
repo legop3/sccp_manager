@@ -21,6 +21,17 @@ trait bmoFunctions {
                 } catch (\Throwable $e) {
                     $this->vpnPageError = $e->getMessage();
                 }
+            } elseif (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' &&
+                      ($_POST['vpn_action'] ?? '') !== '') {
+                try {
+                    switch ($_POST['vpn_action']) {
+                        case 'start': $this->vpnStartService(); break;
+                        case 'regenerate': $this->vpnRegenerateSelected(); break;
+                        default: throw new \InvalidArgumentException('Unknown VPN operation');
+                    }
+                } catch (\Throwable $e) {
+                    $this->vpnPageError = $e->getMessage();
+                }
             }
             return;
         }
