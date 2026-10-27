@@ -142,48 +142,26 @@ def start_service():
 
 
 def set_account(username):
-    # Manage only the configured plain-password file, without modifying other
-    # VPN users. Input is received over stdin, never command arguments or logs.
+    # Change only this one VPN login; password arrives via stdin, not argv.
     if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", username):
-        raise ValueError("Invalid VPN login username")
+        raise ValueError("Invalid VPN username")
     config = Path("/etc/ocserv/ocserv.conf").read_text(encoding="utf-8")
-    if not re.search(r'^\s*auth\s*=\s*"plain\[passwd=/etc/ocserv/ocpasswd\]"\s*
-    if os.geteuid() != 0:
-        raise PermissionError("This helper must run as root")
-    if len(sys.argv) == 2 and sys.argv[1] == "hash":
-        certificate_hash()
-    elif len(sys.argv) == 2 and sys.argv[1] == "status":
-        status()
-    elif len(sys.argv) == 2 and sys.argv[1] == "start":
-        start_service()
-    elif len(sys.argv) == 3 and sys.argv[1] == "sign":
-        sign(sys.argv[2])
-    elif len(sys.argv) == 3 and sys.argv[1] == "set-account":
-        set_account(sys.argv[2])
-    else:
-        raise ValueError("Usage: sccp-manager-vpn-helper hash|status|start|sign SEP<MAC>|set-account LOGIN")
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
-        print("sccp-manager-vpn-helper: " + str(exc), file=sys.stderr)
-        sys.exit(1)
-, config, re.MULTILINE):
-        raise RuntimeError("ocserv must use auth = \"plain[passwd=/etc/ocserv/ocpasswd]\" for account management")
+    expected = 'auth = "plain[passwd=/etc/ocserv/ocpasswd]"'
+    directives = [line.strip() for line in config.splitlines()
+                  if not line.lstrip().startswith("#")]
+    if expected not in directives:
+        raise RuntimeError("The configured ocserv password file does not match the managed file")
     password = sys.stdin.buffer.readline(1025).rstrip(b"\r\n")
     if not password or len(password) > 1024:
-        raise ValueError("Password is empty or too long")
+        raise ValueError("Password must be between 1 and 1024 bytes")
     result = subprocess.run(["/usr/bin/openssl", "passwd", "-6", "-stdin"],
                             input=password + b"\n", capture_output=True, check=True)
     encoded = result.stdout.decode("ascii").strip()
     if not encoded.startswith("$6$"):
         raise RuntimeError("OpenSSL returned an unexpected password hash")
-
     target = Path("/etc/ocserv/ocpasswd")
     if target.is_symlink():
-        raise RuntimeError("Refusing to update a symlinked password database")
+        raise RuntimeError("Refusing to replace a symlinked password file")
     entries = target.read_text().splitlines() if target.is_file() else []
     updated = []
     found = False
@@ -193,7 +171,7 @@ if __name__ == "__main__":
             continue
         fields = line.split(":", 2)
         if len(fields) != 3:
-            raise RuntimeError("Unexpected existing ocpasswd format")
+            raise RuntimeError("Unrecognized ocpasswd entry")
         if fields[0] == username:
             updated.append(username + ":" + fields[1] + ":" + encoded)
             found = True
@@ -230,8 +208,10 @@ def main():
         start_service()
     elif len(sys.argv) == 3 and sys.argv[1] == "sign":
         sign(sys.argv[2])
+    elif len(sys.argv) == 3 and sys.argv[1] == "set-account":
+        set_account(sys.argv[2])
     else:
-        raise ValueError("Usage: sccp-manager-vpn-helper hash|status|start|sign SEP<MAC>")
+        raise ValueError("Usage: helper hash|status|start|sign DEVICE|set-account USER")
 
 
 if __name__ == "__main__":
