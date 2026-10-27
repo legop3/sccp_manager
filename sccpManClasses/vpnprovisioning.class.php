@@ -11,14 +11,12 @@ namespace FreePBX\modules\Sccp_manager;
  */
 class vpnprovisioning
 {
-    private $configFile;
     private $config;
     private $parent;
     private const HELPER = '/usr/local/libexec/sccp-manager-vpn-helper';
 
-    public function __construct($parent = null, $configFile = null)
+    public function __construct($parent = null)
     {
-        $this->configFile = $configFile ?: '/etc/sccp-manager/vpn-provisioning.json';
         $this->parent = $parent;
     }
 
@@ -27,25 +25,12 @@ class vpnprovisioning
         if ($this->config !== null) {
             return $this->config;
         }
-        $settings = null;
+        $settings = array();
         if ($this->parent !== null && method_exists($this->parent, 'getConfig')) {
-            $saved = $this->parent->getConfig('vpn_provisioning');
-            if (is_array($saved)) {
-                $settings = $saved;
+            $stored = $this->parent->getConfig('vpn_provisioning');
+            if (is_array($stored)) {
+                $settings = $stored;
             }
-        }
-        if ($settings === null && is_file($this->configFile)) {
-            $contents = file_get_contents($this->configFile);
-            if ($contents === false) {
-                throw new \RuntimeException('Cannot read VPN provisioning configuration');
-            }
-            $settings = json_decode($contents, true);
-            if (!is_array($settings) || json_last_error() !== JSON_ERROR_NONE) {
-                throw new \RuntimeException('VPN provisioning configuration is not valid JSON');
-            }
-        }
-        if ($settings === null) {
-            $settings = array();
         }
         $settings += array(
             'enabled' => false,
