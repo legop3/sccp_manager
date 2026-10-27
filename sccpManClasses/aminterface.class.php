@@ -595,21 +595,43 @@ class aminterface
             }
          }
          if (isset($result['Output']) && is_array($result['Output'])) {
-             foreach ($result['Output'] as $aline) {
-                 if (strlen($aline) > 3) {
-                     $temp_strings = explode(' ', $aline);
-                     $cmd_res_key = $temp_strings[0];
-                     foreach ($temp_strings as $test_string) {
-                          if (strpos($test_string, '@')) {
-                            $this_realm = $test_string;
-                            break;
-                          }
-                     }
-                     $cmd_res[$cmd_res_key] = array('message' => $aline, 'realm' => $this_realm, 'status' => strpos($aline, 'connected') ? 'OK' : 'ERROR');
-                 }
-            }
-        }
+             $cmd_res = array_replace($cmd_res, self::parseRealTimeStatusOutput($result['Output']));
+         }
         return $cmd_res;
+    }
+
+    /**
+     * Parse the AMI 'realtime mysql status' output without retaining values
+     * from previous lines. Some versions return lines with no realm at all.
+     */
+    public static function parseRealTimeStatusOutput(array $lines)
+    {
+        $statuses = array();
+        foreach ($lines as $line) {
+            if (!is_string($line) || strlen($line) <= 3) {
+                continue;
+            }
+            $parts = preg_split('/\\s+/', trim($line));
+            $key = $parts[0] ?? '';
+            if ($key === '') {
+                continue;
+            }
+            $realm = '';
+            foreach ($parts as $part) {
+                if (strpos($part, '@') !== false) {
+                    $realm = $part;
+                    break;
+                }
+            }
+            $connected = preg_match('/\\bconnected\\b/i', $line) === 1 &&
+                preg_match('/\\bnot\\s+connected\\b|\\bdisconnected\\b/i', $line) !== 1;
+            $statuses[$key] = array(
+                'message' => $line,
+                'realm' => $realm,
+                'status' => $connected ? 'OK' : 'ERROR'
+            );
+        }
+        return $statuses;
     }
 
     public function get_compatible_sccp($revNumComp=false) {
