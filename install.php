@@ -51,7 +51,7 @@ if (!function_exists('sccp_manager_vpn_install')) {
 // key/value settings store, so no SQL schema migration is needed.
 $alreadyInstalledSccp = false;
 try {
-    $existing = $db->query("SELECT COUNT(*) FROM sccpsettings WHERE keyword = 'sccp_compatible'");
+    $existing = $db->query("SELECT COUNT(*) FROM sccpsettings WHERE keyword = 'SccpDBmodel'");
     $alreadyInstalledSccp = $existing && (int) $existing->fetchColumn() > 0;
 } catch (\Throwable $ignored) {
     // A new installation has no table yet and follows the regular installer.
