@@ -130,6 +130,14 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
             </select>
         </div>
         <div class="form-group">
+            <label for="vpn_auto_detect_default">
+                <input type="checkbox" id="vpn_auto_detect_default" name="vpn_auto_detect_default" value="1"
+                    <?php echo !empty($settings['auto_detect_default']) ? 'checked' : ''; ?>>
+                <?php echo _('Connect automatically when away from the local network'); ?>
+            </label>
+            <p class="help-block"><?php echo _('Recommended for remote Cisco 7945G/7965G/7975G phones. The phone checks whether its TFTP server is reachable and automatically tries the VPN if not. Individual phones can override this in Phones Manager.'); ?></p>
+        </div>
+        <div class="form-group">
             <label for="sign_default"><?php echo _('Signed configuration default'); ?></label>
             <select class="form-control" name="sign_default" id="sign_default">
                 <option value="auto" <?php echo ($settings['sign_default'] ?? 'auto') === 'auto' ? 'selected' : ''; ?>><?php echo _('Automatic — VPN phones and phones already using ITL'); ?></option>
