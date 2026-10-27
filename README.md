@@ -12,7 +12,7 @@
 
 FreePBX module that runs Cisco SCCP ("Skinny") desk phones through the [chan-sccp](https://github.com/nortien/chan-sccp) driver, with no Cisco CallManager involved. Phones, lines, buttons, speed dials with busy lamps (BLF), softkey sets, phone models and the per-phone configuration files (`SEP<MAC>.cnf.xml`, fetched by the phone over TFTP) are all managed from the FreePBX GUI. New to the terms? The wiki has a [glossary](https://github.com/nortien/sccp_manager/wiki/Glossary).
 
-**Current release: 17.1.1**, bundling chan-sccp 4.4.1 · Documentation: [wiki](https://github.com/nortien/sccp_manager/wiki)
+**Upstream release: 17.1.1**, bundling chan-sccp 4.4.1 · Documentation: [wiki](https://github.com/nortien/sccp_manager/wiki)
 
 ## Requirements
 
