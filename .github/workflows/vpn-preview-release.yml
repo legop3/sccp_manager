@@ -84,39 +84,3 @@ jobs:
           else
             gh release upload vpn-preview-17.1.5 sccp_manager.tar.gz --clobber
           fi
- /etc/ocserv/ocpasswd
-          python3 -c 'import socket; s=socket.create_connection(("127.0.0.1",4443),5); s.close()'
-          sudo -u asterisk sudo -n /usr/local/libexec/sccp-manager-vpn-helper hash
-          sudo systemctl stop sccp-ocserv.service
-      - name: Make FreePBX module tarball
-        run: |
-          mkdir -p "$RUNNER_TEMP/vpn-package/sccp_manager"
-          rsync -a --exclude=.git --exclude=.github --exclude=tests \
-            ./ "$RUNNER_TEMP/vpn-package/sccp_manager/"
-          tar -C "$RUNNER_TEMP/vpn-package" -czf sccp_manager.tar.gz sccp_manager
-          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/module.xml
-          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/vendor/certutils/sgnfile
-          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-vpn-helper
-          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-ocserv-setup
-          tar -xOzf sccp_manager.tar.gz sccp_manager/sccpManClasses/aminterface.class.php | grep -q 'parseRealTimeStatusOutput'
-          if tar -xOzf sccp_manager.tar.gz sccp_manager/sccpManClasses/aminterface.class.php | grep -q '\$this_realm'; then
-            echo 'Stale aminterface RealTime parser found in package' >&2
-            exit 1
-          fi
-          tar -xOzf sccp_manager.tar.gz sccp_manager/sccpManTraits/helperFunctions.php | grep -q "externhost'"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sccp-manager-vpn-tarball
-          path: sccp_manager.tar.gz
-      - name: Publish fork-only preview asset
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if ! gh release view vpn-preview-17.1.5 >/dev/null 2>&1; then
-            gh release create vpn-preview-17.1.5 \
-              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.5 VPN preview" \
-              --notes "Development build from feature/vpn-provisioning. Not upstream. Test on a backed-up FreePBX installation." \
-              --prerelease --latest=false sccp_manager.tar.gz
-          else
-            gh release upload vpn-preview-17.1.5 sccp_manager.tar.gz --clobber
-          fi
