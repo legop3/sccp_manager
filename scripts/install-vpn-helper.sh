@@ -1,108 +1,107 @@
 #!/usr/bin/env bash
-# One-time root setup for SCCP Manager's optional VPN helper and service.
-# Does not alter ocserv.conf or replace existing Cisco signing certificates.
+# Internal SCCP Manager VPN deployment hook.
+# Invoked by the root module installer. NOT a separately installed product.
+# Re-running is safe: reuses the existing ocserv settings and Cisco trust keys.
 set -euo pipefail
 
 if [[ "$EUID" -ne 0 ]]; then
-  echo "Run with sudo." >&2
+  echo "SCCP Manager VPN setup needs root permissions" >&2
   exit 1
 fi
-SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
-INSTALL_DIR=/usr/local/libexec/sccp-manager-vpn
+
+MODULE_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
+VENDOR="$MODULE_DIR/vendor/certutils"
+BIN_DIR=/usr/local/libexec/sccp-manager-vpn
 HELPER=/usr/local/libexec/sccp-manager-vpn-helper
-CERT_DIR=/etc/cisco-signing
+KEYS=/etc/cisco-signing
 UNIT=/etc/systemd/system/sccp-ocserv.service
+SUDOERS=/etc/sudoers.d/sccp-manager-vpn
 
-if [[ "$#" -gt 1 ]]; then
-  echo "Usage: sudo bash $0 [path-to-certutils-checkout]" >&2
-  exit 2
-fi
-if [[ "$#" -eq 1 ]]; then
-  CERTUTILS_DIR="$(realpath "$1")"
-else
-  SOURCE_USER="$(id -un)"
-  if [[ -n "$(printenv SUDO_USER || true)" ]]; then SOURCE_USER="$(printenv SUDO_USER)"; fi
-  SOURCE_HOME="$(getent passwd "$SOURCE_USER" | cut -d: -f6)"
-  CERTUTILS_DIR="$SOURCE_HOME/certutils"
-fi
-for name in sgnfile tlvfile mkcert; do
-  [[ -f "$CERTUTILS_DIR/$name" ]] || {
-    echo "Missing $CERTUTILS_DIR/$name; specify the existing certutils directory." >&2
-    exit 1
-  }
+for f in sgnfile tlvfile mkcert; do
+  [[ -f "$VENDOR/$f" ]] || { echo "Bundled certutils missing: $f" >&2; exit 1; }
 done
-[[ -f /etc/ocserv/ocserv.conf ]] || {
-  echo "No ocserv.conf; set up and test ocserv first." >&2
-  exit 1
-}
-OCSERV_BIN=""
-for choice in /usr/local/sbin/ocserv /usr/sbin/ocserv; do
-  if [[ -x "$choice" ]]; then OCSERV_BIN="$choice"; break; fi
-done
-[[ -n "$OCSERV_BIN" ]] || { echo "Cannot find ocserv" >&2; exit 1; }
-command -v python3 >/dev/null
-command -v visudo >/dev/null
-getent passwd asterisk >/dev/null || { echo "Asterisk service account missing" >&2; exit 1; }
+command -v visudo >/dev/null || { echo "sudo/visudo is required" >&2; exit 1; }
+command -v python3 >/dev/null || { echo "Python 3 is required" >&2; exit 1; }
+getent passwd asterisk >/dev/null || { echo "Missing asterisk service account" >&2; exit 1; }
 
-install -d -m 0700 -o root -g root "$CERT_DIR"
-if [[ ! -f "$CERT_DIR/sast.pem" || ! -f "$CERT_DIR/tftp.pem" ]]; then
-  if compgen -G '/tftpboot/ITL*.tlv' >/dev/null; then
-    echo "Existing phone trust lists but signing keys missing; restore original PEMs." >&2
+if ! python3 -c "import cryptography" >/dev/null 2>&1; then
+  if command -v apt-get >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y python3-cryptography
+  else
+    echo "Install the Python cryptography library for your distribution" >&2
     exit 1
   fi
 fi
-if [[ ! -f "$CERT_DIR/sast.pem" ]]; then
-  bash "$CERTUTILS_DIR/mkcert" --common "Cisco-SAST" \
-    --organization "Cisco" --unit "Provisioning" --years 20 \
-    "$CERT_DIR/sast.pem"
+
+install -d -m 0700 -o root -g root "$KEYS"
+if [[ ! -f "$KEYS/sast.pem" || ! -f "$KEYS/tftp.pem" ]]; then
+  if compgen -G '/tftpboot/ITL*.tlv' >/dev/null; then
+    echo "Existing Cisco ITL with missing signing keys; restore the old keys" >&2
+    exit 1
+  fi
 fi
-if [[ ! -f "$CERT_DIR/tftp.pem" ]]; then
-  bash "$CERTUTILS_DIR/mkcert" --common "Cisco-TFTP" \
-    --organization "Cisco" --unit "Provisioning" --years 20 \
-    "$CERT_DIR/tftp.pem"
+if [[ ! -f "$KEYS/sast.pem" ]]; then
+  bash "$VENDOR/mkcert" --common Cisco-SAST \
+    --organization Cisco --unit Provisioning --years 20 "$KEYS/sast.pem"
 fi
-chown root:root "$CERT_DIR/sast.pem" "$CERT_DIR/tftp.pem"
-chmod 0600 "$CERT_DIR/sast.pem" "$CERT_DIR/tftp.pem"
-install -d -m 0755 -o root -g root "$INSTALL_DIR"
-for tool in sgnfile tlvfile; do
-  install -m 0755 -o root -g root "$CERTUTILS_DIR/$tool" "$INSTALL_DIR/$tool"
+if [[ ! -f "$KEYS/tftp.pem" ]]; then
+  bash "$VENDOR/mkcert" --common Cisco-TFTP \
+    --organization Cisco --unit Provisioning --years 20 "$KEYS/tftp.pem"
+fi
+chown root:root "$KEYS/sast.pem" "$KEYS/tftp.pem"
+chmod 0600 "$KEYS/sast.pem" "$KEYS/tftp.pem"
+
+install -d -m 0755 -o root -g root "$BIN_DIR"
+for f in sgnfile tlvfile; do
+  install -m 0755 -o root -g root "$VENDOR/$f" "$BIN_DIR/$f"
 done
-install -m 0755 -o root -g root "$SCRIPT_DIR/sccp-manager-vpn-helper" "$HELPER"
-"$HELPER" status
+install -m 0755 -o root -g root "$MODULE_DIR/scripts/sccp-manager-vpn-helper" "$HELPER"
 
-# Install only a fixed privileged executable, not a module-writable script.
-SUDOERS=/etc/sudoers.d/sccp-manager-vpn
-printf 'asterisk ALL=(root) NOPASSWD: %s\n' "$HELPER" > "$SUDOERS.tmp"
-chown root:root "$SUDOERS.tmp"
-chmod 0440 "$SUDOERS.tmp"
-visudo -cf "$SUDOERS.tmp"
-mv -f "$SUDOERS.tmp" "$SUDOERS"
+# Only this immutable system copy may be invoked as root by FreePBX.
+temp_rule="$(mktemp /etc/sudoers.d/.sccp-vpn-XXXXXX)"
+trap 'rm -f "$temp_rule"' EXIT
+printf 'asterisk ALL=(root) NOPASSWD: %s\n' "$HELPER" > "$temp_rule"
+chown root:root "$temp_rule"
+chmod 0440 "$temp_rule"
+visudo -cf "$temp_rule" >/dev/null
+mv -f "$temp_rule" "$SUDOERS"
 chmod 0440 "$SUDOERS"
+trap - EXIT
 
-# Separate service name avoids rewriting package-managed ocserv.service.
-if [[ ! -e "$UNIT" ]]; then
-  cat > "$UNIT" <<EOF
+# Use an already configured VPN server, avoiding any interruption of
+# current Cisco calls or clobbering of a package-owned ocserv.service.
+OCSERV=""
+for bin in /usr/local/sbin/ocserv /usr/sbin/ocserv; do
+  if [[ -x "$bin" ]]; then OCSERV="$bin"; break; fi
+done
+if [[ -n "$OCSERV" && -f /etc/ocserv/ocserv.conf ]]; then
+  if [[ ! -e "$UNIT" ]]; then
+    cat > "$UNIT" <<EOF
 [Unit]
-Description=SCCP Manager Cisco phone VPN (ocserv)
+Description=SCCP Manager Cisco built-in phone VPN
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=$OCSERV_BIN -f -c /etc/ocserv/ocserv.conf
+ExecStart=$OCSERV -f -c /etc/ocserv/ocserv.conf
 Restart=on-failure
-RestartSec=3s
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
 EOF
-  chown root:root "$UNIT"
-  chmod 0644 "$UNIT"
+    chown root:root "$UNIT"
+    chmod 0644 "$UNIT"
+  fi
+  systemctl daemon-reload
+  systemctl enable sccp-ocserv.service
+  # Do not start a second instance while a manually-started ocserv is running.
+  if ! pgrep -x ocserv >/dev/null; then
+    systemctl start sccp-ocserv.service
+  fi
+else
+  echo "ocserv not configured; signing is installed, VPN service setup pending."
 fi
-systemctl daemon-reload
-systemctl enable sccp-ocserv.service
 
-echo "Helper and service unit installed, existing VPN config untouched."
-echo "Stop a manually running ocserv process before starting the managed service."
-echo "Run: sudo systemctl start sccp-ocserv"
-echo "Verify: sudo -u asterisk sudo -n $HELPER hash"
+echo "SCCP Manager VPN components installed automatically."
