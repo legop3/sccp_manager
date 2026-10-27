@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory(prefix="sccp-vpn-integration-") as tmp:
         path.chmod(0o755)
 
     def make_cert(path, name):
-        subprocess.run([sys.executable, str(CERTUTILS / "mkcert"),
+        subprocess.run(["bash", str(CERTUTILS / "mkcert"),
                         "--common", name, "--organization", "Test",
                         "--unit", "Provisioning", "--years", "1", str(path)],
                        check=True, capture_output=True, text=True)
