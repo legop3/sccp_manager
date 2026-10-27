@@ -233,6 +233,9 @@ class vpnprovisioning
         $effective = $this->resolvedSettings($deviceId);
         $sign = $effective['sign'] === 'on' ||
             ($effective['sign'] === 'auto' && ($effective['vpn'] || $trusted));
+        if ($effective['vpn'] && !$sign) {
+            throw new \RuntimeException('Cisco built-in VPN provisioning requires signed configuration files');
+        }
 
         if (!$sign) {
             if ($trusted) {
