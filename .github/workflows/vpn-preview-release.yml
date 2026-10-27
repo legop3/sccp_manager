@@ -22,6 +22,7 @@ jobs:
           php -l install.php
           php -l Sccp_manager.class.php
           php -l sccpManClasses/vpnprovisioning.class.php
+          php -l sccpManClasses/vpnfirewall.class.php
           php -l sccpManClasses/xmlinterface.class.php
           php -l sccpManClasses/aminterface.class.php
           php -l page.sccp_vpn.php
@@ -29,6 +30,7 @@ jobs:
           python3 -m py_compile scripts/sccp-manager-vpn-helper scripts/sccp-manager-ocserv-setup
           bash -n scripts/install-vpn-helper.sh
           php tests/vpn-provisioning.php
+          php tests/vpn-firewall.php
           sudo apt-get update -qq
           sudo apt-get install -y ocserv
           python3 tests/test_ocserv_setup.py
@@ -76,11 +78,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view vpn-preview-17.1.5 >/dev/null 2>&1; then
-            gh release create vpn-preview-17.1.5 \
-              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.5 VPN preview" \
+          if ! gh release view vpn-preview-17.1.6 >/dev/null 2>&1; then
+            gh release create vpn-preview-17.1.6 \
+              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.6 VPN preview" \
               --notes "Development build from feature/vpn-provisioning. Not upstream. Test on a backed-up FreePBX installation." \
               --prerelease --latest=false sccp_manager.tar.gz
           else
-            gh release upload vpn-preview-17.1.5 sccp_manager.tar.gz --clobber
+            gh release upload vpn-preview-17.1.6 sccp_manager.tar.gz --clobber
           fi
