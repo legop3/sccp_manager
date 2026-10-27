@@ -48,15 +48,17 @@ Resetting a phone is a separate operation from resetting its provisioning
 trust. Do not delete trusted certificates or issue new keys simply to start
 the phone setup over again.
 
-The module's service integration manages an existing ocserv server without
-overwriting its working configuration. The current tested server uses
+The module installs ocserv automatically when it is missing, then configures
+its own isolated server on the first VPN settings Save. A TLS certificate is
+generated automatically if one does not exist; existing certificates and
+signing keys are never rotated silently. The reference deployment used
 TCP 4443 and UDP 443, ocserv Cisco SVC compatibility, and the phone's
-built-in Cisco VPN client. A different VPN backend is not automatically
-installed or substituted by this module.
+built-in Cisco VPN client. Router forwarding and FreePBX firewall policy must
+still permit the specified incoming ports.
 
 ## Development and testing
 
-The development build is 17.1.4. Start with one 7945G and use the
+The development build is 17.1.5. Start with one 7945G and use the
 [test installation guide](TEST_INSTALL.md). The automated CI covers PHP
 syntax, VPN XML generation, per-phone defaults/overrides, signing and ITL
 handling, and real certutils signing. It has not yet been validated against
