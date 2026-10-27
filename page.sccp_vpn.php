@@ -152,7 +152,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
                 value="<?php echo $escape($settings['mtu'] ?? 1290); ?>">
         </div>
         <button type="submit" class="btn btn-primary"><?php echo _('Save settings and configure VPN server'); ?></button>
-        <p class="help-block"><?php echo _('On first setup this creates the VPN server certificate and configuration, enables its service and starts it. The module never regenerates an existing certificate automatically. Forward your configured TCP port and UDP port on your router to the PBX.'); ?></p>
+        <p class="help-block"><?php echo _('On first setup this creates the VPN server certificate and configuration, enables its service and starts it. The module never regenerates an existing certificate automatically. Forward your configured TCP port and UDP port on your router to the PBX. FreePBX Firewall rules are saved but the firewall is never started or restarted by this action; apply those changes separately when ready.'); ?></p>
     </form>
 
     <hr>
