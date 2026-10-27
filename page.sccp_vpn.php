@@ -24,7 +24,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
 ?>
 <div class="container-fluid">
     <h2><?php echo _('Cisco SCCP VPN Phones'); ?></h2>
-    <p><?php echo _('Manage the built-in Cisco phone VPN profile and signed provisioning from FreePBX. Compatible phones connect to your existing ocserv server; SCCP Manager continues managing extensions and ordinary phone settings.'); ?></p>
+    <p><?php echo _('Set Cisco phone VPN and signing defaults here. Choose VPN and signed provisioning individually in Phones Manager, alongside the rest of each device's settings.'); ?></p>
     <?php if ($module->vpnPageMessage): ?>
         <div class="alert alert-success"><?php echo $escape($module->vpnPageMessage); ?></div>
     <?php endif; ?>
@@ -80,17 +80,17 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
     </form>
 
     <hr>
-    <h3><?php echo _('Cisco phone configuration'); ?></h3>
+    <h3><?php echo _('Server defaults for phones'); ?></h3>
+    <p><?php echo _('Configure the VPN concentrator once here. In Phones Manager, each Cisco SCCP device can inherit these defaults or override VPN, signing, gateway, and MTU.'); ?></p>
     <form method="post" action="<?php echo $actionUrl; ?>">
-        <input type="hidden" name="display" value="sccp_vpn">
         <input type="hidden" name="save_vpn" value="1">
         <div class="form-group">
             <label for="vpn_enabled">
                 <input id="vpn_enabled" name="vpn_enabled" type="checkbox" value="1"
                     <?php echo !empty($settings['enabled']) ? 'checked' : ''; ?>>
-                <?php echo _('Enable managed VPN provisioning'); ?>
+                <?php echo _('Enable Cisco built-in VPN provisioning'); ?>
             </label>
-            <p class="help-block"><?php echo _('Only selected Cisco SCCP phones receive the VPN profile. Leave existing signing certificates in place across updates.'); ?></p>
+            <p class="help-block"><?php echo _('This enables the shared VPN gateway for phones. Signed provisioning can be enabled independently of VPN.'); ?></p>
         </div>
         <div class="form-group">
             <label for="vpn_gateway"><?php echo _('VPN gateway URL'); ?></label>
@@ -99,31 +99,39 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
                 value="<?php echo $escape($settings['gateway'] ?? ''); ?>">
         </div>
         <div class="form-group">
-            <label for="vpn_devices"><?php echo _('Phones enabled for built-in VPN (one SEP MAC ID per line)'); ?></label>
-            <textarea id="vpn_devices" name="vpn_devices" rows="6" class="form-control"
-                placeholder="SEP001122334455"><?php echo $escape(implode("\n", (array) ($settings['devices'] ?? array()))); ?></textarea>
+            <label for="vpn_default"><?php echo _('New phone VPN default'); ?></label>
+            <select class="form-control" name="vpn_default" id="vpn_default">
+                <option value="off" <?php echo ($settings['vpn_default'] ?? 'off') === 'off' ? 'selected' : ''; ?>><?php echo _('Disabled unless enabled on the phone'); ?></option>
+                <option value="on" <?php echo ($settings['vpn_default'] ?? 'off') === 'on' ? 'selected' : ''; ?>><?php echo _('Enabled by default for Cisco SCCP phones'); ?></option>
+            </select>
         </div>
         <div class="form-group">
-            <label for="vpn_mtu"><?php echo _('VPN tunnel MTU'); ?></label>
+            <label for="sign_default"><?php echo _('Signed configuration default'); ?></label>
+            <select class="form-control" name="sign_default" id="sign_default">
+                <option value="auto" <?php echo ($settings['sign_default'] ?? 'auto') === 'auto' ? 'selected' : ''; ?>><?php echo _('Automatic — VPN phones and phones already using ITL'); ?></option>
+                <option value="on" <?php echo ($settings['sign_default'] ?? 'auto') === 'on' ? 'selected' : ''; ?>><?php echo _('Sign all Cisco SCCP phone configurations'); ?></option>
+                <option value="off" <?php echo ($settings['sign_default'] ?? 'auto') === 'off' ? 'selected' : ''; ?>><?php echo _('Unsigned by default unless enabled on the phone'); ?></option>
+            </select>
+            <p class="help-block"><?php echo _('A device with an existing trusted ITL cannot be changed to unsigned provisioning without an intentional trust reset. Signing certificates stay outside the TFTP directory.'); ?></p>
+        </div>
+        <div class="form-group">
+            <label for="vpn_mtu"><?php echo _('Default VPN tunnel MTU'); ?></label>
             <input type="number" class="form-control" id="vpn_mtu" name="vpn_mtu" min="576" max="1500"
                 value="<?php echo $escape($settings['mtu'] ?? 1290); ?>">
-            <p class="help-block"><?php echo _('1290 worked with Cisco 7945G and ocserv 1.3.0.'); ?></p>
         </div>
-        <button type="submit" class="btn btn-primary"><?php echo _('Save VPN settings'); ?></button>
+        <button type="submit" class="btn btn-primary"><?php echo _('Save server defaults'); ?></button>
     </form>
 
     <hr>
-    <h3><?php echo _('Publish signed phone configurations'); ?></h3>
-    <p><?php echo _('After saving, regenerate the selected phones to create or update each signed configuration and trust list. Signing uses a root-owned helper; keys stay outside the web server.'); ?></p>
+    <h3><?php echo _('Regenerate managed phone configurations'); ?></h3>
+    <p><?php echo _('Normally saving a phone in Phones Manager generates its XML and signs it when required. Use this button after changing a global setting to update managed Cisco phones without editing each phone.'); ?></p>
     <form method="post" action="<?php echo $actionUrl; ?>">
-        <input type="hidden" name="display" value="sccp_vpn">
         <input type="hidden" name="vpn_action" value="regenerate">
-        <button type="submit" class="btn btn-default"
-            <?php echo !$helperReady || empty($settings['enabled']) ? 'disabled' : ''; ?>>
-            <?php echo _('Regenerate and sign selected phones'); ?>
+        <button type="submit" class="btn btn-default" <?php echo !$helperReady ? 'disabled' : ''; ?>>
+            <?php echo _('Regenerate managed phones'); ?>
         </button>
     </form>
     <p class="help-block">
-        <?php echo _('The first VPN profile/trust-list download must happen while a phone can reach the TFTP server. Moving the phone to another network then lets its built-in VPN access the internal PBX.'); ?>
+        <?php echo _('Provision the phone over its local TFTP connection first, then test VPN registration on a different network. An existing ITL is never automatically erased or rotated.'); ?>
     </p>
 </div>
