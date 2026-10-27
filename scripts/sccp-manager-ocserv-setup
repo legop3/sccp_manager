@@ -10,8 +10,6 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
-import socket
 import subprocess
 import sys
 import tempfile
@@ -141,7 +139,6 @@ def configure(raw):
         raise RuntimeError("Unsafe existing VPN configuration/password file")
     # A manually launched ocserv instance can occupy the requested port.
     # Never kill it; the admin must stop it before enabling this service.
-    running = run(["/usr/bin/systemctl", "is-active", UNIT]).stdout.strip() == "active" if False else False
     active = subprocess.run(["/usr/bin/systemctl", "is-active", "--quiet", UNIT],
                             check=False).returncode == 0
     if not active and subprocess.run(["/usr/bin/pgrep", "-x", "ocserv"],
@@ -167,6 +164,20 @@ def configure(raw):
     finally:
         if temp_file.exists():
             temp_file.unlink()
+    # Upgrade the earlier SCCP Manager unit (which launched ocserv.conf).
+    # Only touch our own identifiable systemd unit, not another VPN unit.
+    unit_path = Path("/etc/systemd/system/sccp-ocserv.service")
+    if unit_path.is_file() and unit_path.read_text().find("/etc/ocserv/sccp-manager.conf") == -1:
+        old_unit = unit_path.read_text()
+        if "SCCP Manager" not in old_unit:
+            raise RuntimeError("Conflicting systemd unit is not owned by SCCP Manager")
+        for line in old_unit.splitlines():
+            if line.startswith("ExecStart="):
+                old_unit = old_unit.replace(line,
+                    "ExecStart=" + binary() + " -f -c /etc/ocserv/sccp-manager.conf")
+                break
+        unit_path.write_text(old_unit)
+        os.chmod(unit_path, 0o644)
     run(["/usr/bin/systemctl", "daemon-reload"])
     run(["/usr/bin/systemctl", "enable", UNIT])
     run(["/usr/bin/systemctl", "restart" if active else "start", UNIT])
