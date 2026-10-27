@@ -13,10 +13,12 @@ class vpnprovisioning
 {
     private $configFile;
     private $config;
+    private $parent;
 
     public function __construct($parent = null, $configFile = null)
     {
         $this->configFile = $configFile ?: '/etc/sccp-manager/vpn-provisioning.json';
+        $this->parent = $parent;
     }
 
     private function settings()
@@ -24,16 +26,28 @@ class vpnprovisioning
         if ($this->config !== null) {
             return $this->config;
         }
-        if (!is_file($this->configFile)) {
-            return $this->config = array('enabled' => false);
+        // FreePBX's BMO key/value store is authoritative when configured
+        // through the module UI. A local JSON file remains a migration/CLI
+        // fallback for installations predating that interface.
+        $settings = null;
+        if ($this->parent !== null && method_exists($this->parent, 'getConfig')) {
+            $saved = $this->parent->getConfig('vpn_provisioning');
+            if (is_array($saved)) {
+                $settings = $saved;
+            }
         }
-        $contents = file_get_contents($this->configFile);
-        if ($contents === false) {
-            throw new \RuntimeException('Cannot read VPN provisioning configuration');
-        }
-        $settings = json_decode($contents, true);
-        if (!is_array($settings) || json_last_error() !== JSON_ERROR_NONE) {
-            throw new \RuntimeException('VPN provisioning configuration is not valid JSON');
+        if ($settings === null) {
+            if (!is_file($this->configFile)) {
+                return $this->config = array('enabled' => false);
+            }
+            $contents = file_get_contents($this->configFile);
+            if ($contents === false) {
+                throw new \RuntimeException('Cannot read VPN provisioning configuration');
+            }
+            $settings = json_decode($contents, true);
+            if (!is_array($settings) || json_last_error() !== JSON_ERROR_NONE) {
+                throw new \RuntimeException('VPN provisioning configuration is not valid JSON');
+            }
         }
         if (!isset($settings['enabled']) || $settings['enabled'] !== true) {
             return $this->config = array('enabled' => false);
