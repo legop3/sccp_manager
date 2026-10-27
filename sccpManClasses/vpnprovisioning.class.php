@@ -36,6 +36,7 @@ class vpnprovisioning
             'managed_signer' => true,
             'vpn_default' => 'off',
             'sign_default' => 'auto',
+            'auto_detect_default' => true,
             'gateway' => '',
             'mtu' => 1290
         );
@@ -75,7 +76,7 @@ class vpnprovisioning
 
     public function deviceSettings($deviceId)
     {
-        $defaults = array('vpn' => 'inherit', 'sign' => 'inherit', 'gateway' => '', 'mtu' => '');
+        $defaults = array('vpn' => 'inherit', 'sign' => 'inherit', 'auto_detect' => 'inherit', 'gateway' => '', 'mtu' => '');
         $deviceId = strtoupper((string) $deviceId);
         if (!preg_match('/^SEP[0-9A-F]{12}$/D', $deviceId)) {
             return $defaults;
@@ -103,9 +104,13 @@ class vpnprovisioning
             ($vpnMode === 'on' || ($vpnMode === 'inherit' && $global['vpn_default'] === 'on'));
         $sign = $signMode === 'inherit' ? $global['sign_default'] :
             ($signMode === 'on' ? 'on' : 'off');
+        $autoMode = in_array($device['auto_detect'], array('inherit', 'on', 'off'), true)
+            ? $device['auto_detect'] : 'inherit';
+        $autoDetect = $autoMode === 'on' || ($autoMode === 'inherit' && !empty($global['auto_detect_default']));
         return array(
             'vpn' => $vpn,
             'sign' => $sign,
+            'auto_detect' => $autoDetect,
             'gateway' => $device['gateway'] !== '' ? $device['gateway'] : $global['gateway'],
             'mtu' => $device['mtu'] !== '' ? (int) $device['mtu'] : (int) $global['mtu']
         );
@@ -177,7 +182,9 @@ class vpnprovisioning
             'failConnectTime' => '30',
             'authMethod' => '0',
             'pswdPersistent' => '0',
-            'autoNetDetect' => '0',
+            // With this enabled the SCCP phone attempts VPN automatically
+            // if its configured TFTP server cannot be reached (off-site).
+            'autoNetDetect' => $effective['auto_detect'] ? '1' : '0',
             'enableHostIDCheck' => '0'
         );
         foreach ($fields as $name => $value) {
