@@ -13,7 +13,8 @@ trait bmoFunctions {
 */
 
     public function doConfigPageInit($page) {
-        if ($page === 'sccp_vpn') {
+        if ($page === 'sccp_vpn' || ($page === 'sccpsettings' &&
+            (isset($_POST['save_vpn']) || isset($_POST['vpn_action'])))) {
             if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' &&
                 ($_POST['save_vpn'] ?? '') === '1') {
                 try {
