@@ -75,7 +75,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
             <input type="password" class="form-control" id="vpn_password" name="vpn_password" required
                 autocomplete="new-password" style="max-width:300px">
         </div>
-        <button type="submit" class="btn btn-default" <?php echo $statusError ? 'disabled' : ''; ?>>
+        <button type="submit" class="btn btn-default" <?php echo $statusError || empty($status['vpn_configuration_exists']) ? 'disabled' : ''; ?>>
             <?php echo _('Create / update VPN login'); ?>
         </button>
     </form>
