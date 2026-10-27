@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+"""Restricted root helper for SCCP Manager's Cisco VPN provisioning.
+
+Installed root-owned by scripts/install-vpn-helper.sh. The FreePBX process can
+run it through a narrowly scoped sudoers entry. No caller-supplied paths are
+accepted: sign accepts only an exact Cisco SEP<12 hex> identity.
+"""
+import base64
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import ssl
+import subprocess
+import sys
+import tempfile
+
+TFTP = Path("/tftpboot")
+KEY_DIR = Path("/etc/cisco-signing")
+VPN_CERT = Path("/etc/ocserv/server-cert.pem")
+BIN_DIR = Path("/usr/local/libexec/sccp-manager-vpn")
+SYSTEMD_SERVICE = "sccp-ocserv.service"
+DEVICE = re.compile(r"SEP[0-9A-F]{12}\Z")
+
+
+def run(argv):
+    return subprocess.run(argv, check=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE, text=True)
+
+
+def certificate_digest(pem_path):
+    pem = pem_path.read_text(encoding="ascii")
+    match = re.search(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+                      pem, re.DOTALL)
+    if not match:
+        raise RuntimeError("No certificate in " + str(pem_path))
+    der = ssl.PEM_cert_to_DER_cert(match.group(0))
+    return hashlib.sha1(der).digest()
+
+
+def certificate_hash():
+    # The Cisco vpnGroup certHash1 uses SHA1 over the DER-encoded TLS certificate.
+    print(base64.b64encode(certificate_digest(VPN_CERT)).decode("ascii"))
+
+
+def validate_paths(device):
+    if not DEVICE.fullmatch(device):
+        raise ValueError("Expected SEP and exactly 12 uppercase hexadecimal digits")
+    # Never follow a symlink out of TFTP (including the /tftpboot root itself).
+    if not TFTP.is_dir() or TFTP.is_symlink():
+        raise RuntimeError("Unexpected TFTP root")
+    xml = TFTP / (device + ".cnf.xml")
+    if not xml.is_file() or xml.is_symlink():
+        raise RuntimeError("Missing or unsafe phone XML: " + str(xml))
+    return xml
+
+
+def verify_trust(cert_path, trust_file):
+    output = run([str(BIN_DIR / "tlvfile"), "--parse", str(trust_file)]).stdout
+    # certutils prints roles and SHA1 certificate hashes for each record.
+    digest = certificate_digest(cert_path).hex()
+    if not re.search(r"Role:\s+TFTP\b(?:(?!Role:).)*?Certificate Hash:\s+" +
+                     re.escape(digest), output, re.DOTALL | re.IGNORECASE):
+        raise RuntimeError("Existing ITL does not contain the configured TFTP certificate; refusing to replace it")
+
+
+def sign(device):
+    xml = validate_paths(device)
+    signer_cert = KEY_DIR / "tftp.pem"
+    sast_cert = KEY_DIR / "sast.pem"
+    for key in (signer_cert, sast_cert):
+        if not key.is_file() or key.is_symlink():
+            raise RuntimeError("Missing/unsafe signing certificate: " + str(key))
+    itl = TFTP / ("ITL" + device + ".tlv")
+    target = TFTP / (device + ".cnf.xml.sgn")
+    if itl.is_symlink() or target.is_symlink():
+        raise RuntimeError("Refusing to overwrite a symlinked provisioning file")
+    if itl.is_file():
+        verify_trust(signer_cert, itl)
+
+    # Build outside public TFTP, then publish complete files via rename.
+    # Temporary directory must be on the same filesystem to allow os.replace.
+    # Restrict mode so private key material never becomes public.
+    with tempfile.TemporaryDirectory(prefix=".sccp-vpn-", dir=str(TFTP)) as tmp:
+        directory = Path(tmp)
+        source = directory / xml.name
+        shutil.copyfile(xml, source)
+        signed = directory / (xml.name + ".sgn")
+        run([str(BIN_DIR / "sgnfile"), "--build", str(source),
+             "--tftp", str(signer_cert)])
+        if not signed.is_file() or signed.stat().st_size == 0:
+            raise RuntimeError("sgnfile did not generate an output")
+        output = run([str(BIN_DIR / "sgnfile"), "--parse", str(signed),
+                      "--tftp", str(signer_cert)]).stdout
+        if "Valid signature" not in output:
+            raise RuntimeError("Signed output did not pass verification")
+
+        if not itl.is_file():
+            temp_itl = directory / itl.name
+            run([str(BIN_DIR / "tlvfile"), "--build", str(temp_itl),
+                 "--filename", "ITLFile.tlv", "--sast", str(sast_cert),
+                 "--tftp", str(signer_cert)])
+            if not temp_itl.is_file() or temp_itl.stat().st_size == 0:
+                raise RuntimeError("tlvfile did not produce an output")
+            verify_trust(signer_cert, temp_itl)
+            os.chmod(temp_itl, 0o644)
+            os.replace(temp_itl, itl)
+
+        os.chmod(signed, 0o644)
+        os.replace(signed, target)
+    print("Signed", device)
+
+
+def status():
+    try:
+        result = subprocess.run(["systemctl", "is-active", SYSTEMD_SERVICE],
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                text=True, timeout=5)
+        service = result.stdout.strip() or "unknown"
+    except (OSError, subprocess.TimeoutExpired):
+        service = "unknown"
+    payload = {
+        "service": service,
+        "ocserv_binary": str(Path("/usr/local/sbin/ocserv")) if
+                         Path("/usr/local/sbin/ocserv").is_file() else
+                         shutil.which("ocserv") or "",
+        "vpn_configuration_exists": Path("/etc/ocserv/ocserv.conf").is_file(),
+        "server_certificate_exists": VPN_CERT.is_file(),
+        "sast_certificate_exists": (KEY_DIR / "sast.pem").is_file(),
+        "tftp_certificate_exists": (KEY_DIR / "tftp.pem").is_file(),
+        "signing_tools_installed": all((BIN_DIR / f).is_file() for f in ("sgnfile", "tlvfile"))
+    }
+    print(json.dumps(payload))
+
+
+def start_service():
+    run(["systemctl", "enable", "--now", SYSTEMD_SERVICE])
+    print("Service enabled and started")
+
+
+def main():
+    if os.geteuid() != 0:
+        raise PermissionError("This helper must run as root")
+    if len(sys.argv) == 2 and sys.argv[1] == "hash":
+        certificate_hash()
+    elif len(sys.argv) == 2 and sys.argv[1] == "status":
+        status()
+    elif len(sys.argv) == 2 and sys.argv[1] == "start":
+        start_service()
+    elif len(sys.argv) == 3 and sys.argv[1] == "sign":
+        sign(sys.argv[2])
+    else:
+        raise ValueError("Usage: sccp-manager-vpn-helper hash|status|start|sign SEP<MAC>")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
+        print("sccp-manager-vpn-helper: " + str(exc), file=sys.stderr)
+        sys.exit(1)
