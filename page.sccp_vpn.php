@@ -56,6 +56,27 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
     </form>
 
     <hr>
+    <h3><?php echo _('VPN login for your phones'); ?></h3>
+    <p><?php echo _('Create or update a login shared by multiple phones. Existing unrelated ocserv accounts are preserved. The password is sent to the privileged helper without being stored in FreePBX.'); ?></p>
+    <form method="post" action="config.php?display=sccp_vpn" autocomplete="off">
+        <input type="hidden" name="display" value="sccp_vpn">
+        <input type="hidden" name="vpn_action" value="account">
+        <div class="form-group">
+            <label for="vpn_username"><?php echo _('VPN username'); ?></label>
+            <input type="text" class="form-control" id="vpn_username" name="vpn_username" required
+                maxlength="64" pattern="[A-Za-z0-9_.-]+" autocomplete="off" style="max-width:300px">
+        </div>
+        <div class="form-group">
+            <label for="vpn_password"><?php echo _('VPN password'); ?></label>
+            <input type="password" class="form-control" id="vpn_password" name="vpn_password" required
+                autocomplete="new-password" style="max-width:300px">
+        </div>
+        <button type="submit" class="btn btn-default" <?php echo $statusError ? 'disabled' : ''; ?>>
+            <?php echo _('Create / update VPN login'); ?>
+        </button>
+    </form>
+
+    <hr>
     <h3><?php echo _('Cisco phone configuration'); ?></h3>
     <form method="post" action="config.php?display=sccp_vpn">
         <input type="hidden" name="display" value="sccp_vpn">
@@ -70,7 +91,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
         </div>
         <div class="form-group">
             <label for="vpn_gateway"><?php echo _('VPN gateway URL'); ?></label>
-            <input type="url" required class="form-control" id="vpn_gateway" name="vpn_gateway"
+            <input type="url" class="form-control" id="vpn_gateway" name="vpn_gateway"
                 placeholder="https://vpn.example.net:4443/svc"
                 value="<?php echo $escape($settings['gateway'] ?? ''); ?>">
         </div>
