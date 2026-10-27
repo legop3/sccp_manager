@@ -18,6 +18,7 @@ jobs:
       - name: PHP syntax
         run: |
           php -l sccpManClasses/vpnprovisioning.class.php
+          php -l sccpManClasses/vpnfirewall.class.php
           php -l sccpManClasses/xmlinterface.class.php
           php -l sccpManClasses/aminterface.class.php
           php -l Sccp_manager.class.php
