@@ -53,12 +53,14 @@ its own isolated server on the first VPN settings Save. A TLS certificate is
 generated automatically if one does not exist; existing certificates and
 signing keys are never rotated silently. The reference deployment used
 TCP 4443 and UDP 443, ocserv Cisco SVC compatibility, and the phone's
-built-in Cisco VPN client. Router forwarding and FreePBX firewall policy must
-still permit the specified incoming ports.
+built-in Cisco VPN client. SCCP Manager configures TCP and UDP custom services in FreePBX Firewall,
+and assigns the phone VPN pool to its internal zone when that module is
+installed. The router must still forward the chosen TCP/UDP ports to FreePBX.
+If FreePBX Firewall is absent, SCCP Manager leaves other host firewalls alone.
 
 ## Development and testing
 
-The development build is 17.1.5. Start with one 7945G and use the
+The development build is 17.1.6. Start with one 7945G and use the
 [test installation guide](TEST_INSTALL.md). The automated CI covers PHP
 syntax, VPN XML generation, per-phone defaults/overrides, signing and ITL
 handling, and real certutils signing. It has not yet been validated against
