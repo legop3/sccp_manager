@@ -33,6 +33,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
     <?php endif; ?>
 
     <h3><?php echo _('VPN server and signing'); ?></h3>
+    <p><?php echo _('The server package, service and certificate tools are installed with SCCP Manager. Enter the server address and save below to finish initialization.'); ?></p>
     <?php if ($statusError): ?>
         <div class="alert alert-warning">
             <?php echo _('Managed VPN helper is not available: '), $escape($statusError); ?>
@@ -52,7 +53,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
     <form method="post" action="<?php echo $actionUrl; ?>">
         <input type="hidden" name="display" value="sccp_vpn">
         <input type="hidden" name="vpn_action" value="start">
-        <button type="submit" class="btn btn-default" <?php echo $statusError || $serviceRunning ? 'disabled' : ''; ?>>
+        <button type="submit" class="btn btn-default" <?php echo $statusError || !$status['vpn_configuration_exists'] || $serviceRunning ? 'disabled' : ''; ?>>
             <?php echo _('Start managed ocserv service'); ?>
         </button>
         <p class="help-block"><?php echo _('Stop any manually started ocserv process before starting this service. This button does not change ocserv.conf or your router configuration.'); ?></p>
@@ -99,6 +100,29 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
                 value="<?php echo $escape($settings['gateway'] ?? ''); ?>">
         </div>
         <div class="form-group">
+            <label for="vpn_pbx_ip"><?php echo _('Internal PBX IPv4 address'); ?></label>
+            <input type="text" class="form-control" name="vpn_pbx_ip" id="vpn_pbx_ip"
+                placeholder="192.168.0.25" value="<?php echo $escape($settings['pbx_ip'] ?? ''); ?>">
+            <p class="help-block"><?php echo _('The address Cisco phones should reach through VPN for SCCP and audio. Usually the LAN IP of this FreePBX machine.'); ?></p>
+        </div>
+        <div class="form-group">
+            <label for="vpn_subnet"><?php echo _('Phone VPN address pool'); ?></label>
+            <input type="text" class="form-control" name="vpn_subnet" id="vpn_subnet"
+                value="<?php echo $escape($settings['vpn_subnet'] ?? '10.254.77.0/24'); ?>">
+            <p class="help-block"><?php echo _('Dedicated private subnet for connected phones. Must not overlap the PBX LAN.'); ?></p>
+        </div>
+        <div class="form-group">
+            <label for="vpn_udp_port"><?php echo _('VPN UDP / DTLS port'); ?></label>
+            <input type="number" class="form-control" name="vpn_udp_port" id="vpn_udp_port"
+                min="1" max="65535" value="<?php echo $escape($settings['udp_port'] ?? 443); ?>">
+        </div>
+        <div class="form-group">
+            <label for="vpn_max_same_clients"><?php echo _('Simultaneous phones per VPN login'); ?></label>
+            <input type="number" class="form-control" name="vpn_max_same_clients" id="vpn_max_same_clients"
+                min="0" max="1000" value="<?php echo $escape($settings['max_same_clients'] ?? 0); ?>">
+            <p class="help-block"><?php echo _('Zero allows an unlimited number of phones to share one username.'); ?></p>
+        </div>
+        <div class="form-group">
             <label for="vpn_default"><?php echo _('New phone VPN default'); ?></label>
             <select class="form-control" name="vpn_default" id="vpn_default">
                 <option value="off" <?php echo ($settings['vpn_default'] ?? 'off') === 'off' ? 'selected' : ''; ?>><?php echo _('Disabled unless enabled on the phone'); ?></option>
@@ -119,7 +143,8 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
             <input type="number" class="form-control" id="vpn_mtu" name="vpn_mtu" min="576" max="1500"
                 value="<?php echo $escape($settings['mtu'] ?? 1290); ?>">
         </div>
-        <button type="submit" class="btn btn-primary"><?php echo _('Save server defaults'); ?></button>
+        <button type="submit" class="btn btn-primary"><?php echo _('Save settings and configure VPN server'); ?></button>
+        <p class="help-block"><?php echo _('On first setup this creates the VPN server certificate and configuration, enables its service and starts it. The module never regenerates an existing certificate automatically. Forward your configured TCP port and UDP port on your router to the PBX.'); ?></p>
     </form>
 
     <hr>
