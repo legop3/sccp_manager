@@ -27,9 +27,11 @@ getent passwd asterisk >/dev/null || { echo "Missing asterisk service account" >
 # Install the missing system dependencies as part of the module install.
 # The package-manager installation is idempotent and needs no extra script.
 OCSERV=""
+OCSERV_WAS_MISSING=0
 for bin in /usr/local/sbin/ocserv /usr/sbin/ocserv; do
   if [[ -x "$bin" ]]; then OCSERV="$bin"; break; fi
 done
+if [[ -z "$OCSERV" ]]; then OCSERV_WAS_MISSING=1; fi
 if [[ -z "$OCSERV" ]] || ! python3 -c "import cryptography" >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
     needed=(openssl)
@@ -46,6 +48,12 @@ for bin in /usr/local/sbin/ocserv /usr/sbin/ocserv; do
   if [[ -x "$bin" ]]; then OCSERV="$bin"; break; fi
 done
 [[ -n "$OCSERV" ]] || { echo "ocserv did not install" >&2; exit 1; }
+# The package may have enabled its generic ocserv.service during apt install.
+# Stop that *newly installed* generic instance; SCCP Manager owns a separate
+# sccp-ocserv.service with isolated configuration. Never touch preexisting VPNs.
+if [[ "$OCSERV_WAS_MISSING" -eq 1 ]]; then
+  systemctl disable --now ocserv.service 2>/dev/null || true
+fi
 
 install -d -m 0700 -o root -g root "$KEYS"
 if [[ ! -f "$KEYS/sast.pem" || ! -f "$KEYS/tftp.pem" ]]; then
