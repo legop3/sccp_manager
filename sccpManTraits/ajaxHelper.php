@@ -828,8 +828,29 @@ trait ajaxHelper {
                 $save_settings[$key] = $value;
             }
         }
+        // The main phone form also owns provisioning preferences. Validate
+        // before modifying the device row, then save in BMO (never in chan_sccp).
+        $deviceVpnPrefs = null;
+        if ($hw_type === 'sccpdevice' && array_key_exists('sccp_vpn_mode', $get_settings)) {
+            try {
+                $deviceVpnPrefs = $this->vpnValidateDevicePost($get_settings);
+                if (!preg_match('/^SEP[0-9A-F]{12}$/D', $name_dev)) {
+                    throw new \InvalidArgumentException(_('Cannot configure VPN without a valid SEP device MAC.'));
+                }
+                // A provisioned ITL cannot be bypassed by a new "sign off" selection.
+                if ($deviceVpnPrefs['sign'] === 'off' &&
+                    is_file($this->sccppath['tftp_store_path'] . '/ITL' . $name_dev . '.tlv')) {
+                    throw new \InvalidArgumentException(_('Signed provisioning is required: this device has an existing Cisco ITL.'));
+                }
+            } catch (\Throwable $e) {
+                return array('status' => false, 'message' => $e->getMessage(), 'toastFlag' => 'danger');
+            }
+        }
         // Save this device.
         $this->dbinterface->write('sccpdevice', $save_settings, 'replace');
+        if ($deviceVpnPrefs !== null) {
+            $this->vpnStoreDeviceSettings($name_dev, $deviceVpnPrefs);
+        }
         // Retrieve the phone buttons from $_REQUEST ($get_settings) and write back to
         // update sccpdeviceconfig via Trigger
         $save_buttons = $this->getPhoneButtons($get_settings, $name_dev, $hw_type);
@@ -839,9 +860,9 @@ trait ajaxHelper {
         $msg = "Device Saved";
         $toastFlag = 'success';
         if (!$this->createSccpDeviceXML($name_dev)){
-            // will only be false if creating SIP SEP with no line.
-            $msg = "Device Saved but SEP config file not created as no SIP line attached to this device";
-            $toastFlag = 'warning';
+            $msg = "Device saved, but provisioning failed. Check the FreePBX log for the cause; phone restart skipped.";
+            $toastFlag = 'danger';
+            return array('status' => false, 'message' => $msg, 'toastFlag' => $toastFlag);
         };
         $hash = '#sipdevice';
         if ($get_settings['sccp_device_typeid'] != 'sipdevice') {
