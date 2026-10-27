@@ -27,8 +27,13 @@ jobs:
           php -r 'simplexml_load_file("module.xml") ?: exit(1);'
       - name: Validate helper and installer syntax
         run: |
-          python3 -m py_compile scripts/sccp-manager-vpn-helper
+          python3 -m py_compile scripts/sccp-manager-vpn-helper scripts/sccp-manager-ocserv-setup
           bash -n scripts/install-vpn-helper.sh
+      - name: First-run ocserv configuration test
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ocserv
+          python3 tests/test_ocserv_setup.py
       - name: VPN provisioning tests
         run: php tests/vpn-provisioning.php
           php tests/regression-sccp.php
