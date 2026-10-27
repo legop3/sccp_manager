@@ -297,7 +297,7 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                 (string) $settings['vpn_subnet']
             );
             $this->vpnPageMessage = !empty($firewallStatus['managed'])
-                ? _('Cisco VPN server and FreePBX firewall configured.')
+                ? _('Cisco VPN server configured. VPN firewall services and client subnet saved; SCCP Manager did not start or restart FreePBX Firewall. Apply firewall changes separately when ready.')
                 : _('Cisco VPN server configured. FreePBX Firewall module is absent, so firewall permissions are not managed.');
         } else {
             $this->vpnPageMessage = _('Phone VPN provisioning disabled. Existing VPN service is not stopped automatically.');
