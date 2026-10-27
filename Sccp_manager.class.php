@@ -406,7 +406,7 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                 "page" => 'views/server.info.php'
               ),
             "sccpvpn" => array(
-                "name" => _("VPN Phones"),
+                "name" => _("VPN & Signing"),
                 "page" => 'views/server.vpn.php'
               )
             );
