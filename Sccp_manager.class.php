@@ -290,6 +290,13 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         $this->vpnPageMessage = _('VPN provisioning settings saved. Regenerate selected phone configurations to publish signed files.');
     }
 
+    public function vpnSetAccount(array $post) {
+        $username = trim((string) ($post['vpn_username'] ?? ''));
+        $password = (string) ($post['vpn_password'] ?? '');
+        $this->vpnprovisioning->setVpnAccount($username, $password);
+        $this->vpnPageMessage = _('VPN login updated. This module does not store its password.');
+    }
+
     public function vpnStartService() {
         $this->vpnprovisioning->startManagedService();
         $this->vpnPageMessage = _('Managed ocserv service started.');
