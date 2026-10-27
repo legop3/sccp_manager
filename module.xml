@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.6</version>
+	<version>17.1.7</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_vpn sort="4">VPN &amp; Signing</sccp_vpn>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.7 * - Save VPN firewall services and client zone without starting or restarting FreePBX Firewall
 		 * Version 17.1.6 * - Manage FreePBX Firewall services for the VPN ports and client pool automatically
 		 * Version 17.1.6 * - Install and configure ocserv, VPN TLS certificate, address pool, routes and shared login from SCCP Manager
 		 * Version 17.1.6 * - Global defaults plus per-device VPN, signing and endpoint configuration; no MAC allowlist
