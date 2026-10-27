@@ -23,7 +23,7 @@ $helperReady = !$statusError && !empty($status['signing_tools_installed']) &&
     !empty($status['server_certificate_exists']);
 ?>
 <div class="container-fluid">
-    <h2><?php echo _('Cisco SCCP VPN Phones'); ?></h2>
+    <h2><?php echo _('Cisco SCCP VPN & Signing'); ?></h2>
     <p><?php echo _('Set Cisco phone VPN and signing defaults here. Choose VPN and signed provisioning individually in Phones Manager, alongside the device settings.'); ?></p>
     <?php if ($module->vpnPageMessage): ?>
         <div class="alert alert-success"><?php echo $escape($module->vpnPageMessage); ?></div>
