@@ -290,6 +290,44 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         $this->vpnPageMessage = _('VPN provisioning settings saved. Regenerate selected phone configurations to publish signed files.');
     }
 
+    /**
+     * Validate per-device options without writing to chan_sccp realtime tables.
+     * This is intentionally a distinct BMO record: FreePBX updates keep the
+     * driver's database schema and existing phone rows unchanged.
+     */
+    public function vpnValidateDevicePost(array $post) {
+        $prefs = array(
+            'vpn' => (string) ($post['sccp_vpn_mode'] ?? 'inherit'),
+            'sign' => (string) ($post['sccp_sign_mode'] ?? 'inherit'),
+            'gateway' => trim((string) ($post['sccp_vpn_gateway'] ?? '')),
+            'mtu' => trim((string) ($post['sccp_vpn_mtu'] ?? ''))
+        );
+        foreach (array('vpn', 'sign') as $key) {
+            if (!in_array($prefs[$key], array('inherit', 'on', 'off'), true)) {
+                throw new \InvalidArgumentException(_('Invalid phone provisioning mode.'));
+            }
+        }
+        if ($prefs['gateway'] !== '') {
+            \FreePBX\modules\Sccp_manager\vpnprovisioning::validateGateway($prefs['gateway']);
+        }
+        if ($prefs['mtu'] !== '' &&
+            (!ctype_digit($prefs['mtu']) || (int) $prefs['mtu'] < 576 || (int) $prefs['mtu'] > 1500)) {
+            throw new \InvalidArgumentException(_('Device VPN MTU must be 576–1500 or blank.'));
+        }
+        if ($prefs['vpn'] === 'on' && empty($this->vpnSettings()['enabled'])) {
+            throw new \InvalidArgumentException(_('Enable and configure the global VPN server before enabling VPN for a phone.'));
+        }
+        return $prefs;
+    }
+
+    public function vpnStoreDeviceSettings($deviceId, array $prefs) {
+        $deviceId = strtoupper((string) $deviceId);
+        if (!preg_match('/^SEP[0-9A-F]{12}$/D', $deviceId)) {
+            throw new \InvalidArgumentException(_('VPN settings require a Cisco SEP MAC address.'));
+        }
+        $this->setConfig('vpn_device_' . $deviceId, $prefs);
+    }
+
     public function vpnSetAccount(array $post) {
         $username = trim((string) ($post['vpn_username'] ?? ''));
         $password = (string) ($post['vpn_password'] ?? '');
