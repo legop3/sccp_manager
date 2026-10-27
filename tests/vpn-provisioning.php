@@ -42,6 +42,7 @@ $global = array(
     'enabled' => true,
     'vpn_default' => 'off',
     'sign_default' => 'auto',
+    'auto_detect_default' => true,
     'gateway' => 'https://vpn.example.test:4443/svc',
     'mtu' => 1290,
     'managed_signer' => false,
@@ -65,6 +66,7 @@ $effective = $service->resolvedSettings($phone);
 check($effective['vpn'] === true, 'explicit VPN override works with server VPN default off');
 check($effective['sign'] === 'auto', 'per-phone signing inherits server default');
 check($effective['mtu'] === 1200, 'per-phone MTU override works');
+check($effective['auto_detect'] === true, 'automatic VPN on off-LAN is enabled by default');
 check($service->enabledFor($other) === false, 'other phone VPN remains off without a MAC allowlist');
 
 $xml = new SimpleXMLElement('<device><vpnGroup><old>yes</old></vpnGroup><versionStamp>0</versionStamp></device>');
@@ -72,6 +74,7 @@ $service->apply($xml, $phone);
 check(count($xml->vpnGroup) === 1, 'replaces existing template VPN group');
 check((string) $xml->vpnGroup->addresses->url1 === $effective['gateway'], 'serializes escaped VPN URL correctly');
 check((string) $xml->vpnGroup->mtu === '1200', 'uses per-phone MTU');
+check((string) $xml->vpnGroup->autoNetDetect === '1', 'VPN starts automatically when TFTP cannot be reached');
 check(strpos($xml->asXML(), '<vpnGroup>') < strpos($xml->asXML(), '<versionStamp>'), 'puts VPN profile before version stamp');
 preg_match('/-----BEGIN CERTIFICATE-----\s*(.*?)\s*-----END CERTIFICATE-----/s', $pem, $matches);
 $expected = base64_encode(sha1(base64_decode(preg_replace('/\s+/', '', $matches[1])), true));
@@ -80,6 +83,24 @@ check((string) $xml->vpnGroup->credentials->certHash1 === $expected, 'computes D
 $plain = new SimpleXMLElement('<device><vpnGroup><old>yes</old></vpnGroup><versionStamp>0</versionStamp></device>');
 $service->apply($plain, $other);
 check(!isset($plain->vpnGroup), 'removes model-template VPN when the phone VPN option is off');
+
+// Per-device override lets administrators choose the old manual VPN mode.
+$parent->setConfig('vpn_device_' . $phone, array(
+    'vpn' => 'on', 'sign' => 'inherit', 'auto_detect' => 'off'
+));
+$manualXml = new SimpleXMLElement('<device><versionStamp>0</versionStamp></device>');
+(new vpnprovisioning($parent))->apply($manualXml, $phone);
+check((string) $manualXml->vpnGroup->autoNetDetect === '0', 'device can override automatic VPN with manual activation');
+$parent->setConfig('vpn_device_' . $phone, array(
+    'vpn' => 'on', 'sign' => 'inherit', 'auto_detect' => 'on'
+));
+$parent->config['vpn_provisioning']['auto_detect_default'] = false;
+$forcedXml = new SimpleXMLElement('<device><versionStamp>0</versionStamp></device>');
+(new vpnprovisioning($parent))->apply($forcedXml, $phone);
+check((string) $forcedXml->vpnGroup->autoNetDetect === '1', 'phone enables automatic VPN even when global default is off');
+$parent->setConfig('vpn_device_' . $phone, array(
+    'vpn' => 'on', 'sign' => 'inherit', 'auto_detect' => 'inherit'
+));
 
 $xmlPath = $directory . '/' . $phone . '.cnf.xml';
 file_put_contents($xmlPath, $xml->asXML());
