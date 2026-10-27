@@ -20,7 +20,8 @@ fi
 if [[ "$#" -eq 1 ]]; then
   CERTUTILS_DIR="$(realpath "$1")"
 else
-  SOURCE_USER="$SUDO_USER"
+  SOURCE_USER="$(id -un)"
+  if [[ -n "$(printenv SUDO_USER || true)" ]]; then SOURCE_USER="$(printenv SUDO_USER)"; fi
   SOURCE_HOME="$(getent passwd "$SOURCE_USER" | cut -d: -f6)"
   CERTUTILS_DIR="$SOURCE_HOME/certutils"
 fi
