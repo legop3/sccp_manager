@@ -51,16 +51,17 @@ FreePBX::$firewall = $fw;
 $manager = new vpnfirewall($parent);
 
 $first = $manager->configure(4443, 443, '10.254.77.0/24');
-must($first['managed'] && $first['reloaded'], 'Firewall activated using the FreePBX module');
+must($first['managed'] && !$first['reloaded'] && !empty($first['apply_pending']), 'Firewall rules are saved but applying them is left to the administrator');
 must(count($fw->services) === 3, 'Creates only two managed TCP/UDP services');
 must($fw->services['generated-2']['custfw'] === array('protocol' => 'tcp', 'port' => '4443'), 'TCP service has correct port');
 must($fw->services['generated-3']['custfw'] === array('protocol' => 'udp', 'port' => '443'), 'UDP service has correct port');
 must($fw->zones['generated-2'] === array('external') && $fw->zones['generated-3'] === array('external'), 'Only public VPN ports are exposed');
 must(($fw->networks['10.254.77.0/24'] ?? null) === 'internal', 'VPN clients assigned to internal firewall zone');
-must($fw->reloads === 1, 'Applies running firewall after save');
+must($fw->reloads === 0, 'Never starts or restarts FreePBX Firewall even when its stored status is enabled');
 
 $manager->configure(4443, 443, '10.254.77.0/24');
 must(count($fw->services) === 3, 'Repeated save is idempotent');
+must($fw->reloads === 0, 'Repeated save still does not start FreePBX Firewall');
 
 $manager->configure(5555, 8443, '10.254.78.0/24');
 must(count($fw->services) === 3, 'Port changes update services rather than duplicating');
@@ -68,6 +69,7 @@ must($fw->services['generated-2']['custfw']['port'] === '5555', 'TCP port update
 must($fw->services['generated-3']['custfw']['port'] === '8443', 'UDP port update propagates');
 must(!isset($fw->networks['10.254.77.0/24']) && isset($fw->networks['10.254.78.0/24']), 'Old managed VPN pool is removed after change');
 must($fw->services['untouched']['custfw']['port'] === '5060', 'Unrelated firewall services remain unchanged');
+must($fw->reloads === 0, 'Changing VPN ports and subnet does not start FreePBX Firewall');
 
 $fw->enabled = false;
 $before = $fw->reloads;
