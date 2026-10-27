@@ -29,3 +29,9 @@ jobs:
           bash -n scripts/install-vpn-helper.sh
       - name: VPN provisioning tests
         run: php tests/vpn-provisioning.php
+      - name: Real certutils integration test
+        run: |
+          git clone --depth 1 https://github.com/usecallmanagernz/certutils.git /tmp/sccp-test-certutils
+          python3 -m venv /tmp/sccp-vpn-venv
+          /tmp/sccp-vpn-venv/bin/pip install cryptography
+          PATH=/tmp/sccp-vpn-venv/bin:$PATH /tmp/sccp-vpn-venv/bin/python tests/test_vpn_helper.py /tmp/sccp-test-certutils
