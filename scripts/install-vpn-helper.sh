@@ -52,12 +52,12 @@ if [[ ! -f "$CERT_DIR/sast.pem" || ! -f "$CERT_DIR/tftp.pem" ]]; then
   fi
 fi
 if [[ ! -f "$CERT_DIR/sast.pem" ]]; then
-  python3 "$CERTUTILS_DIR/mkcert" --common "Cisco-SAST" \
+  bash "$CERTUTILS_DIR/mkcert" --common "Cisco-SAST" \
     --organization "Cisco" --unit "Provisioning" --years 20 \
     "$CERT_DIR/sast.pem"
 fi
 if [[ ! -f "$CERT_DIR/tftp.pem" ]]; then
-  python3 "$CERTUTILS_DIR/mkcert" --common "Cisco-TFTP" \
+  bash "$CERTUTILS_DIR/mkcert" --common "Cisco-TFTP" \
     --organization "Cisco" --unit "Provisioning" --years 20 \
     "$CERT_DIR/tftp.pem"
 fi
