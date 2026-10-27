@@ -7,19 +7,19 @@ No separately downloaded certutils checkout or helper-install script is needed.
 
 ## Existing PBX: one module package
 
-First, take a FreePBX VM snapshot (preferred). The 17.1.3 preview targets an
+First, take a FreePBX VM snapshot (preferred). The 17.1.4 preview targets an
 existing functioning Nortien SCCP Manager 17.1.1 installation.
 Back up existing signing keys and ocserv files if not included in your VM snapshot.
 
 Download the preview module tarball from
-[the fork's preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.3).
+[the fork's preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.4).
 
 Then upgrade the module as root on the PBX, which lets the module install
 its own root-owned components in a single operation:
 
 ```bash
 sudo fwconsole ma downloadinstall \
-  https://github.com/legop3/sccp_manager/releases/download/vpn-preview-17.1.3/sccp_manager.tar.gz
+  https://github.com/legop3/sccp_manager/releases/download/vpn-preview-17.1.4/sccp_manager.tar.gz
 sudo fwconsole reload
 ```
 
@@ -40,17 +40,26 @@ time, the installer will not interrupt it; the unit is enabled for next boot.
 
 ## In the FreePBX UI
 
-Go to SCCP Connectivity > **VPN Phones** (also available in
-Server Config > VPN Phones).
+Configure Server Config > **VPN Phones** once:
+1. Enable Cisco built-in VPN provisioning.
+2. Set the public VPN URI (for example `https://otter.land:4443/svc`).
+3. Choose global VPN default **Off** and signed provisioning **Automatic**.
+4. Save server defaults. Keep existing Cisco signing keys.
 
-1. Enter your VPN concentrator, for example `https://otter.land:4443/svc`.
-2. Select the first phone by MAC, e.g. `SEP00EBD5CA5557`.
-3. Enable managed VPN provisioning and save.
-4. Click **Regenerate and sign selected phones**.
-5. Verify the phone's `.cnf.xml`, `.cnf.xml.sgn`, and `ITLSEP*.tlv`
-   files are present in the TFTP directory.
-6. From another network, confirm FreePBX sees the phone on its VPN-assigned
-   address and verify two-way audio.
+Then configure the **actual phone** in Phones Manager:
+1. Create or edit your Cisco SCCP device.
+2. In **VPN & Signed Provisioning**, set VPN **Enabled** and Signing **Enabled**
+   (or inherit the automatic signing default).
+3. Leave gateway and MTU overrides blank unless this phone needs different settings.
+4. Save the phone normally. SCCP Manager generates its VPN XML, signs it and
+   publishes the trust list automatically.
+
+For the first clean phone test, use its reachable local TFTP service to
+download the signed provisioning and trust files. Once configured, test on
+a different internet connection and confirm SCCP registers using the VPN
+pool address and has two-way audio. A factory reset of the phone is separate
+from server-side trust-list changes; **do not delete or rotate your signing
+certificates to reset a phone**.
 
 The VPN username/password is only entered in the account form if you want to
 change it. The working account can remain untouched.
