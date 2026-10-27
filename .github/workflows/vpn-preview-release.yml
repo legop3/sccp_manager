@@ -26,9 +26,12 @@ jobs:
           php -l sccpManClasses/aminterface.class.php
           php -l page.sccp_vpn.php
           php -r 'simplexml_load_file("module.xml") ?: exit(1);'
-          python3 -m py_compile scripts/sccp-manager-vpn-helper
+          python3 -m py_compile scripts/sccp-manager-vpn-helper scripts/sccp-manager-ocserv-setup
           bash -n scripts/install-vpn-helper.sh
           php tests/vpn-provisioning.php
+          sudo apt-get update -qq
+          sudo apt-get install -y ocserv
+          python3 tests/test_ocserv_setup.py
           php tests/regression-sccp.php
           git clone --depth 1 https://github.com/usecallmanagernz/certutils.git /tmp/certutils-test
           python3 -m venv /tmp/vpn-checks
@@ -43,6 +46,7 @@ jobs:
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/module.xml
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/vendor/certutils/sgnfile
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-vpn-helper
+          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-ocserv-setup
           tar -xOzf sccp_manager.tar.gz sccp_manager/sccpManClasses/aminterface.class.php | grep -q 'parseRealTimeStatusOutput'
           if tar -xOzf sccp_manager.tar.gz sccp_manager/sccpManClasses/aminterface.class.php | grep -q '\$this_realm'; then
             echo 'Stale aminterface RealTime parser found in package' >&2
@@ -57,11 +61,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view vpn-preview-17.1.4 >/dev/null 2>&1; then
-            gh release create vpn-preview-17.1.4 \
-              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.4 VPN preview" \
+          if ! gh release view vpn-preview-17.1.5 >/dev/null 2>&1; then
+            gh release create vpn-preview-17.1.5 \
+              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.5 VPN preview" \
               --notes "Development build from feature/vpn-provisioning. Not upstream. Test on a backed-up FreePBX installation." \
               --prerelease --latest=false sccp_manager.tar.gz
           else
-            gh release upload vpn-preview-17.1.4 sccp_manager.tar.gz --clobber
+            gh release upload vpn-preview-17.1.5 sccp_manager.tar.gz --clobber
           fi
