@@ -234,13 +234,25 @@ class vpnprovisioning
     {
         return $this->runHelper(array('start'));
     }
-
-    private function runHelper(array $args)
+    public function setVpnAccount($username, $password)
     {
-        return $this->run(array_merge(array('/usr/bin/sudo', '-n', self::HELPER), $args));
+        if (!is_string($username) || !preg_match('/^[A-Za-z0-9_.-]{1,64}$/D', $username)) {
+            throw new \InvalidArgumentException('VPN username must contain 1-64 simple characters');
+        }
+        if (!is_string($password) || $password === '' || strlen($password) > 1024 ||
+            strpbrk($password, "\r\n") !== false) {
+            throw new \InvalidArgumentException('VPN password must be nonempty, <=1024 bytes, and contain no newlines');
+        }
+        return $this->runHelper(array('set-account', $username), $password . "\n");
     }
 
-    private function run(array $command)
+
+    private function runHelper(array $args, $input = null)
+    {
+        return $this->run(array_merge(array('/usr/bin/sudo', '-n', self::HELPER), $args), $input);
+    }
+
+    private function run(array $command, $input = null)
     {
         if (!is_executable($command[0])) {
             throw new \RuntimeException('VPN signing utility is not executable: ' . $command[0]);
@@ -248,12 +260,16 @@ class vpnprovisioning
         // PHP 7.4+ supports an argv array: never interpolate paths into a shell.
         $pipes = array();
         $process = proc_open($command, array(
-            0 => array('file', '/dev/null', 'r'),
+            0 => $input === null ? array('file', '/dev/null', 'r') : array('pipe', 'r'),
             1 => array('pipe', 'w'),
             2 => array('pipe', 'w')
         ), $pipes);
         if (!is_resource($process)) {
             throw new \RuntimeException('Cannot start VPN signing utility');
+        }
+        if ($input !== null) {
+            fwrite($pipes[0], $input);
+            fclose($pipes[0]);
         }
         $stdout = stream_get_contents($pipes[1]);
         $stderr = stream_get_contents($pipes[2]);
