@@ -1,5 +1,13 @@
 # SCCP Manager
 
+> **Development build 17.1.2 — Cisco built-in VPN integration.** This branch
+> adds the VPN Phones interface, signed provisioning, ocserv service controls
+> and shared-account management. It has not been installed on a live PBX yet.
+> Follow the [reversible first-test instructions](docs/TEST_INSTALL.md), not
+> the upstream full Module Admin upgrade workflow below. See also the
+> [VPN feature documentation](docs/VPN_PROVISIONING.md).
+>
+
 FreePBX module that runs Cisco SCCP ("Skinny") desk phones through the [chan-sccp](https://github.com/nortien/chan-sccp) driver, with no Cisco CallManager involved. Phones, lines, buttons, speed dials with busy lamps (BLF), softkey sets, phone models and the per-phone configuration files (`SEP<MAC>.cnf.xml`, fetched by the phone over TFTP) are all managed from the FreePBX GUI. New to the terms? The wiki has a [glossary](https://github.com/nortien/sccp_manager/wiki/Glossary).
 
 **Current release: 17.1.1**, bundling chan-sccp 4.4.1 · Documentation: [wiki](https://github.com/nortien/sccp_manager/wiki)
