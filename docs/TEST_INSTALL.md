@@ -1,110 +1,79 @@
-# Reversible first test on an existing FreePBX 17 server
+# Install and test the integrated SCCP Manager VPN build
 
-These instructions deliberately **avoid `fwconsole ma install/upgrade`** for
-this initial test. Nortien's module installer rewrites SCCP database and
-provisioning configuration during a full module installation, and we want
-to preserve an already-working phone. Start with one Cisco 7945G.
+**This is a preview of a single FreePBX module, not a second product.**
+The module package includes the GUI, Cisco XML templates/profile generator,
+certutils source tools, privileged signing service integration, and tests.
+No separately downloaded certutils checkout or helper-install script is needed.
 
-## 1. Back up the existing files
+## Existing PBX: one module package
 
-On the PBX:
+First, take a FreePBX VM snapshot (preferred). The 17.1.2 preview targets an
+existing functioning Nortien SCCP Manager 17.1.1 installation.
+Back up existing signing keys and ocserv files if not included in your VM snapshot.
 
-```bash
-BACKUP=/root/sccp-manager-before-vpn
-sudo mkdir -p "$BACKUP"
-sudo cp -a /var/www/html/admin/modules/sccp_manager "$BACKUP/module"
-sudo cp -a /etc/ocserv "$BACKUP/ocserv"
-sudo cp -a /etc/cisco-signing "$BACKUP/cisco-signing"
-sudo cp -a /tftpboot/SEP00EBD5CA5557.cnf.xml* "$BACKUP/"
-sudo cp -a /tftpboot/ITLSEP00EBD5CA5557.tlv "$BACKUP/"
-```
+Download the preview module tarball from
+[the fork's preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.2).
 
-Use the actual phone ID if different; copying optional missing files will
-produce an error but does not invalidate prior successful backups.
-
-Do **not** remove or regenerate existing signing keys; the phone has installed
-their certificates in its trust list.
-
-## 2. Fetch the development branch and overlay the module
+Then upgrade the module as root on the PBX, which lets the module install
+its own root-owned components in a single operation:
 
 ```bash
-cd /tmp
-git clone --branch feature/vpn-provisioning --single-branch \
-  https://github.com/legop3/sccp_manager.git sccp_manager-vpn
-sudo rsync -a --exclude=.git /tmp/sccp_manager-vpn/ \
-  /var/www/html/admin/modules/sccp_manager/
-sudo fwconsole chown
+sudo fwconsole ma downloadinstall \
+  https://github.com/legop3/sccp_manager/releases/download/vpn-preview-17.1.2/sccp_manager.tar.gz
 sudo fwconsole reload
 ```
 
-Do not overwrite `/tftpboot/templates` or the ocserv server configuration.
-The branch includes a new VPN Phones tab in SCCP Connectivity > Server Config
-even if the new standalone menu entry does not appear without reinstalling.
+**Why root?** The FreePBX GUI normally lacks the privileges needed to install
+a systemd service or write protected signing keys. The module's install.php
+handles the privileged setup automatically when the upgrade actually runs
+as root. This is a limitation of the FreePBX execution context, not a separate
+helper product. If your fwconsole environment drops privileges during module
+installation, the VPN page will say setup is pending; don't assume it worked.
 
-## 3. Install the restricted signer and service unit
+On an existing SCCP Manager installation, the development install hook skips
+the legacy SCCP database/realtime/driver rewrite. It leaves the chan_sccp
+driver, old SCCP settings, configured phones, and existing ocserv.conf alone.
+It installs packaged certutils into a protected internal system location,
+preserves current Cisco signing keys and publishes a systemd unit for
+the already-working ocserv server. If ocserv is running manually at upgrade
+time, the installer will not interrupt it; the unit is enabled for next boot.
 
-The first setup must run once as root; subsequent signing and VPN management
-are available through FreePBX. Use the existing certutils checkout.
+## In the FreePBX UI
 
-```bash
-cd /var/www/html/admin/modules/sccp_manager
-sudo bash scripts/install-vpn-helper.sh /home/sangoma/certutils
-sudo -u asterisk sudo -n /usr/local/libexec/sccp-manager-vpn-helper status
-sudo -u asterisk sudo -n /usr/local/libexec/sccp-manager-vpn-helper hash
-```
+Go to SCCP Connectivity > **VPN Phones** (also available in
+Server Config > VPN Phones).
 
-If your username or certutils checkout differs, use its real path in the
-installer command. The install step does not stop ocserv or replace your
-working VPN settings. It creates/enables a **separate** `sccp-ocserv` unit.
-
-If you still have ocserv in a foreground terminal, stop it using Ctrl+C
-before starting the managed service. In VPN Phones, click **Start managed
-ocserv service** or run `sudo systemctl start sccp-ocserv`.
-
-## 4. Configure and test only one phone
-
-Open FreePBX > SCCP Connectivity > Server Config > **VPN Phones**.
-
-1. Enter your existing concentrator URL, such as
-   `https://vpn.example.net:4443/svc`.
-2. Add only the ID of your test phone, such as `SEP00EBD5CA5557`.
-3. Check **Enable managed VPN provisioning** and save.
+1. Enter your VPN concentrator, for example `https://otter.land:4443/svc`.
+2. Select the first phone by MAC, e.g. `SEP00EBD5CA5557`.
+3. Enable managed VPN provisioning and save.
 4. Click **Regenerate and sign selected phones**.
-5. Verify the files below have fresh timestamps:
-   `SEP00EBD5CA5557.cnf.xml`,
-   `SEP00EBD5CA5557.cnf.xml.sgn`,
-   `ITLSEP00EBD5CA5557.tlv`.
-6. Leave the existing VPN username/password alone if they already work.
-   Otherwise use the **VPN login** form; it does not retain the password.
-7. Test the phone off-LAN. `sccp show sessions` should show its VPN pool IP.
-   Make a call and verify audio in both directions.
+5. Verify the phone's `.cnf.xml`, `.cnf.xml.sgn`, and `ITLSEP*.tlv`
+   files are present in the TFTP directory.
+6. From another network, confirm FreePBX sees the phone on its VPN-assigned
+   address and verify two-way audio.
 
-The module uses the *existing* ocserv config. Cisco SVC must be enabled and
-both TCP and UDP forwarded; the working test required TCP 4443 and UDP 443.
+The VPN username/password is only entered in the account form if you want to
+change it. The working account can remain untouched.
 
-## 5. Rollback
+The VPN server continues using the existing ocserv config; a missing or
+unconfigured ocserv server is still reported as a requirement, not silently
+substituted with untested version/config. A separately forwarded TCP 4443
+and UDP 443 were necessary on the reference setup.
 
-To restore the old module code without touching the VPN service or trust keys:
+## Checks
 
-```bash
-sudo rsync -a --delete /root/sccp-manager-before-vpn/module/ \
-  /var/www/html/admin/modules/sccp_manager/
-sudo fwconsole chown
-sudo fwconsole reload
-```
+The source branch includes `tests/vpn-provisioning.php`, a real
+certutils integration test, syntax checks, and a release package workflow.
+Passing CI cannot verify every FreePBX and Cisco firmware interaction, so
+start with a single phone.
 
-**Warning:** if the test phone has installed an ITL, its signed provisioning
-must continue. Rolling back the module does not remove its ITL. Do not
-regenerate its configuration in unsigned-only mode; use the old manual
-`certutils` signing workflow or restore your known-good signed files.
+## Rollback
 
-Do not delete the root helper, signing keys or ocserv systemd service during
-the first rollback; leaving them in place does not affect normal calls.
+Restore the VM snapshot if needed. If restoring only module code, restore
+the old module directory and run `sudo fwconsole reload`.
+Preserve the existing private signing keys and signed TFTP files:
+once a phone has accepted an ITL, reverting to unsigned provisioning can
+prevent that phone from accepting configuration updates.
+Rollback should not erase or rotate the trust chain.
 
-## Limitations
-
-This is a module-level integration test, not a test of the full upstream
-installer or a fresh FreePBX deployment. The ocserv binary and its
-`/etc/ocserv/ocserv.conf` must already be functional. GitHub Actions syntax
-checks and mock signing tests passing does not prove every FreePBX UI
-interaction works. Test with one phone before making the feature general.
+Nothing has been submitted to Nortien's upstream repo.
