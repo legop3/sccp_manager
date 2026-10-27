@@ -1,0 +1,23 @@
+name: VPN provisioning checks
+
+on:
+  push:
+    branches:
+      - feature/vpn-provisioning
+  pull_request:
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: openssl, dom, simplexml
+      - name: PHP syntax
+        run: |
+          php -l sccpManClasses/vpnprovisioning.class.php
+          php -l sccpManClasses/xmlinterface.class.php
+      - name: VPN provisioning tests
+        run: php tests/vpn-provisioning.php
