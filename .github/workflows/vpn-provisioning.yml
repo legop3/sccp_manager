@@ -23,5 +23,9 @@ jobs:
           php -l sccpManTraits/bmoFunctions.php
           php -l page.sccp_vpn.php
           php -r 'simplexml_load_file("module.xml") ?: exit(1);'
+      - name: Validate helper and installer syntax
+        run: |
+          python3 -m py_compile scripts/sccp-manager-vpn-helper
+          bash -n scripts/install-vpn-helper.sh
       - name: VPN provisioning tests
         run: php tests/vpn-provisioning.php
