@@ -231,6 +231,67 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         }
     }
 
+    /** Standalone VPN provisioning settings, stored in FreePBX's module KV store. */
+    public $vpnPageMessage = '';
+    public $vpnPageError = '';
+
+    public function vpnSettings() {
+        $stored = $this->getConfig('vpn_provisioning');
+        return is_array($stored) ? $stored : array(
+            'enabled' => false,
+            'devices' => array(),
+            'gateway' => '',
+            'mtu' => 1290,
+            'server_certificate' => '',
+            'tftp_certificate' => '',
+            'sast_certificate' => '',
+            'sgnfile' => '',
+            'tlvfile' => ''
+        );
+    }
+
+    public function vpnSaveFromPost(array $post) {
+        $devices = preg_split('/\s+/', trim((string) ($post['vpn_devices'] ?? '')), -1, PREG_SPLIT_NO_EMPTY);
+        $devices = array_values(array_unique(array_map('strtoupper', $devices ?: array())));
+        $settings = array(
+            'enabled' => ($post['vpn_enabled'] ?? '') === '1',
+            'devices' => $devices,
+            'gateway' => trim((string) ($post['vpn_gateway'] ?? '')),
+            'mtu' => (int) ($post['vpn_mtu'] ?? 1290),
+            'server_certificate' => trim((string) ($post['vpn_server_certificate'] ?? '')),
+            'tftp_certificate' => trim((string) ($post['vpn_tftp_certificate'] ?? '')),
+            'sast_certificate' => trim((string) ($post['vpn_sast_certificate'] ?? '')),
+            'sgnfile' => trim((string) ($post['vpn_sgnfile'] ?? '')),
+            'tlvfile' => trim((string) ($post['vpn_tlvfile'] ?? ''))
+        );
+        if ($settings['enabled']) {
+            if (!$devices) {
+                throw new \InvalidArgumentException(_('Select at least one phone before enabling VPN provisioning.'));
+            }
+            foreach ($devices as $device) {
+                if (!preg_match('/^SEP[0-9A-F]{12}$/D', $device)) {
+                    throw new \InvalidArgumentException(_('Phone IDs must be SEP followed by twelve hex digits.'));
+                }
+            }
+            $url = parse_url($settings['gateway']);
+            if ($url === false || ($url['scheme'] ?? '') !== 'https' ||
+                empty($url['host']) || isset($url['user']) || isset($url['pass']) || isset($url['fragment'])) {
+                throw new \InvalidArgumentException(_('Enter a valid HTTPS VPN gateway URL.'));
+            }
+            if ($settings['mtu'] < 576 || $settings['mtu'] > 1500) {
+                throw new \InvalidArgumentException(_('VPN MTU must be between 576 and 1500.'));
+            }
+            foreach (array('server_certificate', 'tftp_certificate', 'sast_certificate', 'sgnfile', 'tlvfile') as $field) {
+                $value = $settings[$field];
+                if ($value === '' || $value[0] !== '/' || preg_match('/[\x00-\x1f]/', $value)) {
+                    throw new \InvalidArgumentException(sprintf(_('%s must be an absolute file path.'), $field));
+                }
+            }
+        }
+        $this->setConfig('vpn_provisioning', $settings);
+        $this->vpnPageMessage = _('VPN provisioning settings saved. Regenerate selected phone configurations to publish signed files.');
+    }
+
     /*
      *  Show form information - General
      */
