@@ -11,7 +11,7 @@
 		<sccpsettings	sort="1">Server Config</sccpsettings>
 		<sccp_adv	sort="2">System Parameters</sccp_adv>
 		<sccp_phone	sort="3">Phones Manager</sccp_phone>
-		<sccp_vpn sort="4">VPN Phones</sccp_vpn>
+		<sccp_vpn sort="4">VPN &amp; Signing</sccp_vpn>
 	</menuitems>
 	<changelog>
 		 * Version 17.1.4 * - Global defaults plus per-device VPN, signing and endpoint configuration; no MAC allowlist
