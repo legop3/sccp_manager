@@ -82,5 +82,12 @@ $inactive = new vpnprovisioning(null, $configPath);
 $unchanged = new SimpleXMLElement('<device><vpnGroup><old>yes</old></vpnGroup></device>');
 $inactive->apply($unchanged, 'SEP00EBD5CA5557');
 check((string) $unchanged->vpnGroup->old === 'yes', 'disabled integration does not alter existing templates');
+$blocked = false;
+try {
+    $inactive->publish('SEP00EBD5CA5557', $xmlPath);
+} catch (RuntimeException $exception) {
+    $blocked = strpos($exception->getMessage(), 'Existing Cisco ITL') !== false;
+}
+check($blocked, 'prevents unsigned regeneration of already-trusted phones');
 
 echo "All VPN provisioning tests passed.\n";
