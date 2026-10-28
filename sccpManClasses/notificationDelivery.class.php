@@ -69,15 +69,22 @@ final class notificationDelivery {
         foreach ($fields as $key=>$value) $values['{'.$key.'}']=(string)$value;
         $title=strtr($options['title'],$values);
         $message=strtr($options['message'],$values);
-        if ($kind==='scheduled') {
+        $builtIn=null;
+        if ($kind==='scheduled' && ($options['source']??'custom')!=='custom') {
+            $builtIn=notificationSources::builtIn($options['source']);
+            if ($builtIn===null) throw new \RuntimeException('Built-in notification source unavailable: '.$options['source']);
+            $title=$builtIn['title'];
+            $message=$builtIn['message'];
+        }
+        if ($kind==='scheduled' && $builtIn===null) {
             $title=notificationSources::text($options['title_url'],$title);
             $message=notificationSources::text($options['message_url'],$message);
         }
         $sound=$this->configuredSound($options['sound']);
         $url=null;
         if ($options['style']!=='sound') {
-            if ($kind==='scheduled' && $options['style']==='image' && $options['image_url']!=='') {
-                $image=notificationSources::image($options['image_url'],$this->module,$message);
+            if ($kind==='scheduled' && $options['style']==='image' && ($builtIn!==null || $options['image_url']!=='')) {
+                $image=notificationSources::image($builtIn!==null ? $builtIn['image_url'] : $options['image_url'],$this->module,$message);
                 $xml=$image?'<CiscoIPPhoneImageFile><Title>'.htmlspecialchars(substr($title,0,32),ENT_XML1).'</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>'.htmlspecialchars($image,ENT_XML1).'</URL></CiscoIPPhoneImageFile>':phoneNotifications::text($title,$message);
             } else {
                 $xml=$options['style']==='status'
