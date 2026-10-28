@@ -44,7 +44,10 @@ final class notificationDelivery {
         chmod($dir.'/'.$name,0644);
         foreach (glob($dir.'/notification-*.xml')?:[] as $old)
             if (is_file($old) && !is_link($old) && filemtime($old)<time()-3600) @unlink($old);
-        return $base.'/'.$name;
+        // The 7945G XML browser expects text/xml. Apache serves .xml as
+        // application/xml on some FreePBX hosts, causing "HTTP file error".
+        // Serve through a fixed, read-only endpoint with the proper MIME type.
+        return $base.'/notification-display.php?id='.substr($name,13,24);
     }
 
     private function forDevice($device,$extensions) {
