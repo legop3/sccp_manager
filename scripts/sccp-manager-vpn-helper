@@ -177,8 +177,13 @@ def sign_content(kind):
                 raise RuntimeError("Invalid Cisco content file size: " + source.name)
             copy = stage / source.name
             shutil.copyfile(source, copy)
+            # The signed header filename must match the exact path the
+            # firmware requested. For wallpapers this includes Desktops/
+            # 320x212x16/; a basename-only signature downloads successfully
+            # but is rejected before the phone requests any thumbnails.
+            requested_name = (source.relative_to(TFTP).as_posix() + ".sgn")
             run([str(BIN_DIR / "sgnfile"), "--build", str(copy),
-                 "--tftp", str(signer)])
+                 "--tftp", str(signer), "--filename", requested_name])
             signed = stage / (source.name + ".sgn")
             if not signed.is_file() or signed.stat().st_size == 0:
                 raise RuntimeError("Media signing failed: " + source.name)
@@ -186,6 +191,8 @@ def sign_content(kind):
                           "--tftp", str(signer)]).stdout
             if "Valid signature" not in output:
                 raise RuntimeError("Media signature verification failed: " + source.name)
+            if ("Filename:         " + requested_name) not in output:
+                raise RuntimeError("Cisco signed media filename does not match TFTP path: " + requested_name)
 
         # Publish the binary and its signature together: signed bytes must
         # match exactly the PNG or XML that TFTP is already serving.
