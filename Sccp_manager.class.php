@@ -534,6 +534,12 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                 } elseif (!is_file($this->phonecontent->publicPath() . '/directory.xml')) {
                     $this->phonecontent->publishDirectory();
                 }
+                // One-time republish of the public voicemail.php endpoint after
+                // the FreePBX bootstrap fix. No SEP regeneration or phone reset.
+                if (!$this->getConfig('phonecontent_vmbootstrap_1724')) {
+                    $this->phonecontent->publishDirectory();
+                    $this->setConfig('phonecontent_vmbootstrap_1724', true);
+                }
                 $this->phonecontent->syncUrls();
             }
             // Existing wallpaper uploads predate ITL-aware media signing.
