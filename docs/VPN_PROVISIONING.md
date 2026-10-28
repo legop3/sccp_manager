@@ -8,7 +8,7 @@ a second companion module or a separate tool checkout.
 Find **SCCP Connectivity > Server Config > VPN & Signing**. Configure:
 
 - Whether the Cisco built-in VPN provisioning is available.
-- VPN gateway URL (HTTPS URI, such as `https://vpn.example.net:4443/svc`).
+- VPN hostname (for example `vpn.example.net`). HTTPS `/svc` is generated automatically.
 - Global default for new phones: VPN on/off (default off).
 - Signed configuration default: automatic, always, or disabled.
 - Automatic VPN connection when away from local TFTP (default on).
@@ -50,7 +50,7 @@ Resetting a phone is a separate operation from resetting its provisioning
 trust. Do not delete trusted certificates or issue new keys simply to start
 the phone setup over again.
 
-The module installs ocserv automatically when it is missing, then configures
+There is one VPN & Signing tab under Server Config; advanced network settings are collapsed and the PBX IPv4 address is detected unless overridden. The module installs ocserv automatically when it is missing, then configures
 its own isolated server on the first VPN settings Save. A TLS certificate is
 generated automatically if one does not exist; existing certificates and
 signing keys are never rotated silently. The reference deployment used
@@ -66,7 +66,7 @@ TCP/UDP ports to FreePBX.
 
 ## Development and testing
 
-The development build is 17.1.7. Start with one 7945G and use the
+The development build is 17.1.8. Start with one 7945G and use the
 [test installation guide](TEST_INSTALL.md). The automated CI covers PHP
 syntax, VPN XML generation, per-phone defaults/overrides, signing and ITL
 handling, and real certutils signing. It has not yet been validated against
