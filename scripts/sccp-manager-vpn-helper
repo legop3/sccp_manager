@@ -179,6 +179,35 @@ def recent_connection_events():
         return []
 
 
+def ocserv_version():
+    """Report the running VPN server binary, not only the installed package."""
+    binary = ""
+    try:
+        result = subprocess.run(
+            ["systemctl", "show", SYSTEMD_SERVICE, "--property=MainPID", "--value"],
+            capture_output=True, text=True, timeout=3, check=True)
+        pid = int(result.stdout.strip())
+        if pid > 0:
+            binary = os.readlink("/proc/{}/exe".format(pid)).replace(" (deleted)", "")
+    except (OSError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        pass
+    if not binary:
+        binary = next((p for p in ("/usr/local/sbin/ocserv", "/usr/sbin/ocserv")
+                       if Path(p).is_file()), "")
+    version = ""
+    if binary:
+        try:
+            output = subprocess.run([binary, "--version"], capture_output=True,
+                                    text=True, timeout=3, check=True)
+            match = re.search(r"(\\d+)\\.(\\d+)\\.(\\d+)",
+                              output.stdout + output.stderr)
+            if match:
+                version = ".".join(match.groups())
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            pass
+    return binary, version
+
+
 def status():
     try:
         result = subprocess.run(["systemctl", "is-active", SYSTEMD_SERVICE],
@@ -187,7 +216,12 @@ def status():
         service = result.stdout.strip() or "unknown"
     except (OSError, subprocess.TimeoutExpired):
         service = "unknown"
+    running_binary, running_version = ocserv_version()
     payload = {
+        "ocserv_running_binary": running_binary,
+        "ocserv_version": running_version,
+        "cisco_svc_supported": bool(running_version and
+                                    tuple(int(i) for i in running_version.split(".")) >= (1, 2, 0)),
         "service": service,
         "ocserv_binary": str(Path("/usr/local/sbin/ocserv")) if
                          Path("/usr/local/sbin/ocserv").is_file() else
