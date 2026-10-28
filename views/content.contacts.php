@@ -1,110 +1,111 @@
 <?php
 $pc = $this->phonecontent;
-$base = $pc->baseUrl();
-$esc = function ($value) { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); };
+$esc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
 $contacts = $pc->contacts();
-$health = $pc->status();
+$base = $pc->baseUrl();
 ?>
-<div class="container-fluid sccp-phone-content">
-    <div class="sccp-content-heading">
-        <div>
-            <h3>Address Book</h3>
-            <p>Manage contacts once for every Cisco phone. Names and phone numbers are published as a browsable, dialable Cisco directory.</p>
-        </div>
-        <div class="sccp-content-count"><?php echo count($contacts); ?> contacts</div>
-    </div>
-
-    <section class="sccp-content-panel">
-        <h4>Phone connection</h4>
-        <p class="text-muted">The phone needs a reachable HTTP address for this FreePBX server. Use the PBX address routed over the phone's VPN, not the public web admin URL.</p>
-        <form method="post" action="config.php?display=sccp_content#general" class="sccp-content-form-row">
-            <input type="hidden" name="content_action" value="address">
-            <label class="sccp-content-grow" for="pbx_address">PBX address for phones
-                <input class="form-control" id="pbx_address" name="pbx_address" placeholder="192.168.0.25"
-                    value="<?php echo $esc(parse_url($base, PHP_URL_HOST) ?: ''); ?>" required>
-            </label>
-            <button class="btn btn-default" type="submit">Save address</button>
-        </form>
-        <?php if ($base): ?>
-        <div class="sccp-content-url">
-            <span>Built-in directory URL</span>
-            <code><?php echo $esc($base . '/phone.php?doc=directory'); ?></code>
-            <a class="btn btn-default btn-sm" target="_blank" rel="noopener" href="<?php echo $esc($base . '/phone.php?doc=directory'); ?>">Test URL</a>
-        </div>
-        <div class="sccp-content-actions">
-            <form method="post" action="config.php?display=sccp_content#general">
-                <input type="hidden" name="content_action" value="urls">
-                <button type="submit" class="btn btn-default">Use built-in directory &amp; services</button>
-            </form>
-            <form method="post" action="config.php?display=sccp_content#general">
-                <input type="hidden" name="content_action" value="regenerate">
-                <button type="submit" class="btn btn-primary">Apply to phone configurations</button>
-            </form>
-            <form method="post" action="config.php?display=sccp_content#general"
-                onsubmit="return confirm('Restore URLs saved before enabling the built-in phone content?')">
-                <input type="hidden" name="content_action" value="restore_urls">
-                <button type="submit" class="btn btn-link">Restore previous URLs</button>
-            </form>
-        </div>
-        <p class="help-block">"Use built-in" explicitly replaces the two SCCP Device URL fields and remembers their previous values. "Apply" regenerates signed phone files without resetting phones; reset a phone from Phones Manager to load new URLs. Adding contacts later requires no restart.</p>
-        <?php else: ?>
-        <p class="alert alert-warning">Set a PBX IP address to publish the directory.</p>
-        <?php endif; ?>
-    </section>
-
-    <section class="sccp-content-panel">
-        <h4>Provisioning checks</h4>
-        <?php $this->phoneContentStatusTab = 'general'; include __DIR__ . '/content.status.php'; ?>
-    </section>
-
-    <section class="sccp-content-panel">
-        <h4>Add contact</h4>
-        <form method="post" action="config.php?display=sccp_content#general" class="sccp-content-form-row">
-            <input type="hidden" name="content_action" value="contact">
-            <label class="sccp-content-grow">Name
-                <input name="contact_name" class="form-control" placeholder="Example: Front Desk" maxlength="100" required>
-            </label>
-            <label class="sccp-content-grow">Phone number or extension
-                <input name="contact_number" class="form-control" placeholder="150" maxlength="40" required>
-            </label>
-            <button class="btn btn-primary" type="submit">Add contact</button>
-        </form>
-    </section>
-
-    <section class="sccp-content-panel">
-        <div class="sccp-content-heading">
-            <h4>Contacts</h4>
-            <input class="form-control sccp-content-search" type="search" id="sccp-contact-search" placeholder="Search contacts…"
-                oninput="document.querySelectorAll('#sccp-contact-rows tr[data-contact]').forEach(function(r){r.hidden=!r.dataset.contact.includes(document.getElementById('sccp-contact-search').value.toLowerCase())})">
+<div class="fpbx-container container-fluid">
+    <div class="display no-border">
+        <h3><?php echo _('Address Book'); ?></h3>
+        <div class="row">
+            <div class="col-md-9">
+                <form method="post" action="config.php?display=sccp_content#general" class="form-inline" style="margin-bottom:16px">
+                    <input type="hidden" name="content_action" value="contact">
+                    <div class="form-group">
+                        <label class="sr-only" for="new-contact-name"><?php echo _('Name'); ?></label>
+                        <input class="form-control" id="new-contact-name" name="contact_name" maxlength="100" required placeholder="<?php echo _('Contact name'); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="sr-only" for="new-contact-number"><?php echo _('Number'); ?></label>
+                        <input class="form-control" id="new-contact-number" name="contact_number" maxlength="40" required placeholder="<?php echo _('Extension or number'); ?>">
+                    </div>
+                    <button class="btn btn-primary" type="submit"><i class="fa fa-plus"></i> <?php echo _('Add'); ?></button>
+                </form>
+            </div>
+            <div class="col-md-3">
+                <input type="search" class="form-control" id="sccp-contact-filter" placeholder="<?php echo _('Search contacts'); ?>" aria-label="<?php echo _('Search contacts'); ?>">
+            </div>
         </div>
         <div class="table-responsive">
-            <table class="table table-hover">
-                <thead><tr><th>Contact</th><th>Actions</th></tr></thead>
-                <tbody id="sccp-contact-rows">
-                    <?php foreach ($contacts as $item): ?>
-                    <tr data-contact="<?php echo $esc(strtolower($item['name'] . ' ' . $item['number'])); ?>">
-                        <td>
-                            <form method="post" class="sccp-content-form-row" id="edit-contact-<?php echo $esc($item['id']); ?>" action="config.php?display=sccp_content#general">
-                                <input type="hidden" name="content_action" value="contact">
-                                <input type="hidden" name="id" value="<?php echo $esc($item['id']); ?>">
-                                <input class="form-control sccp-content-grow" aria-label="Contact name" name="contact_name" maxlength="100" required value="<?php echo $esc($item['name']); ?>">
-                                <input class="form-control sccp-content-grow" aria-label="Phone number" name="contact_number" maxlength="40" required value="<?php echo $esc($item['number']); ?>">
-                                <button type="submit" class="btn btn-default">Save</button>
+            <table id="sccp-contact-table" class="table table-striped table-hover">
+                <thead>
+                    <tr><th><?php echo _('Name'); ?></th><th><?php echo _('Number'); ?></th><th class="text-right"><?php echo _('Actions'); ?></th></tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($contacts as $contact): ?>
+                    <tr class="sccp-contact-entry" data-search="<?php echo $esc(strtolower($contact['name'] . ' ' . $contact['number'])); ?>">
+                        <td><?php echo $esc($contact['name']); ?></td>
+                        <td><?php echo $esc($contact['number']); ?></td>
+                        <td class="text-right">
+                            <button type="button" class="btn btn-default btn-sm sccp-contact-edit" title="<?php echo _('Edit'); ?>" aria-label="<?php echo _('Edit contact'); ?>"><i class="fa fa-pencil"></i></button>
+                            <form method="post" action="config.php?display=sccp_content#general" style="display:inline" onsubmit="return confirm('Delete contact?')">
+                                <input type="hidden" name="content_action" value="delete_contact">
+                                <input type="hidden" name="id" value="<?php echo $esc($contact['id']); ?>">
+                                <button class="btn btn-default btn-sm" type="submit" title="<?php echo _('Delete'); ?>" aria-label="<?php echo _('Delete contact'); ?>"><i class="fa fa-trash"></i></button>
                             </form>
                         </td>
-                        <td>
-                            <form method="post" action="config.php?display=sccp_content#general"
-                                onsubmit="return confirm('Delete this contact?')">
-                                <input type="hidden" name="content_action" value="delete_contact">
-                                <input type="hidden" name="id" value="<?php echo $esc($item['id']); ?>">
-                                <button type="submit" class="btn btn-default">Delete</button>
+                    </tr>
+                    <tr class="sccp-contact-edit-row" style="display:none">
+                        <td colspan="3">
+                            <form method="post" action="config.php?display=sccp_content#general" class="form-inline">
+                                <input type="hidden" name="content_action" value="contact">
+                                <input type="hidden" name="id" value="<?php echo $esc($contact['id']); ?>">
+                                <input class="form-control" name="contact_name" maxlength="100" value="<?php echo $esc($contact['name']); ?>" required aria-label="<?php echo _('Contact name'); ?>">
+                                <input class="form-control" name="contact_number" maxlength="40" value="<?php echo $esc($contact['number']); ?>" required aria-label="<?php echo _('Contact number'); ?>">
+                                <button type="submit" class="btn btn-primary"><?php echo _('Save'); ?></button>
+                                <button type="button" class="btn btn-default sccp-contact-cancel"><?php echo _('Cancel'); ?></button>
                             </form>
                         </td>
                     </tr>
                     <?php endforeach; ?>
-                    <?php if (!$contacts): ?><tr><td colspan="2"><p class="sccp-content-empty">No contacts yet. Add one above.</p></td></tr><?php endif; ?>
+                    <?php if (!$contacts): ?>
+                    <tr><td colspan="3" class="text-center text-muted"><?php echo _('No contacts yet.'); ?></td></tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
-    </section>
+        <p class="text-muted"><?php echo count($contacts); ?> <?php echo _('contacts'); ?>. <?php echo _('Changes appear on the phone the next time the directory is opened.'); ?></p>
+        <details style="margin-top:24px">
+            <summary><?php echo _('Directory connection settings'); ?></summary>
+            <div class="well" style="margin-top:12px">
+                <p class="help-block"><?php echo _('The module hosts the directory automatically. Normally no configuration is needed here.'); ?></p>
+                <form method="post" action="config.php?display=sccp_content#general" class="form-inline">
+                    <input type="hidden" name="content_action" value="address">
+                    <div class="form-group">
+                        <label for="phonecontent-address"><?php echo _('PBX IP reachable by phones'); ?></label>
+                        <input class="form-control" id="phonecontent-address" name="pbx_address"
+                            value="<?php echo $esc(parse_url($base, PHP_URL_HOST) ?: ''); ?>" required>
+                    </div>
+                    <button type="submit" class="btn btn-default"><?php echo _('Save'); ?></button>
+                </form>
+                <?php if ($base): ?>
+                    <p class="help-block"><?php echo _('Directory URL:'); ?>
+                        <a target="_blank" rel="noopener noreferrer" href="<?php echo $esc($base . '/phone.php?doc=directory'); ?>"><?php echo $esc($base . '/phone.php?doc=directory'); ?></a>
+                    </p>
+                <?php endif; ?>
+            </div>
+        </details>
+    </div>
 </div>
+<script>
+(function(){
+    var filter=document.getElementById('sccp-contact-filter');
+    if(filter){filter.addEventListener('input',function(){
+        var query=this.value.trim().toLowerCase();
+        document.querySelectorAll('#sccp-contact-table .sccp-contact-entry').forEach(function(row){
+            var show=row.getAttribute('data-search').indexOf(query)!==-1;
+            row.style.display=show?'':'none';
+            if(!show && row.nextElementSibling)row.nextElementSibling.style.display='none';
+        });
+    });}
+    document.querySelectorAll('#sccp-contact-table .sccp-contact-edit').forEach(function(button){
+        button.addEventListener('click',function(){
+            var row=button.closest('tr').nextElementSibling;
+            row.style.display=row.style.display==='none'?'':'none';
+        });
+    });
+    document.querySelectorAll('#sccp-contact-table .sccp-contact-cancel').forEach(function(button){
+        button.addEventListener('click',function(){button.closest('tr').style.display='none';});
+    });
+})();
+</script>
