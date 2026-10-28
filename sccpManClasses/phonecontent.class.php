@@ -155,15 +155,9 @@ PHP;
         list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
         $this->element($doc, $root, 'Title', 'Directories');
         $this->element($doc, $root, 'Prompt', 'Select a directory');
-        foreach (array(
-            'Missed Calls' => 'Application:Cisco/MissedCalls',
-            'Received Calls' => 'Application:Cisco/ReceivedCalls',
-            'Placed Calls' => 'Application:Cisco/PlacedCalls'
-        ) as $label => $url) {
-            $item = $root->appendChild($doc->createElement('MenuItem'));
-            $this->element($doc, $item, 'Name', $label);
-            $this->element($doc, $item, 'URL', $url);
-        }
+        // The Cisco handset renders its own Missed/Received/Placed Calls.
+        // Do not echo them into the remote XML menu: that creates duplicates.
+        // The phone book is the first (and normally only) custom item.
         foreach ($chunks as $i => $chunk) {
             $item = $root->appendChild($doc->createElement('MenuItem'));
             $label = count($chunks) === 1 ? 'Phone Book' :
@@ -235,6 +229,17 @@ PHP;
         $rings = $this->tftp . '/RingList.xml';
         $conf = $this->parent->sccpvalues;
         $url = (string) ($conf['dev_directoryURL']['data'] ?? '');
+        // Debian TFTP's actual served directory may differ from SCCP's
+        // configured upload directory. Report a mismatch, rather than
+        // incorrectly marking a wallpaper usable merely because it exists.
+        $tftpServiceRoot = '';
+        $tftpDefaults = '/etc/default/tftpd-hpa';
+        if (is_readable($tftpDefaults)) {
+            $defaults = file_get_contents($tftpDefaults);
+            if (preg_match('/^\\s*TFTP_DIRECTORY\\s*=\\s*["\\x27]?([^"\\x27\\r\\n]+)["\\x27]?/m', $defaults, $match)) {
+                $tftpServiceRoot = trim($match[1]);
+            }
+        }
         $status = array(
             'web_dir' => $this->public,
             'directory_file' => $xml,
@@ -255,6 +260,9 @@ PHP;
             'ring_index_readable' => is_readable($rings),
             'ring_count' => count($this->ringtones()),
             'tftp_root' => $this->tftp,
+            'tftp_service_root' => $tftpServiceRoot,
+            'tftp_root_matches' => $tftpServiceRoot === '' ||
+                realpath($tftpServiceRoot) === realpath($this->tftp),
             'tftp_root_exists' => is_dir($this->tftp)
         );
         $status['wallpaper_files_ok'] = $status['wallpaper_count'] > 0;
