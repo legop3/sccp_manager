@@ -155,7 +155,7 @@ verify(strpos($dialplan, 'VoiceMailPlayMsg(${SCCP_VM_MAILBOX}@default,${SCCP_VM_
 verify(strpos($dialplan, 'Wait(') === false && strpos($dialplan, 'Sleep(') === false,
     'SCCP dialplan has no artificial delays');
 $unsafe = $m;
-$unsafe['name'] = 'Weird (test), \r\nName';
+$unsafe['name'] = "Weird (test), \r\nName";
 $fields = phonevoicemail::originateFields('111', $unsafe);
 verify(strpos($fields['PreDialGoSub'], '(Weird test Name,') !== false,
     'Gosub name cannot inject comma or parentheses into Asterisk argument delimiters');
