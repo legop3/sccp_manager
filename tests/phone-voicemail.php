@@ -14,7 +14,7 @@ verify(phonevoicemail::parseMessage($raw, 'INBOX', '../foo') === null, 'Invalid 
 
 $orig = phonevoicemail::originateFields('111', $m);
 verify($orig['Channel'] === 'SCCP/111/aa=1w', 'Muted auto-answer');
-verify($orig['Data'] === '111@default,1782735000-00000123', 'Playback uses stable Asterisk message ID');
+verify($orig['Data'] === 'sccp-manager-vm-playback.agi,111,1782735000-00000123', 'Playback selects stable Asterisk message ID');
 verify($orig['Application'] === 'AGI', 'Asterisk invokes post-answer playback AGI');
 verify($orig['Data'] === 'sccp-manager-vm-playback.agi,111,1782735000-00000123',
     'AGI selects voicemail by stable ID and adds post-answer delay');
