@@ -29,7 +29,8 @@ try {
     $menus = $parent->phonemenus;
     ensure($menus->config()['enabled'] === false, 'Must not change existing phones on upgrade');
     $parent->phonecontent->publishDirectory();
-    ensure(is_file($tmp . '/phonebook.xml'), 'Phonebook must be independent of directory menu');
+    ensure(is_file($tmp . '/directory.xml'), 'Canonical Directories XML must exist');
+    ensure(!is_file($tmp . '/phonebook.xml'), 'Do not create extra Phone Book page');
     ensure(is_file($tmp . '/services.xml'), 'Legacy Services XML');
     ensure(strpos(file_get_contents($tmp . '/phone.php'), 'doc=') === false,
         'Endpoint should be generic rather than hardcoded to a single contact page');
@@ -41,10 +42,6 @@ try {
 
     $data = $menus->config();
     $data['enabled'] = true;
-    $data['directories'] = array(
-        array('name' => 'Friends & Family', 'type' => 'phonebook', 'value' => ''),
-        array('name' => 'More', 'type' => 'submenu', 'value' => 'friends')
-    );
     $data['services'] = array(
         array('name' => 'Information', 'type' => 'text', 'value' => 'Hello <friends> & everyone'),
         array('name' => 'Website', 'type' => 'url', 'value' => 'http://example.com/phone.xml')
@@ -57,8 +54,10 @@ try {
     ensure(is_file($tmp . '/pc-sub-friends.xml'), 'Submenu generated');
     ensure(is_file($tmp . '/pc-text-services-0.xml'), 'Text page generated');
     $dir = simplexml_load_file($tmp . '/directory.xml');
-    ensure(count($dir->MenuItem) === 2, 'Editable directory entry count');
-    ensure((string) $dir->MenuItem[0]->Name === 'Friends & Family', 'Directory name escaping');
+    ensure(count($dir->MenuItem) === 2, 'Direct directory must contain Favorites and All Extensions');
+    ensure((string)$dir->MenuItem[0]->Name === 'Favorites' &&
+        (string)$dir->MenuItem[1]->Name === 'All Extensions',
+        'Physical Directories button screen must never open a Phone Book intermediary');
     $text = simplexml_load_file($tmp . '/pc-text-services-0.xml');
     ensure((string) $text->Text === 'Hello <friends> & everyone', 'Text page escaping');
     $sub = simplexml_load_file($tmp . '/pc-sub-friends.xml');
@@ -67,20 +66,23 @@ try {
     $phone = simplexml_load_file($template);
     $menus->applyProvisioning($phone);
     ensure((string) $phone->phoneServices->provisioning === '0', 'Internal mode');
-    ensure(count($phone->phoneServices->phoneService) === 5, '2 directories + 2 services + 1 voicemail');
+    ensure(count($phone->phoneServices->phoneService) === 4, '1 Directories + 2 Services + 1 Messages');
     ensure((string) $phone->phoneServices->phoneService[0]['type'] === '1', 'Directory category');
-    ensure((string) $phone->phoneServices->phoneService[4]['type'] === '2', 'Voicemail category');
-    ensure((string) $phone->phoneServices->phoneService[4]->url === 'Application:Cisco/Voicemail',
+    ensure((string) $phone->phoneServices->phoneService[3]['type'] === '2', 'Voicemail category');
+    ensure((string) $phone->phoneServices->phoneService[3]->url === 'Application:Cisco/Voicemail',
         'Preserve native voicemail');
+    ensure((string) $phone->phoneServices->phoneService[0]->url ===
+        'http://192.168.0.25/sccp-manager/phone.php?doc=directory',
+        'Physical Directories button provisions the same direct root as the generated XML');
     ensure(strpos($phone->asXML(), 'Application:Cisco/MissedCalls') === false,
         'Call history entries really removed');
     ensure((string) $phone->devicePool->callManagerGroup->members->member->callManager->ports->ethernetPhonePort === '2000',
         'Other phone configuration must not be altered');
 
     foreach (array(
-        array('enabled' => true, 'directories' => array(), 'services' => $data['services'], 'messages' => $data['messages'], 'submenus' => array()),
+        array('enabled' => true, 'services' => array(), 'messages' => $data['messages'], 'submenus' => array()),
         array_replace($data, array('messages' => array())),
-        array_replace($data, array('directories' => array(array('name'=>'Bad', 'type'=>'url', 'value'=>'file:///etc/passwd')))),
+        array_replace($data, array('services' => array(array('name'=>'Bad', 'type'=>'url', 'value'=>'file:///etc/passwd')))),
         array_replace($data, array('submenus' => array(array('id'=>'../escape', 'name'=>'No', 'items'=>array()))))
     ) as $bad) {
         try {
