@@ -46,6 +46,38 @@ if (!function_exists('sccp_manager_vpn_install')) {
     }
 }
 
+// Directory XML and previews live outside /admin/ so Cisco phones can
+// retrieve static content without logging into FreePBX.
+if (!function_exists('sccp_manager_content_install')) {
+    function sccp_manager_content_install()
+    {
+        global $amp_conf;
+        $dir = dirname((string) ($amp_conf['AMPWEBROOT'] ?? '/var/www/html/admin')) . '/sccp-manager';
+        if (function_exists('posix_geteuid') && posix_geteuid() !== 0) {
+            outn('<li>Phone Content: public directory setup requires a root fwconsole upgrade.</li>');
+            return;
+        }
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+            outn('<li>Phone Content: could not create ' . htmlspecialchars($dir, ENT_QUOTES) . '</li>');
+            return;
+        }
+        if (is_link($dir)) {
+            outn('<li>Phone Content: refusing symlinked directory.</li>');
+            return;
+        }
+        @chown($dir, 'asterisk');
+        @chgrp($dir, 'asterisk');
+        @chmod($dir, 0755);
+        outn('<li>Phone Content: static Cisco directory/preview path ready.</li>');
+        if (!function_exists('imagecreatefromstring')) {
+            outn('<li>Phone Content: PHP GD is required for wallpaper conversion (apt install php-gd).</li>');
+        }
+        if (!is_executable('/usr/bin/ffmpeg') && !is_executable('/usr/local/bin/ffmpeg')) {
+            outn('<li>Phone Content: ffmpeg is required for ringtone conversion (apt install ffmpeg).</li>');
+        }
+    }
+}
+
 // Avoid running the legacy full SCCP schema/realtime/driver installer on an
 // ordinary update of an already working Nortien installation. VPN uses BMO's
 // key/value settings store, so no SQL schema migration is needed.
@@ -58,6 +90,7 @@ try {
 }
 if ($alreadyInstalledSccp) {
     sccp_manager_vpn_install();
+    sccp_manager_content_install();
     outn('<li>' . _('Existing SCCP devices, server configuration and driver were preserved.') . '</li>');
     return;
 }
@@ -204,6 +237,7 @@ chownTftpTree();
 outn("<br>");
 outn("Install Complete !");
 sccp_manager_vpn_install();
+sccp_manager_content_install();
 outn("<br>");
 
 // Functions follow
