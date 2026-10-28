@@ -319,3 +319,29 @@ in both the UI and server validation. The regression fixture uses the actual
 10-extension directory and exact failure-producing prompt. No signed SEP
 update, VPN change, or device reset is required; visiting Phone Content
 republishes the public directory XML.
+
+## 17.1.38 — Directories opens Favorites immediately
+
+There is **no Favorites/All Extensions selection screen**. The physical
+Directories button now provisions `/sccp-manager/phone.php?doc=contacts-1`,
+which returns the first Favorites `CiscoIPPhoneDirectory` directly.
+
+Four softkeys on each directory list preserve the phone's native controls:
+**Dial** (SoftKey:Dial), **EditDial** (SoftKey:EditDial), **All/Favs** (an HTTP
+link to the other directory list), and **Exit** (SoftKey:Exit).
+With more than 30 entries, the **Pages** softkey temporarily replaces
+EditDial and opens the page selector. Pressing Directories never opens a
+page selector. The optional page selector appears only when explicitly
+requested.
+
+The Address Book text editor now edits only the two actual directory
+screens: Favorites and All Extensions titles/prompts. Unused chooser
+title/prompt and option-label fields were removed. Existing extension
+visibility and manual contacts are unchanged. The module still applies
+the 32-byte Cisco Title/Prompt guards introduced in 17.1.37.
+
+The updated Directories URL is signed automatically through existing
+SCCP Manager provisioning on the next Phone Content visit after upgrading,
+or when Save Menus is used; there is no separate manual publishing control.
+Remote phones load signed SEP changes when they normally reprovision.
+No VPN setup or separate directory backend is involved.
