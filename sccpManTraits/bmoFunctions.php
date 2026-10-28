@@ -29,6 +29,7 @@ trait bmoFunctions {
                         case 'start': $this->vpnStartService(); break;
                         case 'regenerate': $this->vpnRegenerateSelected(); break;
                         case 'account': $this->vpnSetAccount($_POST); break;
+                        case 'delete_account': $this->vpnDeleteAccount($_POST); break;
                         default: throw new \InvalidArgumentException('Unknown VPN operation');
                     }
                 } catch (\Throwable $e) {
