@@ -560,6 +560,13 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                     $this->phonecontent->publishDirectory();
                     $this->setConfig('phonecontent_vmdelete_1729', true);
                 }
+                // The list softkey and Cisco execute action live in the
+                // public voicemail.php endpoint. Republish it once on update.
+                // No SEP regeneration, phone reset, or VPN changes.
+                if (!$this->getConfig('phonecontent_vmmenu_1731')) {
+                    $this->phonecontent->publishDirectory();
+                    $this->setConfig('phonecontent_vmmenu_1731', true);
+                }
                 $this->phonecontent->syncUrls();
             }
             // Existing wallpaper uploads predate ITL-aware media signing.
