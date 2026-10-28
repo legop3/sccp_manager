@@ -122,14 +122,18 @@ class phonevoicemail
         return array_slice($items, 0, 100);
     }
 
-    private function messageById($mailbox, $id, $folder)
+    /**
+     * Message IDs persist when Asterisk moves a heard voicemail from INBOX
+     * into Old, while msg000N filenames and folder names may change. Resolve
+     * every operation against the CURRENT folder instead of stale menu links.
+     */
+    private function messageById($mailbox, $id)
     {
-        if (!is_string($id) || !preg_match('/^[A-Za-z0-9_.-]{1,120}$/D', $id) ||
-            !in_array($folder, array('INBOX','Old'), true)) {
+        if (!is_string($id) || !preg_match('/^[A-Za-z0-9_.-]{1,120}$/D', $id)) {
             throw new \InvalidArgumentException('Invalid message.');
         }
         foreach ($this->listMessages($mailbox) as $m) {
-            if ($m['id'] === $id && $m['folder'] === $folder) return $m;
+            if ($m['id'] === $id) return $m;
         }
         throw new \RuntimeException('Message no longer exists. Refresh voicemail.');
     }
@@ -238,8 +242,10 @@ class phonevoicemail
         return array(
             'Action'=>'Originate',
             'Channel'=>'SCCP/' . $line . '/aa=1w',
-            'Application'=>'VoiceMailPlayMsg',
-            'Data'=>$line . '@default,' . $message['id'],
+            // Execute an AGI on the answered SCCP channel: it waits two
+            // seconds for the handset's RTP receiver before streaming audio.
+            'Application'=>'AGI',
+            'Data'=>'sccp-manager-vm-playback.agi,' . $line . ',' . $message['id'],
             'CallerID'=>'"' . $cidName . '" <' . $cidNum . '>',
             'Timeout'=>'10000',
             'Async'=>'true'
@@ -248,8 +254,37 @@ class phonevoicemail
 
     public function playback($line, array $message)
     {
+        $helper = '/var/lib/asterisk/agi-bin/sccp-manager-vm-playback.agi';
+        if (!is_file($helper) || !is_executable($helper)) {
+            throw new \RuntimeException('Voicemail playback AGI is not installed. Reinstall SCCP Manager as root.');
+        }
         $this->assertNotOnCall($line);
         $this->ami(self::originateFields($line, $message));
+    }
+
+    /**
+     * Finish serving the XML page before making the call. Otherwise the 7945G
+     * sometimes cancels its HTTP request as auto-answer steals screen focus,
+     * producing an intermittent XML Error 4.
+     */
+    public function queuePlayback($line, array $message)
+    {
+        $this->assertNotOnCall($line);
+        $helper = '/var/lib/asterisk/agi-bin/sccp-manager-vm-playback.agi';
+        if (!is_file($helper) || !is_executable($helper)) {
+            throw new \RuntimeException('Voicemail playback AGI is not installed. Reinstall SCCP Manager as root.');
+        }
+        ignore_user_abort(true);
+        register_shutdown_function(function () use ($line, $message) {
+            // The web endpoint sets Content-Length and flushes the complete
+            // XML before this shutdown handler is invoked.
+            usleep(1200000);
+            try {
+                $this->playback($line, $message);
+            } catch (\Throwable $e) {
+                error_log('sccp_manager visual voicemail playback: ' . $e->getMessage());
+            }
+        });
     }
 
     private function xml($title, $prompt, array $entries = array())
@@ -270,6 +305,20 @@ class phonevoicemail
         echo $doc->saveXML();
     }
 
+    private function showMessageList($line, $base, array $messages)
+    {
+        $links = array();
+        foreach ($messages as $m) {
+            $from = $m['name'] !== '' ? $m['name'] : ($m['number'] !== '' ? $m['number'] : 'Unknown Caller');
+            $label = ($m['folder'] === 'INBOX' ? '* ' : '') . $from .
+                ' ' . ($m['time'] ? date('m/d H:i', $m['time']) : '');
+            // Link only the stable ID, NEVER a folder or msg000N slot.
+            $links[] = array(substr($label, 0, 60), $base . '&op=detail&id=' . rawurlencode($m['id']));
+        }
+        if (!$links) $links[] = array('No voicemail messages', $base);
+        $this->xml('Voicemail ' . $line, count($messages) . ' messages (* = new)', $links);
+    }
+
     public function handle(array $get)
     {
         try {
@@ -279,20 +328,14 @@ class phonevoicemail
             if (!in_array($op, array('list','detail','play','mark','delete','confirm-delete'), true)) throw new \InvalidArgumentException('Unknown voicemail operation.');
             $messages = $this->listMessages($line);
             if ($op === 'list') {
-                $links = array();
-                foreach ($messages as $m) {
-                    $from = $m['name'] !== '' ? $m['name'] : ($m['number'] !== '' ? $m['number'] : 'Unknown Caller');
-                    $label = ($m['folder'] === 'INBOX' ? '* ' : '') . $from .
-                        ' ' . ($m['time'] ? date('m/d H:i', $m['time']) : '');
-                    $links[] = array(substr($label,0,60), $base . '&op=detail&id=' . rawurlencode($m['id']) . '&folder=' . $m['folder']);
-                }
-                if (!$links) $links[] = array('No voicemail messages', $base);
-                $this->xml('Voicemail ' . $line, count($messages) . ' messages (* = new)', $links);
+                $this->showMessageList($line, $base, $messages);
                 return;
             }
             $id = (string)($get['id'] ?? '');
-            $folder = (string)($get['folder'] ?? '');
-            $msg = $this->messageById($line, $id, $folder);
+            // An old phone may still have ?folder=INBOX cached; ignore it.
+            // Resolve the current folder by stable message ID instead.
+            $msg = $this->messageById($line, $id);
+            $folder = $msg['folder'];
             $from = $msg['name'] ?: ($msg['number'] ?: 'Unknown Caller');
             if ($op === 'mark') {
                 if ($folder !== 'INBOX') throw new \InvalidArgumentException('Message is already marked heard.');
@@ -303,8 +346,8 @@ class phonevoicemail
             }
             if ($op === 'delete') {
                 $this->xml('Delete Message?', 'Delete voicemail from ' . substr($from = ($msg['name'] ?: ($msg['number'] ?: 'Unknown')),0,38) . '?', array(
-                    array('YES - Delete', $base . '&op=confirm-delete&id=' . rawurlencode($id) . '&folder=' . $folder),
-                    array('Cancel', $base . '&op=detail&id=' . rawurlencode($id) . '&folder=' . $folder)
+                    array('YES - Delete', $base . '&op=confirm-delete&id=' . rawurlencode($id)),
+                    array('Cancel', $base . '&op=detail&id=' . rawurlencode($id))
                 ));
                 return;
             }
@@ -315,16 +358,16 @@ class phonevoicemail
                 return;
             }
             if ($op === 'play') {
-                $this->playback($line, $msg);
-                // Leave the message list behind the call, so the phone returns
-                // directly to it after playback ends.
-                $this->handle(array('phone'=>$device, 'key'=>$token, 'op'=>'list'));
+                // The call starts ONLY after the full XML response has been
+                // flushed. This avoids racing the phone's XML parser.
+                $this->queuePlayback($line, $msg);
+                $this->showMessageList($line, $base, $messages);
                 return;
             }
             $this->xml(substr($from,0,55), 'Select an action', array(
-                array('Play (' . $msg['duration'] . ' sec)', $base . '&op=play&id=' . rawurlencode($id) . '&folder=' . $folder),
-                ...($folder === 'INBOX' ? array(array('Mark as Heard', $base . '&op=mark&id=' . rawurlencode($id) . '&folder=' . $folder)) : array()),
-                array('Delete Message', $base . '&op=delete&id=' . rawurlencode($id) . '&folder=' . $folder),
+                array('Play (' . $msg['duration'] . ' sec)', $base . '&op=play&id=' . rawurlencode($id)),
+                ...($folder === 'INBOX' ? array(array('Mark as Heard', $base . '&op=mark&id=' . rawurlencode($id))) : array()),
+                array('Delete Message', $base . '&op=delete&id=' . rawurlencode($id)),
                 array('Back to messages', $base)
             ));
         } catch (\Throwable $e) {
