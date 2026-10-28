@@ -284,10 +284,21 @@ prompt, and both option names are edited in **Address Book → Directories scree
 labels** alongside the contact-list titles and prompts. The previous extra
 Phone Book label fields and route have been removed rather than aliased.
 
-**One-time physical phone update:** Open **Phone Content → Menus** and click
-**Publish signed phone configurations**. This calls the module's existing
-signed SEP configuration generator for Cisco phones. Reset the phone once to
-load the new Directories button URL (no need to change VPN credentials). The
-phone-facing XML remains live-updated after that. Simply installing the module
-and republishing static XML does not change the URL already stored on a phone.
+**Phone provisioning happens automatically:** After upgrading, opening
+**Phone Content** once signs the current SEP configurations through the module's
+existing provisioning process, if custom button menus are enabled. **Save
+Menus** already does the same for later changes. There is no extra publishing
+button or manual action. The phone loads its new Directories-button URL on its
+next restart; no forced phone reboot or VPN credential changes are performed.
+Editing the directory content or labels thereafter updates the served XML
+without signing phone configurations.
 
+
+## 17.1.36 — Automatic provisioning (no extra button)
+
+The redundant "Publish signed phone configurations" control and backend action
+were removed. The module uses its existing normal save path to regenerate and
+sign the SEP files. Existing deployments are updated once, automatically, on
+the first Phone Content page visit after upgrading. Nothing resets remote phones
+without operator action; the corrected button URL is loaded at the next phone
+restart. The 7945G VPN configuration is left alone.
