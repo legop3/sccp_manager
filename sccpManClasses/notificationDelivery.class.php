@@ -65,9 +65,14 @@ final class notificationDelivery {
         $sound=$this->configuredSound($options['sound']);
         $url=null;
         if ($options['style']!=='sound') {
-            $xml=$options['style']==='status'
-                ? phoneNotifications::status($message,$options['duration'])
-                : phoneNotifications::text($title,$message);
+            if ($kind==='scheduled' && $options['style']==='image' && $options['image_url']!=='') {
+                $image=notificationSources::image($options['image_url'],$this->module,$message);
+                $xml=$image?'<CiscoIPPhoneImageFile><Title>'.htmlspecialchars(substr($title,0,32),ENT_XML1).'</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>'.htmlspecialchars($image,ENT_XML1).'</URL></CiscoIPPhoneImageFile>':phoneNotifications::text($title,$message);
+            } else {
+                $xml=$options['style']==='status'
+                    ? phoneNotifications::status($message,$options['duration'])
+                    : phoneNotifications::text($title,$message);
+            }
             $url=$this->publicDocument($xml);
         }
         if (!$url && !$sound) return 0;
