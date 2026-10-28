@@ -66,7 +66,7 @@ TCP/UDP ports to FreePBX.
 
 ## Development and testing
 
-The development build is 17.1.11. Start with one 7945G and use the
+The development build is 17.1.12. Start with one 7945G and use the
 [test installation guide](TEST_INSTALL.md). The automated CI covers PHP
 syntax, VPN XML generation, per-phone defaults/overrides, signing and ITL
 handling, and real certutils signing. It has not yet been validated against
