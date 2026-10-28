@@ -42,7 +42,7 @@ $rings=$this->phonecontent->ringtones();
 <?php endif;?>
 </fieldset>
 <?php endforeach;?>
-<p class="help-block">Image display is intended for scheduled notifications with an Image URL. Text is rendered beneath the image. </p><p class="help-block">For call alerts, {caller} is the caller identifier. Voicemail text supports {count} and {extension}. Sounds reuse uploaded ringtones.</p>
+<p class="help-block">Image display is intended for scheduled notifications with an Image URL. Text is rendered beneath the image.</p><p class="help-block">Voicemail placeholders: {caller}, {number}, {received}, {date}, {time}, {length}, {extension}, {count}. Missed call: {caller}, {number}, {when}, {date}, {time}, {reason}, {extension}. Names and durations appear when available in Asterisk records. Sounds reuse uploaded ringtones.</p>
 <button type="submit" class="btn btn-primary">Save notification settings</button>
 </form>
 <form method="post" action="config.php?display=sccp_content#notifications" style="margin-top:15px">
