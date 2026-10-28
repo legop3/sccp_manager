@@ -9,7 +9,11 @@ class MockProvisioning {
         return array(
             'service' => 'active', 'vpn_configuration_exists' => true,
             'signing_tools_installed' => true, 'tftp_certificate_exists' => true,
-            'sast_certificate_exists' => true, 'server_certificate_exists' => true
+            'sast_certificate_exists' => true, 'server_certificate_exists' => true,
+            'accounts' => array(array('username' => 'phone1', 'group' => '', 'enabled' => true)),
+            'sessions' => array(array('username' => 'phone1', 'remote_ip' => '203.0.113.4',
+                'vpn_ip' => '10.254.77.22', 'connected_at' => '2026-10-28')),
+            'recent_events' => array('VPN authentication succeeded for phone1')
         );
     }
     public function deviceSettings($id) {
@@ -65,6 +69,15 @@ checkUi(strpos($html, '<details') !== false &&
     strpos($html, 'name="vpn_subnet"') !== false, 'Advanced fields remain editable');
 checkUi(strpos($html, 'display=sccpsettings#sccpvpn') !== false &&
     strpos($html, 'name="display" value="sccp_vpn"') === false, 'Forms target only Server Config tab');
+checkUi(strpos($html, 'VPN accounts') !== false &&
+    strpos($html, 'phone1') !== false &&
+    strpos($html, 'name="vpn_action" value="delete_account"') !== false &&
+    strpos($html, 'New password') !== false, 'Existing accounts and account controls are visible');
+checkUi(strpos($html, 'Connected VPN phones') !== false &&
+    strpos($html, '10.254.77.22') !== false &&
+    strpos($html, '203.0.113.4') !== false, 'Active VPN sessions are visible');
+checkUi(strpos($html, 'VPN authentication succeeded for phone1') !== false,
+    'Connection attempts are visible');
 checkUi(strpos($html, 'router') === false && strpos($html, 'manually started') === false,
     'No manual-deployment commentary');
 $phone = FreePBX::$instance->renderPhone();
