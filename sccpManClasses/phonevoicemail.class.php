@@ -441,6 +441,11 @@ class phonevoicemail
             if ($folder === 'INBOX' && !$afterPlayback) {
                 $entries[] = array('Mark as Heard', $base . '&op=mark&id=' . rawurlencode($id));
             }
+            // Dial URI uses the same verified caller number as voicemail
+            // metadata, and works for internal SCCP extensions too.
+            $callback=(string)($msg['number']??'');
+            if (preg_match('/^[+0-9*#]{1,32}$/D',$callback))
+                $entries[] = array('Call Back ' . $callback, 'Dial:' . $callback);
             $entries[] = array('Delete Message', $base . '&op=delete&id=' . rawurlencode($id));
         }
         $this->xml(substr($from, 0, 55), 'Select an action', $entries,
