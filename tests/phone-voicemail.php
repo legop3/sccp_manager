@@ -24,6 +24,6 @@ try {
     phonevoicemail::originateFields('111/../../../', $m);
     throw new RuntimeException('Invalid SCCP device line accepted');
 } catch (InvalidArgumentException $expected) { }
-verify(phonevoicemail::validDevice('SEP00AABBCCDDEE')===1, 'Valid phone ID');
+verify(phonevoicemail::validDevice('SEP00AABBCCDDEE')===true, 'Valid phone ID');
 verify(!phonevoicemail::validDevice('SEP00AABBCCDDEE/../'), 'Unsafe device ID');
 echo "Visual voicemail tests passed.\n";
