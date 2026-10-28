@@ -104,6 +104,9 @@ verify((string)$deleteXml->SoftKeyItem[0]->URL === 'SoftKey:Select',
 verify(strpos($deleteXml->asXML(), 'Delete Message?') === false,
     'Avoid the failing standalone Delete Message confirmation XML page');
 
+$softkeysDetail = array_map('strval', iterator_to_array($xml->xpath('//SoftKeyItem/Name')));
+verify(!in_array('VM Menu', $softkeysDetail, true),
+    'VM Menu shortcut does not appear in individual message details');
 $names = array();
 foreach ($xml->MenuItem as $item) $names[] = (string)$item->Name;
 verify(!in_array('Mark as Heard', $names, true),
@@ -112,8 +115,14 @@ verify(!in_array('Mark as Heard', $names, true),
 ob_start();
 $listing->invoke($vm, '111', $baseUrl, array($m));
 $xml = simplexml_load_string(ob_get_clean());
-verify((string)$xml->SoftKeyItem[1]->URL === 'Init:Messages',
+verify((string)$xml->SoftKeyItem[1]->Name === 'VM Menu' &&
+    (string)$xml->SoftKeyItem[1]->URL === $baseUrl . '&op=call-menu' &&
+    (int)$xml->SoftKeyItem[1]->Position === 2,
+    'Traditional Voicemail is a second softkey separate from recordings');
+verify((string)$xml->SoftKeyItem[2]->URL === 'Init:Messages',
     'List Exit closes application in one action');
+verify(count($xml->MenuItem) === 1,
+    'VM Menu shortcut does not consume a voicemail list row');
 verify(strpos((string)$xml->MenuItem[0]->URL, '&folder=') === false,
     'Listing links use stable message ID only');
 
@@ -171,5 +180,33 @@ verify(strpos($fields['PreDialGoSub'], '(Weird test Name,') !== false,
     'Gosub name cannot inject comma or parentheses into Asterisk argument delimiters');
 verify(!str_contains($fields['PreDialGoSub'], "\r") && !str_contains($fields['PreDialGoSub'], "\n"),
     'No AMI predial header injection');
+
+
+$callMenu = new ReflectionMethod(phonevoicemail::class, 'traditionalVoicemailCall');
+ob_start();
+$callMenu->invoke($vm, '150');
+$callXml = simplexml_load_string(ob_get_clean());
+verify($callXml !== false && $callXml->getName() === 'CiscoIPPhoneExecute',
+    'VM Menu returns a valid Cisco execute object');
+verify(count($callXml->ExecuteItem) === 2, 'Exactly two phone-native instructions');
+verify((string)$callXml->ExecuteItem[0]['URL'] === 'Init:Messages',
+    'Closing the Messages application is explicitly requested');
+verify((string)$callXml->ExecuteItem[1]['URL'] === 'Dial:*9900150',
+    'The call is placed from the phone using its numeric mailbox, not *97');
+try {
+    $callMenu->invoke($vm, '150;hangup');
+    throw new LogicException('Unsafe mailbox allowed into telephony URI');
+} catch (InvalidArgumentException $expected) { }
+$endpointSource = file_get_contents(__DIR__ . '/../sccpManClasses/phonecontent.class.php');
+verify(strpos($endpointSource, "'CiscoIPPhoneExecute'") !== false,
+    'Public endpoint accepts validated Execute reply instead of replacing it with an error');
+verify(strpos($dialplan, '[from-internal-custom]') !== false &&
+    strpos($dialplan, 'exten => _*9900.,1,NoOp(') !== false,
+    'Module creates normal user-originated voicemail access extension');
+verify(strpos($dialplan, 'VoiceMailMain(') !== false &&
+    strpos($dialplan, '@default)') !== false,
+    'Traditional voicemail menu uses caller-selected mailbox');
+verify(strpos($dialplan, '@default,s)') === false,
+    'Normal voicemail password checks are not skipped');
 
 echo "Visual voicemail tests passed.\n";
