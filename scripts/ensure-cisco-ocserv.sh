@@ -47,7 +47,7 @@ apt-get install -y --no-install-recommends \
   ca-certificates curl xz-utils build-essential pkg-config \
   libgnutls28-dev libev-dev libreadline-dev libnl-route-3-dev \
   libseccomp-dev libpam0g-dev liblz4-dev libcrypt-dev \
-  libprotobuf-c-dev protobuf-c-compiler >&2
+  libprotobuf-c-dev protobuf-c-compiler ipcalc-ng >&2
 
 workdir="$(mktemp -d /tmp/sccp-ocserv-build.XXXXXXXX)"
 trap 'rm -rf -- "$workdir"' EXIT
