@@ -124,14 +124,16 @@ final class notificationDelivery {
                 }
                 $actions['Dismiss']='Init:Messages';
                 $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,$actions);
-                $deviceUrl=$this->publicDocument($graphic ?: phoneNotifications::interactive($title,$message,$actions));
+                if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
+                $deviceUrl=$this->publicDocument($graphic);
             } elseif ($kind==='missed' && $options['style']==='text') {
                 $actions=[];
                 $number=(string)($fields['number']??'');
                 if (preg_match('/^[+0-9*#]{1,32}$/D',$number)) $actions['Call Back']='Dial:'.$number;
                 $actions['Dismiss']='Init:Messages';
                 $graphic=phoneNotifications::graphic($this->module,'missed',$fields,$actions);
-                $deviceUrl=$this->publicDocument($graphic ?: phoneNotifications::interactive($title,$message,$actions));
+                if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
+                $deviceUrl=$this->publicDocument($graphic);
             }
             $xml='<CiscoIPPhoneExecute>';
             if ($sound) $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1).'"/>';
