@@ -302,3 +302,20 @@ sign the SEP files. Existing deployments are updated once, automatically, on
 the first Phone Content page visit after upgrading. Nothing resets remote phones
 without operator action; the corrected button URL is loaded at the next phone
 restart. The 7945G VPN configuration is left alone.
+
+## 17.1.37 — Cisco XML Error [4] from long directory prompts
+
+On a Cisco 7945G, a well-formed `CiscoIPPhoneDirectory` response can still fail
+with **XML Error [4]: Parse Error** if the `<Title>` or `<Prompt>` exceeds
+the phone's 32-character schema limit. The previous editor permitted 80-byte
+prompts. A real 10-extension directory had all 10 valid records but failed
+because the custom prompt was longer than 32 characters.
+
+Generated directory Title and Prompt values are now capped at **32 UTF-8
+bytes**, on both config reading and the XML output boundary. Saved longer
+prompts are automatically shortened to a valid string without changing the
+extensions or clearing saved settings. Future label edits enforce the limit
+in both the UI and server validation. The regression fixture uses the actual
+10-extension directory and exact failure-producing prompt. No signed SEP
+update, VPN change, or device reset is required; visiting Phone Content
+republishes the public directory XML.
