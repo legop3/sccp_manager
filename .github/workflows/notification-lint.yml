@@ -27,3 +27,6 @@ jobs:
           php -l views/content.notifications.php
           php -l scripts/notifications.php
           php -l install.php
+          php -l tests/missed-call-classifier.php
+      - name: Check missed call classification
+        run: php tests/missed-call-classifier.php
