@@ -83,6 +83,16 @@ try {
         'Prior manually configured URL recovered');
     $content->enableWallpapers();
     check($parent->sccpvalues['backgroundImageAccess']['data'] === 'on', 'Image setting');
+    if (function_exists('imagecreatetruecolor')) {
+        $sample = imagecreatetruecolor(16, 16);
+        $render = new ReflectionMethod(phonecontent::class, 'renderPng');
+        $png = $render->invoke($content, $sample, 320, 212);
+        imagedestroy($sample);
+        check(substr($png, 1, 3) === 'PNG', 'PNG output signature');
+        check(ord($png[25]) === 2, 'Wallpaper PNG must use opaque RGB, not RGBA');
+        $imageInfo = getimagesizefromstring($png);
+        check($imageInfo[0] === 320 && $imageInfo[1] === 212, 'Cisco 7945G output dimensions');
+    }
     $parent->setConfig('phonecontent_wallpapers', array(
         array('id' => '0123456789abcdef', 'name' => 'Beach')));
     $content->publishWallpapers();
