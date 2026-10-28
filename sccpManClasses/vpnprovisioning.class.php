@@ -219,7 +219,12 @@ class vpnprovisioning
         if (!preg_match('/^SEP[0-9A-F]{12}$/D', $deviceId)) {
             return;
         }
-        $itlPath = dirname($xmlPath) . '/ITL' . $deviceId . '.tlv';
+        // The managed signer publishes phone files in the TFTP root, even
+        // when the legacy SCCP generator stores its source in /tftpboot/settings.
+        // Check the ACTUAL published trust file so auto-signing remains enabled
+        // for phones that already installed an ITL.
+        $managed = !empty($settings['managed_signer']);
+        $itlPath = ($managed ? '/tftpboot' : dirname($xmlPath)) . '/ITL' . $deviceId . '.tlv';
         $trusted = is_file($itlPath);
         $effective = $this->resolvedSettings($deviceId);
         $sign = $effective['sign'] === 'on' ||
@@ -237,10 +242,27 @@ class vpnprovisioning
         if (!is_file($xmlPath)) {
             throw new \RuntimeException('Cannot sign a nonexistent phone configuration');
         }
-        if (!empty($settings['managed_signer'])) {
-            $this->runHelper(array('sign', $deviceId));
-            if (!is_file($xmlPath . '.sgn') || !is_file($itlPath)) {
-                throw new \RuntimeException('Managed signer did not publish signed configuration and ITL');
+        if ($managed) {
+            // Source is either TFTP root or one direct child (normally settings).
+            // The privileged helper validates that child and atomically publishes
+            // the signed output and matching plain XML in /tftpboot.
+            $root = realpath('/tftpboot');
+            $directory = realpath(dirname($xmlPath));
+            if ($root === false || $directory === false) {
+                throw new \RuntimeException('TFTP root or configuration directory is missing');
+            }
+            $args = array('sign', $deviceId);
+            if ($directory !== $root) {
+                if (dirname($directory) !== $root ||
+                    !preg_match('/^[A-Za-z0-9_-]{1,64}$/D', basename($directory))) {
+                    throw new \RuntimeException('Managed signing requires a configuration directly inside the TFTP root');
+                }
+                $args[] = basename($directory);
+            }
+            $this->runHelper($args);
+            $published = $root . '/' . $deviceId . '.cnf.xml';
+            if (!is_file($published) || !is_file($published . '.sgn') || !is_file($itlPath)) {
+                throw new \RuntimeException('Managed signer did not publish matching configuration, signature and ITL in TFTP root');
             }
             return;
         }
