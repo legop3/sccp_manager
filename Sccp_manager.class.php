@@ -300,12 +300,12 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             $port = filter_var($post['vpn_tcp_port'] ?? '4443', FILTER_VALIDATE_INT,
                 array('options' => array('min_range' => 1, 'max_range' => 65535)));
             if ($port === false) {
-                throw new \\InvalidArgumentException(_('Invalid VPN TCP port.'));
+                throw new \InvalidArgumentException(_('Invalid VPN TCP port.'));
             }
             if ($host !== '' && (!preg_match('/^[A-Za-z0-9.-]{1,253}$/D', $host) ||
                 $host[0] === '-' || substr($host, -1) === '-' ||
                 strpos($host, '..') !== false)) {
-                throw new \\InvalidArgumentException(_('Enter a valid VPN hostname or IPv4 address.'));
+                throw new \InvalidArgumentException(_('Enter a valid VPN hostname or IPv4 address.'));
             }
             $gateway = $host === '' ? '' : 'https://' . $host . ':' . $port . '/svc';
         }
