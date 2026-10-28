@@ -74,10 +74,13 @@ try {
     $xml = simplexml_load_file($base . '/web/contacts-1.xml');
     check(count($xml->DirectoryEntry) === 2, 'Directory entries');
     $menu = simplexml_load_file($base . '/web/directory.xml');
-    check(count($menu->MenuItem) === 1, 'Built-in call history must not be duplicated');
-    check((string) $menu->MenuItem[0]->Name === 'Phone Book', 'Phone book menu first');
-    check((string) $menu->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=phonebook',
-        'Directory menu opens Favorites/All Extensions');
+    check(count($menu->MenuItem) === 2, 'Directories opens Favorites and All Extensions directly');
+    check((string)$menu->MenuItem[0]->Name === 'Favorites' &&
+          (string)$menu->MenuItem[1]->Name === 'All Extensions',
+          'Direct physical Directories screen, without Phone Book submenu');
+    check((string)$menu->MenuItem[0]->URL ===
+          'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1',
+          'Favorites choice opens its contact list');
 
     check((string) $xml->DirectoryEntry[0]->Name === 'Alice & Bob', 'XML escaping');
     $id = $content->contacts()[0]['id'];
@@ -94,13 +97,13 @@ try {
     $menu = simplexml_load_file($base . '/web/directory.xml');
     check($menu->getName() === 'CiscoIPPhoneMenu', 'Directory pagination');
     check(file_exists($base . '/web/contacts-2.xml'), 'Second contact page');
-    check(count($menu->MenuItem) === 1, 'Top-level menu is independent from contact pagination');
-    $book = simplexml_load_file($base . '/web/phonebook.xml');
-    check(count($book->MenuItem) === 2, 'Favorites and All Extensions as separate items');
+    check(count($menu->MenuItem) === 2, 'Directories stays one menu with two choices');
+    check(!file_exists($base . '/web/phonebook.xml'), 'No redundant Phone Book file is generated');
     check(count(simplexml_load_file($base . '/web/favorites-pages.xml')->MenuItem) === 2,
         'Large Favorites list has separate page index');
-    check((string) $menu->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=phonebook',
-        'Phone Book entry must not point back to directory itself');
+    check((string)$menu->MenuItem[0]->URL ===
+        'http://192.168.0.25/sccp-manager/phone.php?doc=favorites-pages',
+        'Favorites paging is linked directly from Directories');
 
     // Connectivity -> Extensions is the authoritative source, including SCCP.
     $parent->FreePBX->Core->users = array(
@@ -185,147 +188,85 @@ try {
         'Both legacy stacked directory tables are removed');
 
 
-    // Every visible Cisco XML Title/Prompt/Name must be configurable. The
-    // settings update must republish immediately without changing phone URLs
-    // or regenerating signed SEP provisioning.
+    // Directories is the actual first phone-button screen, never a separate
+    // Phone Book page. Customizing the labels changes the exact served XML.
     $labels = $content->directoryLabels();
-    check($labels['menu_entry'] === 'Phone Book', 'Existing directory label default');
+    check($labels['menu_title'] === 'Directories', 'Direct root default title');
+    check(!isset($labels['phonebook_title']) && !isset($labels['menu_entry']),
+        'There are no obsolete Phone Book label fields');
     $custom = array(
-        'menu_title' => 'My directories',
+        'menu_title' => 'My Directories',
         'menu_prompt' => 'Choose a list',
-        'menu_entry' => 'People & Teams',
-        'phonebook_title' => 'My Phone Book',
-        'phonebook_prompt' => 'Choose one of two lists',
+        'favorites_entry' => 'Starred People',
         'contacts_title' => 'Family & Friends',
         'contacts_prompt' => 'Pick <one>',
-        'favorites_entry' => 'Starred People',
         'extensions_entry' => 'Everybody',
         'extensions_title' => 'Everyone on PBX',
         'extensions_prompt' => 'Choose who to call',
         'services_title' => 'Tools',
-        'services_prompt' => 'Choose an action',
-        'services_entry' => 'Call contacts'
+        'services_prompt' => 'Choose an action'
     );
     $contactCount = count($content->contacts());
     $content->saveDirectoryLabels($custom);
-    check($content->directoryLabels() === $custom, 'Custom directory labels persisted');
-    check(count($content->contacts()) === $contactCount, 'Customizing text did not modify contacts');
-    $menu = simplexml_load_file($base . '/web/directory.xml');
-    check((string) $menu->Title === 'My directories', 'Custom menu title');
-    check((string) $menu->Prompt === 'Choose a list', 'Custom menu prompt');
-    check((string) $menu->MenuItem[0]->Name === 'People & Teams',
-        'Custom menu entry label persisted');
-    $book = simplexml_load_file($base . '/web/phonebook.xml');
-    check((string) $book->Title === 'My Phone Book',
-        'Phone Book chooser title is independent of the Directories button entry name');
-    check((string) $book->Prompt === 'Choose one of two lists',
-        'Phone Book chooser prompt is distinct from Directories-button prompt');
-    check((string) $book->MenuItem[0]->Name === 'Starred People',
-        'Favorites label is configurable');
-    check((string) $book->MenuItem[1]->Name === 'Everybody',
-        'All Extensions label is configurable');
-    check((string) simplexml_load_file($base . '/web/favorites-pages.xml')->MenuItem[0]->Name === 'Starred People 1-30',
-        'Favorites paging label is configurable');
-    $page = simplexml_load_file($base . '/web/contacts-1.xml');
-    check((string) $page->Title === 'Family & Friends', 'Custom contact title');
-    check((string) $page->Prompt === 'Pick <one>', 'Escaped custom prompt');
-    $services = simplexml_load_file($base . '/web/services.xml');
-    check((string) $services->Title === 'Tools', 'Custom services title');
-    check((string) $services->Prompt === 'Choose an action', 'Custom services prompt');
-    check((string) $services->MenuItem[0]->Name === 'Call contacts', 'Custom services entry');
-    check(strpos(file_get_contents($base . '/web/directory.xml'), 'People &amp; Teams') !== false,
-        'Special characters safely escaped in Cisco XML');
-
-    // Separate label forms must never overwrite the other screen's text.
-    $addressBookLabels = array(
-        'phonebook_title'=>'Direct Book',
-        'phonebook_prompt'=>'Choose section',
-        'favorites_entry'=>'Pinned',
-        'contacts_title'=>'Favorites Screen',
-        'contacts_prompt'=>'Call a saved contact',
-        'extensions_entry'=>'Every extension',
-        'extensions_title'=>'FreePBX Extensions',
-        'extensions_prompt'=>'Call an extension'
-    );
-    $content->saveDirectoryLabels($addressBookLabels);
-    $effective = $content->directoryLabels();
-    foreach ($addressBookLabels as $key=>$value) {
-        check($effective[$key] === $value, 'Phone Book setting saved: ' . $key);
-    }
-    check($effective['menu_title'] === 'My directories' &&
-          $effective['menu_prompt'] === 'Choose a list' &&
-          $effective['services_title'] === 'Tools' &&
-          $effective['services_prompt'] === 'Choose an action',
-          'Phone Book screen edit preserves separate Directories and Services labels');
-    $book = simplexml_load_file($base . '/web/phonebook.xml');
-    check((string)$book->Title === 'Direct Book' &&
-          (string)$book->Prompt === 'Choose section' &&
-          (string)$book->MenuItem[0]->Name === 'Pinned' &&
-          (string)$book->MenuItem[1]->Name === 'Every extension',
-          'Saved Address Book labels map to actual chooser screen positions');
-    $favoritesScreen = simplexml_load_file($base . '/web/contacts-1.xml');
-    check((string)$favoritesScreen->Title === 'Favorites Screen' &&
-          (string)$favoritesScreen->Prompt === 'Call a saved contact',
-          'Favorites list uses only its own title and prompt');
-    $extensionsScreen = simplexml_load_file($base . '/web/extensions-1.xml');
-    check((string)$extensionsScreen->Title === 'FreePBX Extensions' &&
-          (string)$extensionsScreen->Prompt === 'Call an extension',
-          'All Extensions list uses only its own title and prompt');
+    check($content->directoryLabels() === $custom, 'Canonical labels persisted');
+    check(count($content->contacts()) === $contactCount, 'Editing labels did not touch contacts');
+    $root = simplexml_load_file($base . '/web/directory.xml');
+    check((string)$root->Title === 'My Directories' &&
+          (string)$root->Prompt === 'Choose a list', 'Physical Directories button title and prompt');
+    check(count($root->MenuItem) === 2 &&
+          (string)$root->MenuItem[0]->Name === 'Starred People' &&
+          (string)$root->MenuItem[1]->Name === 'Everybody',
+          'Physical Directories button shows exactly two configured choices');
+    check((string)$root->MenuItem[0]->URL ===
+          'http://192.168.0.25/sccp-manager/phone.php?doc=favorites-pages',
+          'Root Favorites choice goes straight to its directory');
+    check((string)simplexml_load_file($base . '/web/contacts-1.xml')->Title === 'Family & Friends',
+          'Favorites list has its independent title');
+    check((string)simplexml_load_file($base . '/web/contacts-1.xml')->Prompt === 'Pick <one>',
+          'Favorites list has its independent prompt');
+    check((string)simplexml_load_file($base . '/web/extensions-1.xml')->Title === 'Everyone on PBX',
+          'All Extensions list has its independent title');
+    check(strpos(file_get_contents($base . '/web/directory.xml'), 'Starred People') !== false,
+          'Special characters and saved names safely rendered');
     $content->saveDirectoryLabels(array(
-        'menu_title'=>'Real Directories',
-        'menu_prompt'=>'Native entries',
-        'services_title'=>'Real Services',
-        'services_prompt'=>'Native services'
+        'menu_title'=>'Direct Phone Menu',
+        'menu_prompt'=>'Choose an option'
     ));
     $effective = $content->directoryLabels();
-    check($effective['phonebook_title'] === 'Direct Book' &&
-          $effective['phonebook_prompt'] === 'Choose section' &&
-          $effective['favorites_entry'] === 'Pinned',
-          'Editing the button menus does not overwrite Phone Book screens');
-    $nativeDirectories = simplexml_load_file($base . '/web/directory.xml');
-    $nativeServices = simplexml_load_file($base . '/web/services.xml');
-    check((string)$nativeDirectories->Title === 'Real Directories' &&
-          (string)$nativeDirectories->Prompt === 'Native entries' &&
-          (string)$nativeServices->Title === 'Real Services' &&
-          (string)$nativeServices->Prompt === 'Native services',
-          'Top-level button screens honor their own independent labels');
+    check($effective['favorites_entry'] === 'Starred People' &&
+          $effective['extensions_entry'] === 'Everybody' &&
+          $effective['services_title'] === 'Tools',
+          'Editing Directories labels leaves contact lists and Services untouched');
+    $content->saveDirectoryLabels(array(
+        'services_title'=>'My Services',
+        'services_prompt'=>'Choose a service'
+    ));
+    check((string)simplexml_load_file($base . '/web/directory.xml')->Title === 'Direct Phone Menu' &&
+          (string)simplexml_load_file($base . '/web/services.xml')->Title === 'My Services',
+          'Services labels are independent of Directories');
     $editor = file_get_contents(__DIR__ . '/../views/content.contacts.php');
     $menusEditor = file_get_contents(__DIR__ . '/../views/content.menus.php');
-    check(strpos($editor, 'pc-label-preview-screen') !== false &&
-          strpos($editor, '1. Phone Book') !== false &&
+    check(strpos($editor, '1. Directories') !== false &&
           strpos($editor, '2. Favorites') !== false &&
           strpos($editor, '3. All Extensions') !== false,
-          'Address Book presents a preview and three labeled phone screens');
-    check(strpos($editor, "'menu_title' => _('Screen title')") === false &&
-          strpos($editor, "'services_title' => _('Screen title')") === false,
-          'Legacy Directories and Services fields are absent from Address Book');
-    check(strpos($menusEditor, 'Directories button — first screen') !== false &&
-          strpos($menusEditor, 'Services button — first screen') !== false,
-          'Menus tab owns unrelated native phone-button screen labels');
-    check((string)simplexml_load_file($base . '/web/phonebook.xml')->Title === 'Direct Book',
-          'Publishing button menu labels leaves the Phone Book title alone');
+          'Address Book previews exactly the three actual phone screens');
+    check(strpos($editor, 'phonebook_title') === false &&
+          strpos($menusEditor, 'Directories button — first screen') === false,
+          'Remove redundant Phone Book and disconnected Directories editors');
     $preError = $content->directoryLabels();
     try {
-        $content->saveDirectoryLabels(array('phonebook_title'=>"Invalid\nTitle"));
-        throw new RuntimeException('Invalid partial screen label accepted');
+        $content->saveDirectoryLabels(array('menu_title'=>"Invalid\nTitle"));
+        throw new RuntimeException('Invalid direct-menu label accepted');
     } catch (InvalidArgumentException $ok) {}
     check($content->directoryLabels() === $preError,
-          'Invalid partial screen label does not mutate any stored labels');
+          'Invalid screen title does not change stored values');
+    try {
+        $content->saveDirectoryLabels(array('phonebook_title'=>'Old Page'));
+        throw new RuntimeException('Obsolete Phone Book field accepted');
+    } catch (InvalidArgumentException $ok) {}
+    check($content->directoryLabels() === $preError,
+          'Obsolete label fields do not mutate configuration');
 
-    try {
-        $bad = $custom;
-        $bad['menu_entry'] = str_repeat('x', 61);
-        $content->saveDirectoryLabels($bad);
-        throw new RuntimeException('Overlong menu label accepted');
-    } catch (InvalidArgumentException $ok) {}
-    check($content->directoryLabels() === $preError, 'Invalid update changed saved text');
-    try {
-        $bad = $custom;
-        $bad['contacts_title'] = "Foo\nBar";
-        $content->saveDirectoryLabels($bad);
-        throw new RuntimeException('Control character accepted');
-    } catch (InvalidArgumentException $ok) {}
-    check($content->directoryLabels() === $preError, 'Invalid control character changed saved text');
     check(count($parent->dbinterface->writes) === 0, 'No implicit DB mutations');
     $changed = $content->syncUrls();
     check(count($changed) === 2, 'Autofill both phone URLs');
