@@ -99,20 +99,20 @@ with tempfile.TemporaryDirectory(prefix="sccp-vpn-integration-") as tmp:
             "Signed Cisco header does not contain full TFTP-relative path: " + parsed.stdout)
     assert trust.read_bytes() == old_trust, "Signing content changed the phone ITL"
 
-    ringlist = module.TFTP / "RingList.xml"
+    ringlist = module.TFTP / "ringlist.xml"
     ringtone = module.TFTP / "PC-abcdef0123456789.raw"
     ringlist.write_text("<CiscoIPPhoneRingList><Ring><DisplayName>Chime</DisplayName>"
                         "<FileName>PC-abcdef0123456789.raw</FileName></Ring></CiscoIPPhoneRingList>")
     ringtone.write_bytes(bytes(range(240)))
     module.sign_content("ringtones")
-    assert (module.TFTP / "RingList.xml.sgn").is_file()
+    assert (module.TFTP / "ringlist.xml.sgn").is_file()
     assert (module.TFTP / "PC-abcdef0123456789.raw.sgn").is_file()
     parsed_ring = subprocess.run(
         [str(module.BIN_DIR / "sgnfile"), "--parse",
-         str(module.TFTP / "RingList.xml.sgn"),
+         str(module.TFTP / "ringlist.xml.sgn"),
          "--tftp", str(module.KEY_DIR / "tftp.pem")],
         check=True, capture_output=True, text=True)
-    assert "Filename:         RingList.xml.sgn" in parsed_ring.stdout
+    assert "Filename:         ringlist.xml.sgn" in parsed_ring.stdout
     assert trust.read_bytes() == old_trust, "Signing ring content changed phone ITL"
 
     for bad_kind in ("../../etc", "root", "wallpapers/../etc"):
