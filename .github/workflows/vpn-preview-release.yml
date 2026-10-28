@@ -101,6 +101,7 @@ jobs:
             ./ "$RUNNER_TEMP/vpn-package/sccp_manager/"
           tar -C "$RUNNER_TEMP/vpn-package" -czf sccp_manager.tar.gz sccp_manager
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/module.xml
+          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/conf/voicemail-dialplan.conf
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/sccpManClasses/phonecontent.class.php
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/vendor/certutils/sgnfile
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-vpn-helper
@@ -119,11 +120,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view vpn-preview-17.1.29 >/dev/null 2>&1; then
-            gh release create vpn-preview-17.1.29 \
-              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.29 VPN + Phone Content preview" \
+          if ! gh release view vpn-preview-17.1.30 >/dev/null 2>&1; then
+            gh release create vpn-preview-17.1.30 \
+              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.30 VPN + Phone Content preview" \
               --notes "Development build from feature/vpn-provisioning. Not upstream. Test on a backed-up FreePBX installation." \
               --prerelease --latest=false sccp_manager.tar.gz
           else
-            gh release upload vpn-preview-17.1.29 sccp_manager.tar.gz --clobber
+            gh release upload vpn-preview-17.1.30 sccp_manager.tar.gz --clobber
           fi
