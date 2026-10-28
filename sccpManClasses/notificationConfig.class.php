@@ -67,7 +67,11 @@ try {
     $secret=(string)$module->getConfig('phonecontent_push_secret');
     $user=(string)($_REQUEST['UserID']??'');
     $password=(string)($_REQUEST['Password']??'');
-    echo $secret!=='' && $user==='sccpnotify' && hash_equals($secret,$password)
+    // Cisco 79xx may omit Password when calling its authenticationURL.
+    // Never accept the public username with an empty password: the
+    // Basic identity instead carries a secret derived from the server key.
+    $expected='sccpnotify-'.substr(hash_hmac('sha256','cisco-push-user',$secret),0,32);
+    echo $secret!=='' && hash_equals($expected,$user) && $password==='' 
         ? 'AUTHORIZED' : 'UN-AUTHORIZED';
 } catch (\Throwable $e) { echo 'UN-AUTHORIZED'; }
 PHP;
