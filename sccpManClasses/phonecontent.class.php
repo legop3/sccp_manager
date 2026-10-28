@@ -177,7 +177,7 @@ class phonecontent
     {
         return array(
             'menu_title' => 'Directories',
-            'menu_prompt' => 'Select Favorites or All Extensions',
+            'menu_prompt' => 'Favorites or All Extensions',
             'favorites_entry' => 'Favorites',
             'contacts_title' => 'Favorites',
             'contacts_prompt' => 'Select a contact to call',
@@ -189,12 +189,36 @@ class phonecontent
         );
     }
 
+    /**
+     * The Cisco 7945G XML parser enforces a 32-byte limit on Title and
+     * Prompt. Longer text is well-formed XML but causes XML Error [4].
+     * Avoid cutting a UTF-8 sequence in half when clipping old settings.
+     */
+    public static function shortCiscoField($value)
+    {
+        $text = (string) $value;
+        if (strlen($text) <= 32) return $text;
+        $text = substr($text, 0, 32);
+        while ($text !== '' && !preg_match('//u', $text)) {
+            $text = substr($text, 0, -1);
+        }
+        return rtrim($text);
+    }
+
     public function directoryLabels()
     {
         $defaults = self::defaultDirectoryLabels();
         $saved = $this->parent->getConfig('phonecontent_directory_labels');
-        return is_array($saved) ?
+        $labels = is_array($saved) ?
             array_replace($defaults, array_intersect_key($saved, $defaults)) : $defaults;
+        // Old releases allowed 80-byte prompts and persisted them. Read
+        // those settings safely on upgrade without making admins retype them.
+        foreach ($labels as $key=>$value) {
+            if (preg_match('/_(title|prompt)$/D', $key)) {
+                $labels[$key] = self::shortCiscoField($value);
+            }
+        }
+        return $labels;
     }
 
     public function saveDirectoryLabels($submitted)
@@ -214,7 +238,7 @@ class phonecontent
             $value = trim($incoming);
             // The 7945G has a small LCD. Limit lengths without limiting the
             // user's choice of language; DOMDocument escapes XML characters.
-            $limit = strpos($key, 'prompt') !== false ? 80 : 60;
+            $limit = preg_match('/_(title|prompt)$/D', $key) ? 32 : 60;
             if ($value === '' || strlen($value) > $limit ||
                 !preg_match('//u', $value) ||
                 preg_match('/[\x00-\x1F\x7F]/', $value)) {
@@ -296,6 +320,11 @@ class phonecontent
 
     private function element($doc, $parent, $key, $value)
     {
+        // Guard at the XML output boundary as well: FreePBX and existing
+        // saved settings may supply text that bypasses form validation.
+        if ($key === 'Title' || $key === 'Prompt') {
+            $value = self::shortCiscoField($value);
+        }
         $node = $doc->createElement($key);
         $node->appendChild($doc->createTextNode((string) $value));
         $parent->appendChild($node);
