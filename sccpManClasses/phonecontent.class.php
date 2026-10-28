@@ -133,6 +133,14 @@ class phonecontent
             }
             $this->publishFile($this->public . '/directory.xml', $doc->saveXML());
         }
+        // Retire old static pages after contacts are removed or the book shrinks.
+        // Otherwise deleted contacts would remain readable at stale page URLs.
+        foreach (glob($this->public . '/contacts-*.xml') ?: array() as $oldPage) {
+            if (!preg_match('/^contacts-([0-9]+)\\.xml$/D', basename($oldPage), $match)) continue;
+            if (count($chunks) <= 1 || (int) $match[1] > count($chunks)) {
+                if (is_file($oldPage) && !is_link($oldPage)) @unlink($oldPage);
+            }
+        }
         // Optional Services button integration, without needing a separate server.
         list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
         $this->element($doc, $root, 'Title', 'Phone Services');
