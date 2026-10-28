@@ -1,0 +1,453 @@
+<?php
+namespace FreePBX\modules\Sccp_manager;
+
+/**
+ * Cisco 79xx Phone Content: a FreePBX-managed directory and TFTP media library.
+ * Never exposes an upload handler to phones. They fetch only generated static XML,
+ * PNG and raw u-law files. All mutations run inside authenticated Module Admin.
+ */
+class phonecontent
+{
+    private $parent;
+    private $tftp;
+    private $public;
+
+    public function __construct($parent = null, $tftp = null, $public = null)
+    {
+        $this->parent = $parent;
+        $this->tftp = $tftp ?: ($parent->sccppath['tftp_path'] ?? '/tftpboot');
+        $root = dirname((string) ($GLOBALS['amp_conf']['AMPWEBROOT'] ?? '/var/www/html/admin'));
+        $this->public = $public ?: $root . '/sccp-manager';
+    }
+
+    public function contacts() { return $this->items('phonecontent_contacts'); }
+    public function wallpapers() { return $this->items('phonecontent_wallpapers'); }
+    public function ringtones() { return $this->items('phonecontent_ringtones'); }
+    public function publicPath() { return $this->public; }
+    public function tftpPath() { return $this->tftp; }
+
+    private function items($key)
+    {
+        $value = $this->parent->getConfig($key);
+        return is_array($value) ? array_values(array_filter($value, 'is_array')) : array();
+    }
+
+    public function baseUrl()
+    {
+        $vpn = method_exists($this->parent, 'vpnSettings') ? $this->parent->vpnSettings() : array();
+        $host = trim((string) ($this->parent->getConfig('phonecontent_host') ?: ($vpn['pbx_ip'] ?? '')));
+        if ($host === '' && method_exists($this->parent, 'vpnDetectedPbxIp')) {
+            $host = $this->parent->vpnDetectedPbxIp();
+        }
+        if (!filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return '';
+        }
+        return 'http://' . $host . '/sccp-manager';
+    }
+
+    public function setAddress($value)
+    {
+        $value = trim((string) $value);
+        if (!filter_var($value, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            throw new \InvalidArgumentException('Enter a reachable PBX IPv4 address (for example 192.168.0.25).');
+        }
+        $this->parent->setConfig('phonecontent_host', $value);
+        $this->publishDirectory();
+        $this->syncUrls();
+    }
+
+    private function ensureDirectory($dir)
+    {
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new \RuntimeException('Cannot create ' . $dir . '. Check ownership or reinstall as root using fwconsole.');
+        }
+        if (is_link($dir) || !is_writable($dir)) {
+            throw new \RuntimeException('Content directory is unsafe or unwritable: ' . $dir);
+        }
+    }
+
+    private function publishFile($path, $contents)
+    {
+        $dir = dirname($path);
+        $this->ensureDirectory($dir);
+        if (is_link($path)) {
+            throw new \RuntimeException('Refusing symlink output ' . $path);
+        }
+        $temp = tempnam($dir, '.sccp-tmp-');
+        if ($temp === false) throw new \RuntimeException('Cannot stage output in ' . $dir);
+        try {
+            if (file_put_contents($temp, $contents) === false) throw new \RuntimeException('Failed to write ' . $path);
+            chmod($temp, 0644);
+            if (!rename($temp, $path)) throw new \RuntimeException('Failed to publish ' . $path);
+        } finally {
+            if (is_file($temp)) @unlink($temp);
+        }
+    }
+
+    private function xml($root)
+    {
+        $xml = new \DOMDocument('1.0', 'UTF-8');
+        $xml->formatOutput = true;
+        return array($xml, $xml->appendChild($xml->createElement($root)));
+    }
+
+    private function element($doc, $parent, $key, $value)
+    {
+        $node = $doc->createElement($key);
+        $node->appendChild($doc->createTextNode((string) $value));
+        $parent->appendChild($node);
+    }
+
+    public function publishDirectory()
+    {
+        $base = $this->baseUrl();
+        if ($base === '') {
+            throw new \RuntimeException('Set the PBX address in Phone Content before publishing the directory.');
+        }
+        $contacts = $this->contacts();
+        usort($contacts, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
+        // Directory screens handle only a limited number of items per request.
+        // Single-page directory for <= 30 contacts; otherwise link to paged XML.
+        $chunks = array_chunk($contacts, 30);
+        if (!$chunks) $chunks = array(array());
+        foreach ($chunks as $i => $chunk) {
+            list($doc, $root) = $this->xml('CiscoIPPhoneDirectory');
+            $this->element($doc, $root, 'Title', 'Phone Directory');
+            $this->element($doc, $root, 'Prompt', 'Select a contact to call');
+            foreach ($chunk as $entry) {
+                $row = $root->appendChild($doc->createElement('DirectoryEntry'));
+                $this->element($doc, $row, 'Name', $entry['name']);
+                $this->element($doc, $row, 'Telephone', $entry['number']);
+            }
+            $file = count($chunks) === 1 ? 'directory.xml' : 'contacts-' . ($i + 1) . '.xml';
+            $this->publishFile($this->public . '/' . $file, $doc->saveXML());
+        }
+        if (count($chunks) > 1) {
+            list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
+            $this->element($doc, $root, 'Title', 'Phone Directory');
+            $this->element($doc, $root, 'Prompt', 'Choose a contacts page');
+            foreach ($chunks as $i => $chunk) {
+                $item = $root->appendChild($doc->createElement('MenuItem'));
+                $this->element($doc, $item, 'Name', 'Contacts ' . ($i * 30 + 1) . '-' . ($i * 30 + count($chunk)));
+                $this->element($doc, $item, 'URL', $base . '/contacts-' . ($i + 1) . '.xml');
+            }
+            $this->publishFile($this->public . '/directory.xml', $doc->saveXML());
+        }
+        // Optional Services button integration, without needing a separate server.
+        list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
+        $this->element($doc, $root, 'Title', 'Phone Services');
+        $this->element($doc, $root, 'Prompt', 'Choose a service');
+        $item = $root->appendChild($doc->createElement('MenuItem'));
+        $this->element($doc, $item, 'Name', 'Address Book');
+        $this->element($doc, $item, 'URL', $base . '/directory.xml');
+        $this->publishFile($this->public . '/services.xml', $doc->saveXML());
+    }
+
+    /**
+     * Fill only blank URLs (or URLs we previously managed). Never overwrite a
+     * manually configured service. Existing signed SEP XML is not rewritten until
+     * the administrator explicitly chooses Publish Phone Configurations.
+     */
+    public function syncUrls()
+    {
+        $base = $this->baseUrl();
+        if (!$base) return array();
+        $changed = array();
+        foreach (array('dev_directoryURL' => '/directory.xml',
+                       'dev_servicesURL' => '/services.xml') as $key => $suffix) {
+            $current = (string) ($this->parent->sccpvalues[$key]['data'] ?? '');
+            $old = (string) $this->parent->getConfig('phonecontent_managed_' . $key);
+            $new = $base . $suffix;
+            if ($current !== '' && ($old === '' || $current !== $old)) continue;
+            if ($current !== $new) {
+                $record = $this->parent->sccpvalues[$key] ?? array();
+                $record = array_merge(array(
+                    'keyword' => $key, 'seq' => 10, 'type' => 0, 'systemdefault' => ''
+                ), $record, array('keyword' => $key, 'data' => $new));
+                $this->parent->dbinterface->write('sccpsettings', array($key => $record), 'update');
+                $this->parent->sccpvalues[$key] = $record;
+                $changed[] = $key;
+            }
+            $this->parent->setConfig('phonecontent_managed_' . $key, $new);
+        }
+        return $changed;
+    }
+
+    public function enableWallpapers()
+    {
+        $key = 'backgroundImageAccess';
+        if (($this->parent->sccpvalues[$key]['data'] ?? '') === 'on') return;
+        $record = $this->parent->sccpvalues[$key] ?? array();
+        $record = array_merge(array(
+            'keyword' => $key, 'seq' => 1, 'type' => 0, 'systemdefault' => 'off'
+        ), $record, array('keyword' => $key, 'data' => 'on'));
+        $this->parent->dbinterface->write('sccpsettings', array($key => $record), 'update');
+        $this->parent->sccpvalues[$key] = $record;
+    }
+
+    public function saveContact($id, $name, $number)
+    {
+        $name = trim((string) $name);
+        $number = trim((string) $number);
+        if ($name === '' || strlen($name) > 100 ||
+            !preg_match('/^[0-9+*#,.-]{1,40}$/D', $number)) {
+            throw new \InvalidArgumentException('A contact needs a name (max 100 bytes) and dialable number (max 40).');
+        }
+        $rows = $this->contacts();
+        if ($id !== '') {
+            foreach ($rows as &$row) {
+                if ($row['id'] === $id) {
+                    $row['name'] = $name;
+                    $row['number'] = $number;
+                    unset($row);
+                    $this->parent->setConfig('phonecontent_contacts', $rows);
+                    $this->publishDirectory();
+                    return;
+                }
+            }
+            throw new \InvalidArgumentException('Unknown contact.');
+        }
+        if (count($rows) >= 300) throw new \RuntimeException('Directory is limited to 300 contacts.');
+        $rows[] = array('id' => bin2hex(random_bytes(8)), 'name' => $name, 'number' => $number);
+        $this->parent->setConfig('phonecontent_contacts', $rows);
+        $this->publishDirectory();
+    }
+
+    public function removeContact($id)
+    {
+        $rows = $this->contacts();
+        $rows = array_values(array_filter($rows, function ($row) use ($id) { return $row['id'] !== $id; }));
+        $this->parent->setConfig('phonecontent_contacts', $rows);
+        $this->publishDirectory();
+    }
+
+    private function upload($file, $max, $extensions)
+    {
+        if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK ||
+            !is_uploaded_file($file['tmp_name'])) {
+            throw new \InvalidArgumentException('Upload failed. Choose a file and try again.');
+        }
+        $size = (int) ($file['size'] ?? 0);
+        if ($size < 1 || $size > $max) throw new \InvalidArgumentException('File exceeds the upload limit.');
+        $ext = strtolower(pathinfo((string) $file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, $extensions, true)) {
+            throw new \InvalidArgumentException('Unsupported file type.');
+        }
+        return $ext;
+    }
+
+    private function managedIndex($path, $marker)
+    {
+        if (is_link($path)) throw new \RuntimeException('Unsafe symlinked Cisco index.');
+        if (is_file($path) && strpos((string) file_get_contents($path), $marker) === false) {
+            throw new \RuntimeException('Existing ' . basename($path) . ' is not managed by SCCP Manager. Back it up or migrate it before using this library.');
+        }
+    }
+
+    private function renderPng($image, $width, $height)
+    {
+        $out = imagecreatetruecolor($width, $height);
+        imagealphablending($out, false);
+        imagesavealpha($out, true);
+        $sw = imagesx($image);
+        $sh = imagesy($image);
+        $scale = max($width / $sw, $height / $sh);
+        $rw = (int) ceil($sw * $scale);
+        $rh = (int) ceil($sh * $scale);
+        imagecopyresampled($out, $image, (int) floor(($width - $rw) / 2),
+            (int) floor(($height - $rh) / 2), 0, 0, $rw, $rh, $sw, $sh);
+        ob_start();
+        imagepng($out);
+        $bytes = ob_get_clean();
+        imagedestroy($out);
+        if (!$bytes) throw new \RuntimeException('PNG conversion failed.');
+        return $bytes;
+    }
+
+    public function addWallpaper($file, $label)
+    {
+        $this->upload($file, 8 * 1024 * 1024, array('png', 'jpg', 'jpeg', 'webp'));
+        if (!function_exists('imagecreatefromstring')) {
+            throw new \RuntimeException('PHP GD is required for wallpaper uploads (install php-gd).');
+        }
+        $info = @getimagesize($file['tmp_name']);
+        if (!$info || $info[0] < 1 || $info[1] < 1 ||
+            $info[0] > 6000 || $info[1] > 6000 ||
+            $info[0] * $info[1] > 24000000) {
+            throw new \InvalidArgumentException('Image dimensions are unsupported.');
+        }
+        $image = @imagecreatefromstring(file_get_contents($file['tmp_name']));
+        if (!$image) throw new \InvalidArgumentException('Cannot decode the image.');
+        $rows = $this->wallpapers();
+        if (count($rows) >= 50) {
+            imagedestroy($image);
+            throw new \RuntimeException('Cisco background menus support at most 50 custom images.');
+        }
+        $label = trim((string) $label);
+        if ($label === '' || strlen($label) > 60) $label = 'Wallpaper ' . (count($rows) + 1);
+        $id = bin2hex(random_bytes(8));
+        $dir = $this->tftp . '/Desktops/320x212x16';
+        $this->ensureDirectory($dir);
+        $this->managedIndex($dir . '/List.xml', 'Managed by SCCP Manager');
+        try {
+            $large = $this->renderPng($image, 320, 212);
+            $thumb = $this->renderPng($image, 80, 53);
+        } finally {
+            imagedestroy($image);
+        }
+        $this->publishFile($dir . '/PC-' . $id . '.png', $large);
+        $this->publishFile($dir . '/TN-PC-' . $id . '.png', $thumb);
+        $this->publishFile($this->public . '/wallpaper-' . $id . '.png', $thumb);
+        $rows[] = array('id' => $id, 'name' => $label);
+        $this->parent->setConfig('phonecontent_wallpapers', $rows);
+        $this->publishWallpapers();
+        $this->enableWallpapers();
+    }
+
+    public function publishWallpapers()
+    {
+        $dir = $this->tftp . '/Desktops/320x212x16';
+        $this->ensureDirectory($dir);
+        $index = $dir . '/List.xml';
+        $this->managedIndex($index, 'Managed by SCCP Manager');
+        list($doc, $root) = $this->xml('CiscoIPPhoneImageList');
+        $root->appendChild($doc->createComment(' Managed by SCCP Manager '));
+        foreach ($this->wallpapers() as $item) {
+            if (!preg_match('/^[a-f0-9]{16}$/D', $item['id'])) continue;
+            $elem = $root->appendChild($doc->createElement('ImageItem'));
+            $elem->setAttribute('Image', 'TFTP:Desktops/320x212x16/TN-PC-' . $item['id'] . '.png');
+            $elem->setAttribute('URL', 'TFTP:Desktops/320x212x16/PC-' . $item['id'] . '.png');
+        }
+        $this->publishFile($index, $doc->saveXML());
+    }
+
+    public function removeWallpaper($id)
+    {
+        $this->validateId($id);
+        $rows = $this->wallpapers();
+        $rows = array_values(array_filter($rows, function ($row) use ($id) { return $row['id'] !== $id; }));
+        $this->parent->setConfig('phonecontent_wallpapers', $rows);
+        $this->publishWallpapers();
+        foreach (array($this->tftp . '/Desktops/320x212x16/PC-' . $id . '.png',
+                       $this->tftp . '/Desktops/320x212x16/TN-PC-' . $id . '.png',
+                       $this->public . '/wallpaper-' . $id . '.png') as $file) {
+            if (is_file($file) && !is_link($file)) @unlink($file);
+        }
+    }
+
+    public function addRingtone($file, $label)
+    {
+        $ext = $this->upload($file, 10 * 1024 * 1024, array('wav', 'mp3', 'ogg', 'flac', 'm4a'));
+        $label = trim((string) $label);
+        if ($label === '' || strlen($label) > 25) {
+            throw new \InvalidArgumentException('Ringtone display name must be 1–25 bytes.');
+        }
+        $ffmpeg = is_executable('/usr/bin/ffmpeg') ? '/usr/bin/ffmpeg' :
+            (is_executable('/usr/local/bin/ffmpeg') ? '/usr/local/bin/ffmpeg' : '');
+        if ($ffmpeg === '') throw new \RuntimeException('ffmpeg is required for ringtone uploads (install ffmpeg).');
+        $rows = $this->ringtones();
+        if (count($rows) >= 50) throw new \RuntimeException('Cisco supports at most 50 custom ringtones.');
+        $this->ensureDirectory($this->tftp);
+        $this->managedIndex($this->tftp . '/RingList.xml', 'Managed by SCCP Manager');
+        $id = bin2hex(random_bytes(8));
+        $output = $this->tftp . '/PC-' . $id . '.raw';
+        $cmd = array($ffmpeg, '-v', 'error', '-nostdin', '-y', '-i',
+            $file['tmp_name'], '-vn', '-ac', '1', '-ar', '8000', '-t', '2.01',
+            '-f', 'mulaw', $output);
+        $pipes = array();
+        $proc = proc_open($cmd, array(
+            0 => array('file', '/dev/null', 'r'),
+            1 => array('pipe', 'w'),
+            2 => array('pipe', 'w')
+        ), $pipes);
+        if (!is_resource($proc)) throw new \RuntimeException('Could not start ffmpeg.');
+        stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        if (proc_close($proc) !== 0 || !is_file($output)) {
+            @unlink($output);
+            throw new \RuntimeException('Audio conversion failed: ' . substr($stderr, 0, 250));
+        }
+        $data = file_get_contents($output);
+        // Cisco 79xx: headerless 8kHz 8-bit u-law, 240-16080 samples,
+        // a multiple of 240. 0xFF represents silence at both ends.
+        $length = min(16080, (int) floor(strlen($data) / 240) * 240);
+        if ($length < 240) {
+            @unlink($output);
+            throw new \RuntimeException('Ringtone audio is too short.');
+        }
+        $data = substr($data, 0, $length);
+        $data[0] = "\xFF";
+        $data[$length - 1] = "\xFF";
+        $this->publishFile($output, $data);
+        $preview = $this->public . '/ringtone-' . $id . '.' . $ext;
+        $this->ensureDirectory($this->public);
+        if (!copy($file['tmp_name'], $preview)) {
+            @unlink($output);
+            throw new \RuntimeException('Could not store ringtone preview.');
+        }
+        chmod($preview, 0644);
+        $rows[] = array('id' => $id, 'name' => $label, 'ext' => $ext);
+        $this->parent->setConfig('phonecontent_ringtones', $rows);
+        $this->publishRingtones();
+    }
+
+    public function publishRingtones()
+    {
+        $path = $this->tftp . '/RingList.xml';
+        $this->managedIndex($path, 'Managed by SCCP Manager');
+        list($doc, $root) = $this->xml('CiscoIPPhoneRingList');
+        $root->appendChild($doc->createComment(' Managed by SCCP Manager '));
+        foreach ($this->ringtones() as $item) {
+            if (!preg_match('/^[a-f0-9]{16}$/D', $item['id'])) continue;
+            $ring = $root->appendChild($doc->createElement('Ring'));
+            $this->element($doc, $ring, 'DisplayName', $item['name']);
+            $this->element($doc, $ring, 'FileName', 'PC-' . $item['id'] . '.raw');
+        }
+        $this->publishFile($path, $doc->saveXML());
+    }
+
+    private function validateId($id)
+    {
+        if (!is_string($id) || !preg_match('/^[0-9a-f]{16}$/D', $id)) {
+            throw new \InvalidArgumentException('Invalid content identifier.');
+        }
+    }
+
+    public function removeRingtone($id)
+    {
+        $this->validateId($id);
+        $rows = $this->ringtones();
+        foreach ($rows as $item) {
+            if ($item['id'] === $id && preg_match('/^(wav|mp3|ogg|flac|m4a)$/', $item['ext'] ?? '')) {
+                $preview = $this->public . '/ringtone-' . $id . '.' . $item['ext'];
+                if (is_file($preview) && !is_link($preview)) @unlink($preview);
+            }
+        }
+        $rows = array_values(array_filter($rows, function ($row) use ($id) { return $row['id'] !== $id; }));
+        $this->parent->setConfig('phonecontent_ringtones', $rows);
+        $this->publishRingtones();
+        $file = $this->tftp . '/PC-' . $id . '.raw';
+        if (is_file($file) && !is_link($file)) @unlink($file);
+    }
+
+    public function handle(array $post, array $files)
+    {
+        $action = (string) ($post['content_action'] ?? '');
+        switch ($action) {
+            case 'address': $this->setAddress($post['pbx_address'] ?? ''); return 'Directory URL updated.';
+            case 'contact': $this->saveContact((string) ($post['id'] ?? ''),
+                $post['contact_name'] ?? '', $post['contact_number'] ?? ''); return 'Contact saved.';
+            case 'delete_contact': $this->removeContact((string) ($post['id'] ?? '')); return 'Contact removed.';
+            case 'wallpaper': $this->addWallpaper($files['media'] ?? null, $post['label'] ?? ''); return 'Wallpaper published.';
+            case 'delete_wallpaper': $this->removeWallpaper((string) ($post['id'] ?? '')); return 'Wallpaper removed.';
+            case 'ringtone': $this->addRingtone($files['media'] ?? null, $post['label'] ?? ''); return 'Ringtone published.';
+            case 'delete_ringtone': $this->removeRingtone((string) ($post['id'] ?? '')); return 'Ringtone removed.';
+            case 'urls': $this->publishDirectory(); $changed = $this->syncUrls();
+                return $changed ? 'Directory and Services URLs filled in SCCP Device URL.' :
+                    'Directory published. Existing custom URLs, if any, were left unchanged.';
+            default: throw new \InvalidArgumentException('Unknown phone content action.');
+        }
+    }
+}
