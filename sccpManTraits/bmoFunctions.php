@@ -30,8 +30,6 @@ trait bmoFunctions {
                             $submitted=(array)($_POST['appearance']??array());
                             $base['theme']=in_array(($submitted['theme']??''),array('ocean','charcoal','plum','forest','custom'),true)?$submitted['theme']:$base['theme'];
                             foreach (array('show_number','show_details') as $key) $base[$key]=!empty($submitted[$key]);
-                            $base['gradient']=in_array(($submitted['gradient']??''),array('off','vertical','horizontal'),true)?$submitted['gradient']:'off';
-                            if (preg_match('/^#[0-9a-f]{6}$/i',(string)($submitted['gradient_end']??''))) $base['gradient_end']=$submitted['gradient_end'];
                             $base['stripe_position']=in_array(($submitted['stripe_position']??''),array('off','header','top','bottom','background'),true)?$submitted['stripe_position']:'off';
                             $base['stripes']=array();
                             foreach (array_slice((array)($submitted['stripes']??array()),0,10) as $hex)
