@@ -59,11 +59,11 @@ final class notificationWorker {
         if ($settings['missed']['enabled']) {
             $seen=(array)($state['seen']??[]);
             foreach ($this->missedCalls($now) as $call) {
-                $key=(string)$call['uniqueid'];
+                $key=(string)$call['uniqueid'].'/'.(string)$call['dst'];
                 if (isset($seen[$key])) continue;
                 $seen[$key]=$now;
                 // Do not send previously unseen historical missed calls on first enable.
-                if (strtotime((string)$call['calldate'])<$now-120) continue;
+                if (strtotime((string)$call['calldate'])<$now-240) continue;
                 $when=strtotime((string)$call['calldate']) ?: $now;
                 $number=(string)$call['src'];
                 $caller=$this->formatCaller((string)($call['clid']??''),$number);
@@ -107,6 +107,62 @@ final class notificationWorker {
         return $fallback!==''?$fallback:'Unknown caller';
     }
 
+    /**
+     * A linked call can have an ANSWERED voicemail CDR even when nobody
+     * answered the phone. Classify the outbound SCCP dial leg, not the
+     * overall call disposition.
+     *
+     * Each entry is one genuinely unanswered SCCP destination per linkedid.
+     */
+    public static function classifyMissedCallRows(array $rows, $now) {
+        $calls=[];
+        foreach ($rows as $row) {
+            $linked=(string)($row['linkedid']??$row['uniqueid']??'');
+            if ($linked==='') continue;
+            $calls[$linked][]=$row;
+        }
+        $found=[];
+        foreach ($calls as $linked=>$group) {
+            $targets=[]; $lastEnd=0;
+            foreach ($group as $row) {
+                $started=strtotime((string)($row['calldate']??'')) ?: 0;
+                $lastEnd=max($lastEnd,$started+max(0,(int)($row['duration']??0)));
+                // On FreePBX, outbound SCCP channels occur as Dial's
+                // destination channel or in the Dial application arguments.
+                // Other answered legs (VoiceMail, trunks, IVRs) do not count.
+                $channels=[];
+                $destination=(string)($row['dstchannel']??'');
+                if (preg_match('~^SCCP/([0-9]{1,16})(?:[-/]|$)~i',$destination,$m))
+                    $channels[]=$m[1];
+                if (strcasecmp((string)($row['lastapp']??''),'Dial')===0 &&
+                    preg_match_all('~SCCP/([0-9]{1,16})(?=[^0-9]|$)~i',(string)($row['lastdata']??''),$matches))
+                    $channels=array_merge($channels,$matches[1]);
+                foreach (array_unique($channels) as $ext) {
+                    if (!isset($targets[$ext])) $targets[$ext]=['answered'=>false,'candidate'=>null];
+                    if (strtoupper((string)($row['disposition']??''))==='ANSWERED' &&
+                        preg_match('~^SCCP/'.preg_quote($ext,'~').'(?=[^0-9]|$)~i',$destination)) {
+                        $targets[$ext]['answered']=true;
+                    }
+                    if ($targets[$ext]['candidate']===null ||
+                        $started > (strtotime((string)$targets[$ext]['candidate']['calldate'])?:0))
+                        $targets[$ext]['candidate']=$row;
+                }
+            }
+            // Wait until all CDR legs have finished. This avoids declaring
+            // a call missed while a phone is still ringing or in voicemail.
+            if ($lastEnd===0 || $lastEnd>$now-15 || $lastEnd<$now-240) continue;
+            foreach ($targets as $ext=>$state) {
+                if ($state['answered'] || !$state['candidate']) continue;
+                $row=$state['candidate'];
+                $row['dst']=$ext;
+                $row['uniqueid']=$linked;
+                $row['disposition']='NO ANSWER';
+                $found[]=$row;
+            }
+        }
+        return $found;
+    }
+
     private function missedCalls($now) {
         global $amp_conf;
         try {
@@ -117,10 +173,10 @@ final class notificationWorker {
             if (!$user) return [];
             $db=new \PDO('mysql:host='.$host.';port='.$port.';dbname=asteriskcdrdb;charset=utf8mb4',
                 $user,$pass,[\PDO::ATTR_ERRMODE=>\PDO::ERRMODE_EXCEPTION,\PDO::ATTR_TIMEOUT=>3]);
-            $start=date('Y-m-d H:i:s',$now-130);
-            $stmt=$db->prepare("SELECT uniqueid,src,dst,clid,disposition,calldate FROM cdr WHERE calldate >= ? AND disposition IN ('NO ANSWER','BUSY') AND dst REGEXP '^[0-9]+$' ORDER BY calldate DESC LIMIT 100");
+            $start=date('Y-m-d H:i:s',$now-900);
+            $stmt=$db->prepare("SELECT uniqueid,linkedid,src,dst,clid,disposition,calldate,duration,channel,dstchannel,lastapp,lastdata FROM cdr WHERE calldate >= ? ORDER BY calldate DESC LIMIT 1500");
             $stmt->execute([$start]);
-            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            return self::classifyMissedCallRows($stmt->fetchAll(\PDO::FETCH_ASSOC),$now);
         } catch (\Throwable $e) {
             error_log('SCCP notification CDR check failed: '.$e->getMessage());
             return [];
