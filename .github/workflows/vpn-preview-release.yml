@@ -39,6 +39,7 @@ jobs:
           python3 -m py_compile scripts/sccp-manager-vpn-helper
           php -l sccpManClasses/phonecontent.class.php
           php -l sccpManClasses/phonemenus.class.php
+          php -l sccpManClasses/phonevoicemail.class.php
           php -l page.sccp_content.php
           php -l views/content.contacts.php
           php -l views/content.menus.php
@@ -47,6 +48,7 @@ jobs:
           php tests/phone-content.php
           php tests/phone-content-7945.php
           php tests/phone-menus.php
+          php tests/phone-voicemail.php
           php -l views/content.status.php
           php tests/vpn-provisioning.php
           php tests/vpn-firewall.php
