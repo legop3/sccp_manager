@@ -42,12 +42,12 @@ command -v apt-get >/dev/null || {
 
 echo "SCCP Manager: installed ocserv is too old for Cisco phones; building ${SOURCE_VERSION}..." >&2
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
+apt-get update -qq >&2
 apt-get install -y --no-install-recommends \
   ca-certificates curl xz-utils build-essential pkg-config \
   libgnutls28-dev libev-dev libreadline-dev libnl-route-3-dev \
   libseccomp-dev libpam0g-dev liblz4-dev libcrypt-dev \
-  libprotobuf-c-dev protobuf-c-compiler
+  libprotobuf-c-dev protobuf-c-compiler >&2
 
 workdir="$(mktemp -d /tmp/sccp-ocserv-build.XXXXXXXX)"
 trap 'rm -rf -- "$workdir"' EXIT
@@ -65,7 +65,7 @@ tar -xJf "$archive" -C "$workdir"
   ./configure --prefix=/usr/local --sysconfdir=/usr/local/etc
   make -j2
   make install
-)
+) >&2
 if command -v ldconfig >/dev/null; then ldconfig; fi
 
 OCSERV="$(select_supported_binary)" || {
