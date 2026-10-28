@@ -108,7 +108,7 @@ final class notificationDelivery {
             if ($kind==='voicemail' && $options['style']==='text') {
                 $actions=[];
                 try {
-                    $vm=$this->module->phonevoicemail;
+                    $vm=new phonevoicemail($this->module);
                     if ($vm->mailboxForDevice($device)===(string)($fields['extension']??'')) {
                         $base=$vm->serviceUrl($device);
                         $items=$vm->listMessages((string)$fields['extension']);
