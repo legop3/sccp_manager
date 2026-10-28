@@ -81,6 +81,23 @@ final class phoneNotifications
         };
         $bg=$color($colors['background']);
         imagefilledrectangle($im,0,0,295,155,$bg);
+        $gradient=(string)($settings['gradient']??'off');
+        $end=(string)($settings['gradient_end']??'#345D79');
+        if (in_array($gradient,['vertical','horizontal'],true) && preg_match('/^#[0-9a-f]{6}$/i',$end)) {
+            $startHex=$colors['background'];
+            $aRgb=[hexdec(substr($startHex,1,2)),hexdec(substr($startHex,3,2)),hexdec(substr($startHex,5,2))];
+            $bRgb=[hexdec(substr($end,1,2)),hexdec(substr($end,3,2)),hexdec(substr($end,5,2))];
+            $steps=$gradient==='vertical'?156:296;
+            for ($i=0;$i<$steps;$i++) {
+                $t=$i/($steps-1);
+                $shade=imagecolorallocate($im,
+                    (int)round($aRgb[0]+($bRgb[0]-$aRgb[0])*$t),
+                    (int)round($aRgb[1]+($bRgb[1]-$aRgb[1])*$t),
+                    (int)round($aRgb[2]+($bRgb[2]-$aRgb[2])*$t));
+                if ($gradient==='vertical') imageline($im,0,$i,295,$i,$shade);
+                else imageline($im,$i,0,$i,155,$shade);
+            }
+        }
         $stripes=array_values(array_filter((array)($settings['stripes']??[]),static function($v) {
             return is_string($v)&&preg_match('/^#[0-9a-f]{6}$/i',$v);
         }));
@@ -110,7 +127,7 @@ final class phoneNotifications
         if (!isset($settings['show_number']) || $settings['show_number'])
             imagestring($im,3,10,62,substr((string)($fields['number']??''),0,39),$color($colors['secondary_text']));
         if (!isset($settings['show_details']) || $settings['show_details']) {
-            imagefilledrectangle($im,0,90,295,145,$color($colors['details_background']));
+            if ($position!=='background') imagefilledrectangle($im,0,90,295,145,$color($colors['details_background']));
             imageline($im,10,87,285,87,$color($colors['accent']));
             if ($kind==='voicemail') {
                 imagestring($im,3,10,98,'RECEIVED',$color($colors['details_label']));
