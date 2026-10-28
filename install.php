@@ -137,14 +137,21 @@ if ($sccp_compatible == 0) {
     $driverExitCode = 1;
     $scriptStat = @stat($driverScript);
     $scriptIsRootOwned = ($scriptStat !== false && $scriptStat['uid'] === 0 && ($scriptStat['mode'] & 0022) === 0);
-    if (!$scriptIsRootOwned) {
-        outn("<font color='orange'>" . _("Skipping the automatic driver install: the installer script is writable by the web user, so running it through sudo would grant that user root.") . "</font>");
-    } else {
-        outn("<font color='orange'>" . _("chan-sccp driver not found or not loaded - attempting automatic install...") . "</font>");
+    // A fresh CLI installation can legitimately have no chan_sccp.so.
+    // The module download and installer are already executing as root in
+    // that workflow, so bootstrap the bundled driver without an extra
+    // manual script invocation. A GUI installation must not elevate a
+    // web-writable script; its previous ownership/sudo restriction remains.
+    $installingAsRoot = function_exists('posix_geteuid') && posix_geteuid() === 0;
+    if ($installingAsRoot || $scriptIsRootOwned) {
+        outn("<font color='orange'>" . _("Installing chan-sccp driver...") . "</font>");
         outn("<pre style=\"background:#111;color:#0f0;padding:8px;max-height:400px;overflow:auto;\">");
         set_time_limit(0);
-        passthru('sudo -n /usr/bin/bash ' . escapeshellarg($driverScript) . ' 2>&1', $driverExitCode);
+        $prefix = $installingAsRoot ? '/usr/bin/bash ' : 'sudo -n /usr/bin/bash ';
+        passthru($prefix . escapeshellarg($driverScript) . ' 2>&1', $driverExitCode);
         outn("</pre>");
+    } else {
+        outn("<font color='orange'>" . _("Automatic driver installation requires a root-level CLI install.") . "</font>");
     }
 
     // The driver script does a full `fwconsole restart`, which drops any
