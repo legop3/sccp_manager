@@ -23,10 +23,8 @@ $base = $pc->baseUrl();
             <?php foreach ($ringtones as $item): ?>
                 <tr>
                     <td><?php echo $esc($item['name']); ?></td>
-                    <td><?php if ($base): ?>
-                        <audio controls preload="none" style="max-width:250px;width:100%"
-                            src="<?php echo $esc($base . '/ringtone-' . $item['id'] . '.' . $item['ext']); ?>"></audio>
-                        <?php endif; ?></td>
+                    <td><audio controls preload="none" style="max-width:250px;width:100%"
+                            src="<?php echo $esc('/sccp-manager/ringtone-' . $item['id'] . '.' . $item['ext']); ?>"></audio></td>
                     <td><form method="post" action="config.php?display=sccp_content#ringtones"
                         onsubmit="return confirm('Delete this ringtone?')">
                         <input type="hidden" name="content_action" value="delete_ringtone">
