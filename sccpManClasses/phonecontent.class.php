@@ -230,6 +230,10 @@ if (!is_string($response) || !@$parsed->loadXML($response, LIBXML_NONET) ||
 http_response_code($responseCode);
 header('Content-Type: text/xml; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
+// Cisco 79xx phones only omit a page URL from their Exit/Back history when
+// the HTTP response carries an Expires date that is already in the past.
+// Cache-Control: no-store alone does NOT suppress the handset history stack.
+header('Expires: Thu, 01 Jan 1970 00:00:01 GMT');
 header('X-Content-Type-Options: nosniff');
 header('Content-Length: ' . strlen($response));
 header('Connection: close');
