@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.22</version>
+	<version>17.1.23</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.23 * - Visual voicemail Messages menu with per-phone authenticated mailbox lists, auto-answer playback showing voicemail caller ID, mark-heard and delete actions
 		 * Version 17.1.22 * - Configurable shared Cisco Directories, Services and Messages menus and optional signed internal phoneServices provisioning
 		 * Version 17.1.21 * - Make Cisco directory menu, contact list and Services titles, prompts and entry labels editable in Phone Content without phone reset
 		 * Version 17.1.20 * - Publish and sign ringtone catalog as exact lowercase ringlist.xml.sgn requested by Cisco 7945G; automatically republish existing ringtone library
