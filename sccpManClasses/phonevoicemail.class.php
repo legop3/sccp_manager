@@ -284,7 +284,13 @@ class phonevoicemail
         });
     }
 
-    private function xml($title, $prompt, array $entries = array())
+    /**
+     * The 7945G maintains a history of requested XML URLs, regardless of the
+     * server-side page state. Each screen has explicit Back (when relevant)
+     * and Exit controls, so navigation never relies on walking that history.
+     * Custom softkeys replace ALL defaults, including Select, so restore it.
+     */
+    private function xml($title, $prompt, array $entries = array(), $backUrl = null)
     {
         $doc = new \DOMDocument('1.0','UTF-8');
         $root = $doc->appendChild($doc->createElement('CiscoIPPhoneMenu'));
@@ -296,10 +302,43 @@ class phonevoicemail
             $item->appendChild($doc->createElement('Name'))->appendChild($doc->createTextNode($entry[0]));
             $item->appendChild($doc->createElement('URL'))->appendChild($doc->createTextNode($entry[1]));
         }
+
+        $softkeys = array(array('Select', 'SoftKey:Select', 1));
+        if ($backUrl !== null) {
+            $softkeys[] = array('Back', $backUrl, 3);
+        }
+        // Init:Messages closes the Messages application instead of walking
+        // the firmware's page history like SoftKey:Exit does.
+        $softkeys[] = array('Exit', 'Init:Messages', 4);
+        foreach ($softkeys as $softkey) {
+            $item = $root->appendChild($doc->createElement('SoftKeyItem'));
+            $item->appendChild($doc->createElement('Name'))->appendChild($doc->createTextNode($softkey[0]));
+            $item->appendChild($doc->createElement('URL'))->appendChild($doc->createTextNode($softkey[1]));
+            $item->appendChild($doc->createElement('Position'))->appendChild($doc->createTextNode((string)$softkey[2]));
+        }
         header('Content-Type: text/xml; charset=UTF-8');
         header('Cache-Control: no-store');
         header('X-Content-Type-Options: nosniff');
         echo $doc->saveXML();
+    }
+
+    private function showMessageDetail($base, array $msg, $afterPlayback = false)
+    {
+        $id = $msg['id'];
+        $folder = $msg['folder'];
+        $from = $msg['name'] ?: ($msg['number'] ?: 'Unknown Caller');
+        $entries = array(
+            array(($afterPlayback ? 'Play Again' : 'Play') . ' (' . $msg['duration'] . ' sec)',
+                $base . '&op=play&id=' . rawurlencode($id))
+        );
+        // Playback may automatically move the message from INBOX to Old.
+        // Re-query current folder on each action; do not show stale Mark Heard
+        // on the screen returned to after listening.
+        if ($folder === 'INBOX' && !$afterPlayback) {
+            $entries[] = array('Mark as Heard', $base . '&op=mark&id=' . rawurlencode($id));
+        }
+        $entries[] = array('Delete Message', $base . '&op=delete&id=' . rawurlencode($id));
+        $this->xml(substr($from, 0, 55), 'Select an action', $entries, $base);
     }
 
     private function showMessageList($line, $base, array $messages)
@@ -338,35 +377,30 @@ class phonevoicemail
                 if ($folder !== 'INBOX') throw new \InvalidArgumentException('Message is already marked heard.');
                 $this->ami(array('Action'=>'VoicemailMove','Context'=>'default','Mailbox'=>$line,
                     'Folder'=>'INBOX','ID'=>$id,'ToFolder'=>'Old'));
-                $this->xml('Marked Heard', 'Message moved to Old.', array(array('Back to messages', $base)));
+                $this->xml('Marked Heard', 'Message moved to Old.', array(array('Back to messages', $base)), $base);
                 return;
             }
             if ($op === 'delete') {
-                $this->xml('Delete Message?', 'Delete voicemail from ' . substr($from = ($msg['name'] ?: ($msg['number'] ?: 'Unknown')),0,38) . '?', array(
+                $this->xml('Delete Message?', 'Delete voicemail from ' . substr($from, 0, 38) . '?', array(
                     array('YES - Delete', $base . '&op=confirm-delete&id=' . rawurlencode($id)),
                     array('Cancel', $base . '&op=detail&id=' . rawurlencode($id))
-                ));
+                ), $base . '&op=detail&id=' . rawurlencode($id));
                 return;
             }
             if ($op === 'confirm-delete') {
                 $this->ami(array('Action'=>'VoicemailRemove','Context'=>'default','Mailbox'=>$line,
                     'Folder'=>$folder,'ID'=>$id));
-                $this->xml('Message Deleted','Voicemail deleted.',array(array('Back to messages',$base)));
+                $this->xml('Message Deleted','Voicemail deleted.',array(array('Back to messages',$base)), $base);
                 return;
             }
             if ($op === 'play') {
                 // The call starts ONLY after the full XML response has been
                 // flushed. This avoids racing the phone's XML parser.
                 $this->queuePlayback($line, $msg);
-                $this->showMessageList($line, $base, $messages);
+                $this->showMessageDetail($base, $msg, true);
                 return;
             }
-            $this->xml(substr($from,0,55), 'Select an action', array(
-                array('Play (' . $msg['duration'] . ' sec)', $base . '&op=play&id=' . rawurlencode($id)),
-                ...($folder === 'INBOX' ? array(array('Mark as Heard', $base . '&op=mark&id=' . rawurlencode($id))) : array()),
-                array('Delete Message', $base . '&op=delete&id=' . rawurlencode($id)),
-                array('Back to messages', $base)
-            ));
+            $this->showMessageDetail($base, $msg);
         } catch (\Throwable $e) {
             error_log('sccp_manager visual voicemail: ' . $e->getMessage());
             $this->xml('Voicemail Unavailable', substr($e->getMessage(),0,120), array());
