@@ -41,6 +41,44 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
             <hr>
             <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> <?php echo _('Save Menus'); ?></button>
         </form>
+        <details style="margin-top:20px">
+            <summary style="font-weight:600"><?php echo _('Directories and Services button screen text'); ?></summary>
+            <p class="help-block" style="margin-top:12px">
+                <?php echo _('These settings affect the top-level Directories and Services screens opened from the physical phone buttons. They are not the Phone Book, Favorites, or All Extensions screens; edit those labels under Address Book. Individual menu item names are edited above.'); ?>
+            </p>
+            <?php $pcRootText = $this->phonecontent->directoryLabels(); ?>
+            <form method="post" action="config.php?display=sccp_content#menus">
+                <input type="hidden" name="content_action" value="directory_text">
+                <div class="row">
+                    <?php foreach (array(
+                        array('title'=>_('Directories button — first screen'),
+                              'keys'=>array('menu_title'=>_('Title at top of Directories'), 'menu_prompt'=>_('Prompt below Directories entries'))),
+                        array('title'=>_('Services button — first screen'),
+                              'keys'=>array('services_title'=>_('Title at top of Services'), 'services_prompt'=>_('Prompt below Services entries')))
+                    ) as $group): ?>
+                    <div class="col-md-6">
+                        <div class="panel panel-default">
+                            <div class="panel-heading"><strong><?php echo $pcEsc($group['title']); ?></strong></div>
+                            <div class="panel-body">
+                                <?php foreach ($group['keys'] as $key => $fieldName): ?>
+                                <div class="form-group">
+                                    <label for="pc-root-text-<?php echo $pcEsc($key); ?>"><?php echo $pcEsc($fieldName); ?></label>
+                                    <input type="text" class="form-control"
+                                        id="pc-root-text-<?php echo $pcEsc($key); ?>"
+                                        name="directory_text[<?php echo $pcEsc($key); ?>]"
+                                        value="<?php echo $pcEsc($pcRootText[$key]); ?>"
+                                        maxlength="<?php echo strpos($key, 'prompt') !== false ? 80 : 60; ?>" required>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <button type="submit" class="btn btn-primary"><?php echo _('Save button screen text'); ?></button>
+                <p class="help-block"><?php echo _('This updates XML on the server immediately; signed phone configurations and VPN settings are not changed.'); ?></p>
+            </form>
+        </details>
         <?php if ($pcBase): ?>
         <p class="help-block" style="margin-top:14px">
             <?php echo _('Test served XML:'); ?>
