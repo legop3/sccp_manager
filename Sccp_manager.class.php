@@ -506,6 +506,58 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         return $this->pagedata;
     }
 
+    /**
+     * Manage a central directory and Cisco TFTP phone assets from FreePBX.
+     * No config is rewritten on ordinary page refresh once the initial URL
+     * setup is complete. Phone XML regeneration is an explicit action.
+     */
+    public function phoneContentShowPage() {
+        try {
+            $base = $this->phonecontent->baseUrl();
+            if ($base && !is_file($this->phonecontent->publicPath() . '/directory.xml')) {
+                $this->phonecontent->publishDirectory();
+            }
+            if ($base) $this->phonecontent->syncUrls();
+        } catch (\Throwable $e) {
+            $this->phoneContentError = $e->getMessage();
+        }
+        $this->pagedata = array(
+            'general' => array('name' => _('Address Book'), 'page' => 'views/content.contacts.php'),
+            'wallpapers' => array('name' => _('Wallpapers'), 'page' => 'views/content.wallpapers.php'),
+            'ringtones' => array('name' => _('Ringtones'), 'page' => 'views/content.ringtones.php')
+        );
+        $this->processPageData();
+        return $this->pagedata;
+    }
+
+    public function phoneContentRegenerate() {
+        $changed = array();
+        $errors = array();
+        $this->phonecontent->publishDirectory();
+        $this->phonecontent->syncUrls();
+        $this->createDefaultSccpXml();
+        $devices = $this->dbinterface->getSccpDeviceTableData('SccpDevice', array('type' => 'cisco'));
+        foreach ((array) $devices as $device) {
+            $id = (string) ($device['name'] ?? '');
+            if (!preg_match('/^SEP[0-9A-F]{12}$/D', $id)) continue;
+            try {
+                if (!$this->createSccpDeviceXML($id)) {
+                    $errors[] = $id;
+                } else {
+                    $changed[] = $id;
+                }
+            } catch (\Throwable $e) {
+                $errors[] = $id . ': ' . $e->getMessage();
+            }
+        }
+        if ($errors) {
+            throw new \RuntimeException('Regenerated ' . count($changed) . ' phones; failed: ' .
+                implode('; ', $errors) . '. See /var/log/asterisk/freepbx.log');
+        }
+        return 'Published updated configurations for ' . count($changed) .
+            ' SCCP phone(s). Reset phones via Phones Manager to load the new URLs.';
+    }
+
     public function infoServerShowPage() {
         $request = $_REQUEST;
         $action = !empty($request['action']) ? $request['action'] : '';
