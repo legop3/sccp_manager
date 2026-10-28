@@ -30,7 +30,7 @@ trait bmoFunctions {
                         // URLs if not yet installed, but do not sign/restart on
                         // subsequent ordinary edits.
                         $urls = $this->phonecontent->syncUrls();
-                        if ($urls) {
+                        if ($urls || count($this->phonecontent->contacts()) === 1) {
                             $this->phoneContentMessage .= ' ' . $this->phoneContentRegenerate(false);
                         }
                     }
