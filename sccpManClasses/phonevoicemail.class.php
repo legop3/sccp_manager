@@ -132,8 +132,16 @@ class phonevoicemail
         if (!is_string($id) || !preg_match('/^[A-Za-z0-9_.-]{1,120}$/D', $id)) {
             throw new \InvalidArgumentException('Invalid message.');
         }
-        foreach ($this->listMessages($mailbox) as $m) {
-            if ($m['id'] === $id) return $m;
+        return self::resolveMessage($this->listMessages($mailbox), $id);
+    }
+
+    public static function resolveMessage(array $items, $id)
+    {
+        if (!is_string($id) || !preg_match('/^[A-Za-z0-9_.-]{1,120}$/D', $id)) {
+            throw new \InvalidArgumentException('Invalid message.');
+        }
+        foreach ($items as $m) {
+            if (is_array($m) && ($m['id'] ?? '') === $id) return $m;
         }
         throw new \RuntimeException('Message no longer exists. Refresh voicemail.');
     }
