@@ -36,6 +36,24 @@ final class phoneNotifications
             . '</CiscoIPPhoneText>';
     }
 
+    public static function interactive($title, $message, array $actions)
+    {
+        $title=self::xml(self::limit($title,32));
+        $message=self::xml(self::limit($message,2048));
+        $xml='<?xml version="1.0" encoding="UTF-8"?>'
+            .'<CiscoIPPhoneText><Title>'.$title.'</Title><Text>'.$message.'</Text>'
+            .'<Prompt>Select an action</Prompt>';
+        $position=1;
+        foreach ($actions as $label=>$url) {
+            if ($position>4) break;
+            if (!is_string($url) || !preg_match('~^(https?://|Dial:|Init:|SoftKey:)~',$url)) continue;
+            $xml.='<SoftKeyItem><Name>'.self::xml(self::limit($label,12))
+                .'</Name><URL>'.self::xml($url).'</URL><Position>'.$position.'</Position></SoftKeyItem>';
+            $position++;
+        }
+        return $xml.'</CiscoIPPhoneText>';
+    }
+
     public static function status($message, $timer = 0)
     {
         $message = self::xml(self::limit($message, 80));
