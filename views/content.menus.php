@@ -19,7 +19,7 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
                     <?php echo _('Use custom phone-button menus (internal service provisioning)'); ?>
                 </label>
                 <p class="help-block" style="margin-bottom:0">
-                    <?php echo _('Off: use the phone firmware's built-in buttons. On: Directories opens Favorites / All Extensions directly; Services and Messages use the settings below.'); ?>
+                    <?php echo _('Off: use the phone firmware’s built-in buttons. On: Directories opens Favorites / All Extensions directly; Services and Messages use the settings below.'); ?>
                     <?php echo _('Changes to the phone-button URLs require publishing signed phone configurations and resetting the phone once.'); ?>
                 </p>
             </div>
