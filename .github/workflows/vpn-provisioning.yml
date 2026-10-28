@@ -14,7 +14,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: openssl, dom, simplexml
+          extensions: openssl, dom, simplexml, gd
       - name: PHP syntax
         run: |
           php -l sccpManClasses/vpnprovisioning.class.php
