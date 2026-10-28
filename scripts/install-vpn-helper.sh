@@ -24,33 +24,21 @@ command -v visudo >/dev/null || { echo "sudo/visudo is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "Python 3 is required" >&2; exit 1; }
 getent passwd asterisk >/dev/null || { echo "Missing asterisk service account" >&2; exit 1; }
 
-# Install the missing system dependencies as part of the module install.
-# The package-manager installation is idempotent and needs no extra script.
-OCSERV=""
-OCSERV_WAS_MISSING=0
-for bin in /usr/local/sbin/ocserv /usr/sbin/ocserv; do
-  if [[ -x "$bin" ]]; then OCSERV="$bin"; break; fi
-done
-if [[ -z "$OCSERV" ]]; then OCSERV_WAS_MISSING=1; fi
-if [[ -z "$OCSERV" ]] || ! python3 -c "import cryptography" >/dev/null 2>&1; then
-  if command -v apt-get >/dev/null 2>&1; then
-    needed=(openssl)
-    [[ -n "$OCSERV" ]] || needed+=(ocserv)
-    if ! python3 -c "import cryptography" >/dev/null 2>&1; then needed+=(python3-cryptography); fi
-    DEBIAN_FRONTEND=noninteractive apt-get install -y "${needed[@]}"
-  else
-    echo "SCCP VPN automatic dependency installation currently supports Debian/apt" >&2
-    exit 1
-  fi
+# Ensure the bundled Python signer can operate, then obtain an ocserv build
+# with the Cisco /svc endpoint. Debian 12's stock 1.1.6 is NOT compatible.
+if ! python3 -c "import cryptography" >/dev/null 2>&1; then
+  command -v apt-get >/dev/null || { echo "Python cryptography dependency missing" >&2; exit 1; }
+  DEBIAN_FRONTEND=noninteractive apt-get install -y python3-cryptography openssl
 fi
-OCSERV=""
-for bin in /usr/local/sbin/ocserv /usr/sbin/ocserv; do
-  if [[ -x "$bin" ]]; then OCSERV="$bin"; break; fi
-done
-[[ -n "$OCSERV" ]] || { echo "ocserv did not install" >&2; exit 1; }
-# The package may have enabled its generic ocserv.service during apt install.
-# Stop that *newly installed* generic instance; SCCP Manager owns a separate
-# sccp-ocserv.service with isolated configuration. Never touch preexisting VPNs.
+OCSERV_WAS_MISSING=0
+if [[ ! -x /usr/local/sbin/ocserv && ! -x /usr/sbin/ocserv ]]; then
+  OCSERV_WAS_MISSING=1
+fi
+OCSERV="$(bash "$MODULE_DIR/scripts/ensure-cisco-ocserv.sh")"
+[[ -x "$OCSERV" ]] || { echo "No Cisco-compatible ocserv executable available" >&2; exit 1; }
+
+# Do not touch preexisting VPNs. Only disable a generic ocserv.service if
+# this installer was the first to install the server executable.
 if [[ "$OCSERV_WAS_MISSING" -eq 1 ]]; then
   systemctl disable --now ocserv.service 2>/dev/null || true
 fi
@@ -114,7 +102,34 @@ EOF
   chown root:root "$UNIT"
   chmod 0644 "$UNIT"
 fi
+# An older SCCP Manager service may still point to /usr/sbin/ocserv (Debian
+# 12's 1.1.6), even when the new binary is present under /usr/local/sbin.
+# Only change our own unit, and restart ONLY the managed VPN if it was running.
+unit_updated=0
+vpn_was_running=0
+if systemctl is-active --quiet sccp-ocserv.service; then vpn_was_running=1; fi
+if grep -Fqx 'Description=SCCP Manager Cisco phone VPN (ocserv)' "$UNIT" ||
+   grep -Fqx 'Description=SCCP Manager Cisco built-in phone VPN' "$UNIT"; then
+  :
+elif grep -Eq '^Description=SCCP Manager Cisco .*VPN' "$UNIT"; then
+  :
+else
+  echo "Existing sccp-ocserv unit is not owned by SCCP Manager; leaving it unchanged" >&2
+  exit 1
+fi
+if ! grep -Fqx "ExecStart=$OCSERV -f -c /etc/ocserv/sccp-manager.conf" "$UNIT"; then
+  grep -q '^ExecStart=' "$UNIT" || { echo "Managed VPN unit has no ExecStart" >&2; exit 1; }
+  tmpunit="$(mktemp /etc/systemd/system/.sccp-ocserv.XXXXXXXX)"
+  sed "s|^ExecStart=.*|ExecStart=$OCSERV -f -c /etc/ocserv/sccp-manager.conf|" "$UNIT" > "$tmpunit"
+  install -o root -g root -m 0644 "$tmpunit" "$UNIT"
+  rm -f "$tmpunit"
+  unit_updated=1
+fi
 systemctl daemon-reload
+if [[ "$unit_updated" -eq 1 && "$vpn_was_running" -eq 1 ]]; then
+  "$OCSERV" -t -c /etc/ocserv/sccp-manager.conf
+  systemctl restart sccp-ocserv.service
+fi
 
-echo "SCCP Manager VPN dependencies, isolated service and signing tools installed."
+echo "SCCP Manager VPN dependencies, Cisco-compatible ocserv, service and signing tools installed."
 echo "Open FreePBX > SCCP Manager > VPN & Signing to configure and start VPN."
