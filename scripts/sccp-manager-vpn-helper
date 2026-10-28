@@ -130,6 +130,74 @@ def sign(device, source_dir=""):
     print("Signed", device)
 
 
+
+def sign_content(kind):
+    """Sign Cisco media catalogs and their binary assets for ITL-trusted phones.
+
+    Only fixed TFTP directories and narrowly whitelisted generated filenames
+    are allowed. No path, certificate, filename or shell command comes from
+    the web request. Use the existing TFTP signer key; never modify an ITL.
+    """
+    if kind == "wallpapers":
+        directory = TFTP / "Desktops" / "320x212x16"
+        index = "List.xml"
+        expression = re.compile(r"(?:PC|TN-PC)-[0-9a-f]{16}\.png\Z")
+        limit = 2500000
+    elif kind == "ringtones":
+        directory = TFTP
+        index = "RingList.xml"
+        expression = re.compile(r"PC-[0-9a-f]{16}\.raw\Z")
+        limit = 300000
+    else:
+        raise ValueError("Unsupported phone content kind")
+    if not TFTP.is_dir() or TFTP.is_symlink():
+        raise RuntimeError("Unsafe TFTP root")
+    if not directory.is_dir() or directory.is_symlink():
+        raise RuntimeError("Missing or unsafe content directory")
+    signer = KEY_DIR / "tftp.pem"
+    if not signer.is_file() or signer.is_symlink():
+        raise RuntimeError("Managed TFTP signing certificate is missing")
+    files = [directory / index]
+    if not files[0].is_file() or files[0].is_symlink():
+        raise RuntimeError("Missing or unsafe Cisco content index")
+    for path in directory.iterdir():
+        if expression.fullmatch(path.name):
+            if not path.is_file() or path.is_symlink():
+                raise RuntimeError("Unsafe Cisco media file: " + path.name)
+            files.append(path)
+    if len(files) > 102:
+        raise RuntimeError("Too many media files to sign")
+
+    # Stage all signatures with the same protected signer and verify them
+    # before publishing. The phone may immediately fetch an individual .sgn.
+    with tempfile.TemporaryDirectory(prefix=".sccp-content-", dir=str(TFTP)) as tmp:
+        stage = Path(tmp)
+        for source in files:
+            if source.stat().st_size > limit or source.stat().st_size == 0:
+                raise RuntimeError("Invalid Cisco content file size: " + source.name)
+            copy = stage / source.name
+            shutil.copyfile(source, copy)
+            run([str(BIN_DIR / "sgnfile"), "--build", str(copy),
+                 "--tftp", str(signer)])
+            signed = stage / (source.name + ".sgn")
+            if not signed.is_file() or signed.stat().st_size == 0:
+                raise RuntimeError("Media signing failed: " + source.name)
+            output = run([str(BIN_DIR / "sgnfile"), "--parse", str(signed),
+                          "--tftp", str(signer)]).stdout
+            if "Valid signature" not in output:
+                raise RuntimeError("Media signature verification failed: " + source.name)
+
+        # Publish the binary and its signature together: signed bytes must
+        # match exactly the PNG or XML that TFTP is already serving.
+        for source in files:
+            signed = stage / (source.name + ".sgn")
+            target = source.with_name(source.name + ".sgn")
+            if target.is_symlink():
+                raise RuntimeError("Refusing symlinked media signature: " + source.name)
+            os.chmod(signed, 0o644)
+            os.replace(signed, target)
+    print("Signed Cisco content:", kind, len(files), "files")
+
 def read_accounts():
     """Return account metadata without returning password hashes."""
     if ACCOUNT_PATH.is_symlink():
@@ -375,12 +443,14 @@ def main():
         configure_server()
     elif len(sys.argv) in (3, 4) and sys.argv[1] == "sign":
         sign(sys.argv[2], sys.argv[3] if len(sys.argv) == 4 else "")
+    elif len(sys.argv) == 3 and sys.argv[1] == "sign-content":
+        sign_content(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] == "set-account":
         set_account(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] == "delete-account":
         delete_account(sys.argv[2])
     else:
-        raise ValueError("Usage: helper hash|status|start|configure|sign DEVICE [TFTP_SUBDIR]|set-account USER|delete-account USER")
+        raise ValueError("Usage: helper hash|status|start|configure|sign DEVICE [TFTP_SUBDIR]|sign-content wallpapers|ringtones|set-account USER|delete-account USER")
 
 
 if __name__ == "__main__":
