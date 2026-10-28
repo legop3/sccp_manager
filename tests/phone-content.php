@@ -136,6 +136,55 @@ try {
     check(strpos(file_get_contents($base . '/web/extensions-1.xml'), 'New Extension') !== false,
         'New FreePBX extension appears after directory republishing');
 
+    // A single editor saves imported extensions and custom contacts together.
+    // Existing manually created contacts are Favorites unless hidden.
+    $custom = $content->contacts();
+    $customId = $custom[0]['id'];
+    check($content->contactVisibility() === array(), 'Legacy custom contacts remain favorites');
+    $content->saveDirectoryChoices(
+        array('111'=>'favorite','150'=>'hidden','170'=>'directory','180'=>'directory'),
+        array($customId=>'hidden')
+    );
+    check($content->contactVisibility() === array($customId=>'hidden'),
+        'Custom contact visibility saved together with extension visibility');
+    check($content->extensionChoices() === array('111'=>'favorite','150'=>'hidden'),
+        'Unified save retains extension favorite and hidden selections');
+    $favoriteXml = file_get_contents($base . '/web/contacts-1.xml') .
+        file_get_contents($base . '/web/contacts-2.xml');
+    check(strpos($favoriteXml, 'Garage') === false,
+        'Hidden custom contact disappears from published phone Favorites');
+    check(strpos($favoriteXml, 'Desk Phone') !== false,
+        'Other favorites stay visible when a custom contact is hidden');
+    try {
+        $content->saveDirectoryChoices(array('111'=>'directory'),
+            array($customId=>'not-a-real-visibility'));
+        throw new RuntimeException('Invalid custom visibility accepted');
+    } catch (InvalidArgumentException $ok) {}
+    check($content->contactVisibility() === array($customId=>'hidden') &&
+        $content->extensionChoices() === array('111'=>'favorite','150'=>'hidden'),
+        'Invalid unified selection changes neither saved config');
+    $content->saveDirectoryChoices(
+        array('111'=>'favorite','150'=>'hidden','170'=>'directory','180'=>'directory'),
+        array($customId=>'favorite')
+    );
+    check($content->contactVisibility() === array(), 'Hidden custom contact can be restored to Favorites');
+    check(strpos(file_get_contents($base . '/web/contacts-1.xml'), 'Garage') !== false,
+        'Restored custom favorite republishes immediately');
+    $view = file_get_contents(__DIR__ . '/../views/content.contacts.php');
+    check(substr_count($view, '<table ') === 1,
+        'Directory editor contains one table for FreePBX and custom contacts');
+    check(strpos($view, 'content_action" value="directory_choices"') !== false &&
+        strpos($view, 'name="contact_choice[') !== false &&
+        strpos($view, 'name="extension_choice[') !== false,
+        'Unified editor saves both sources through one action');
+    check(strpos($view, 'pc-directory-search') !== false &&
+        strpos($view, 'pc-directory-filter') !== false,
+        'All directory entries share search and visibility filters');
+    check(strpos($view, 'sccp-extension-table') === false &&
+        strpos($view, 'sccp-contact-table') === false,
+        'Both legacy stacked directory tables are removed');
+
+
     // Every visible Cisco XML Title/Prompt/Name must be configurable. The
     // settings update must republish immediately without changing phone URLs
     // or regenerating signed SEP provisioning.
