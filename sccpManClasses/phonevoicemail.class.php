@@ -346,7 +346,7 @@ class phonevoicemail
      * and Exit controls, so navigation never relies on walking that history.
      * Custom softkeys replace ALL defaults, including Select, so restore it.
      */
-    private function xml($title, $prompt, array $entries = array(), $backUrl = null)
+    private function xml($title, $prompt, array $entries = array(), $backUrl = null, $vmMenuUrl = null)
     {
         $doc = new \DOMDocument('1.0','UTF-8');
         $root = $doc->appendChild($doc->createElement('CiscoIPPhoneMenu'));
@@ -360,6 +360,9 @@ class phonevoicemail
         }
 
         $softkeys = array(array('Select', 'SoftKey:Select', 1));
+        if ($vmMenuUrl !== null) {
+            $softkeys[] = array('VM Menu', $vmMenuUrl, 2);
+        }
         if ($backUrl !== null) {
             $softkeys[] = array('Back', $backUrl, 3);
         }
@@ -418,7 +421,32 @@ class phonevoicemail
             $links[] = array(substr($label, 0, 60), $base . '&op=detail&id=' . rawurlencode($m['id']));
         }
         if (!$links) $links[] = array('No voicemail messages', $base);
-        $this->xml('Voicemail ' . $line, count($messages) . ' messages (* = new)', $links);
+        // This softkey is outside the recordings list and appears only
+        // at the mailbox root, never on individual message screens.
+        $this->xml('Voicemail ' . $line, count($messages) . ' messages (* = new)',
+            $links, null, $base . '&op=call-menu');
+    }
+
+    /**
+     * Cisco 7945G supports two telephony URIs in a CiscoIPPhoneExecute.
+     * Init closes Messages and Dial starts a normal user-originated call.
+     * The two URIs are independent: their order of execution is undefined.
+     * There is no auto-answer or browser-dependent completion event.
+     */
+    private function traditionalVoicemailCall($line)
+    {
+        if (!is_string($line) || !preg_match('/^[0-9]{1,16}$/D', $line)) {
+            throw new \InvalidArgumentException('Invalid voicemail mailbox.');
+        }
+        $doc = new \DOMDocument('1.0', 'UTF-8');
+        $root = $doc->appendChild($doc->createElement('CiscoIPPhoneExecute'));
+        foreach (array('Init:Messages', 'Dial:*9900' . $line) as $command) {
+            $item = $root->appendChild($doc->createElement('ExecuteItem'));
+            $item->setAttribute('URL', $command);
+        }
+        header('Content-Type: text/xml; charset=UTF-8');
+        header('Cache-Control: no-store');
+        echo $doc->saveXML();
     }
 
     public function handle(array $get)
@@ -427,7 +455,11 @@ class phonevoicemail
             list($device, $line, $token) = $this->authenticate($get);
             $base = $this->serviceUrl($device);
             $op = (string)($get['op'] ?? 'list');
-            if (!in_array($op, array('list','detail','play','mark','delete','confirm-delete'), true)) throw new \InvalidArgumentException('Unknown voicemail operation.');
+            if (!in_array($op, array('list','detail','play','mark','delete','confirm-delete','call-menu'), true)) throw new \InvalidArgumentException('Unknown voicemail operation.');
+            if ($op === 'call-menu') {
+                $this->traditionalVoicemailCall($line);
+                return;
+            }
             $messages = $this->listMessages($line);
             if ($op === 'list') {
                 $this->showMessageList($line, $base, $messages);
