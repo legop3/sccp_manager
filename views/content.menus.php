@@ -20,7 +20,7 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
                 </label>
                 <p class="help-block" style="margin-bottom:0">
                     <?php echo _('Off: use the phone firmware’s built-in buttons. On: Directories opens Favorites / All Extensions directly; Services and Messages use the settings below.'); ?>
-                    <?php echo _('Changes to the phone-button URLs require publishing signed phone configurations and resetting the phone once.'); ?>
+                    <?php echo _('Saving menus automatically regenerates the signed phone configurations. Phones load button changes after their next restart.'); ?>
                 </p>
             </div>
 
@@ -41,16 +41,6 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
             <hr>
             <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> <?php echo _('Save Menus'); ?></button>
         </form>
-        <div class="well" style="margin-top:14px">
-            <strong><?php echo _('Update the actual phone buttons'); ?></strong>
-            <p class="help-block" style="margin:8px 0">
-                <?php echo _('Publish signed phone configurations so the physical Directories button opens Favorites / All Extensions directly. A phone reset is required once to load the new button URL. This does not change VPN credentials.'); ?>
-            </p>
-            <form method="post" action="config.php?display=sccp_content#menus">
-                <input type="hidden" name="content_action" value="publish_buttons">
-                <button type="submit" class="btn btn-primary"><i class="fa fa-upload" aria-hidden="true"></i> <?php echo _('Publish signed phone configurations'); ?></button>
-            </form>
-        </div>
         <details style="margin-top:20px">
             <summary style="font-weight:600"><?php echo _('Services button screen text'); ?></summary>
             <p class="help-block" style="margin-top:12px">
