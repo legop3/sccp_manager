@@ -75,7 +75,7 @@ class phonecontent
             $limit = strpos($key, 'prompt') !== false ? 80 : 60;
             if ($value === '' || strlen($value) > $limit ||
                 !preg_match('//u', $value) ||
-                preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $value)) {
+                preg_match('/[\x00-\x1F\x7F]/', $value)) {
                 throw new \InvalidArgumentException(
                     'Invalid text for ' . $key . ' (1–' . $limit . ' UTF-8 bytes).');
             }
