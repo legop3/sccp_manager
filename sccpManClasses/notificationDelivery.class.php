@@ -6,15 +6,23 @@ final class notificationDelivery {
     public function __construct($module) { $this->module=$module; }
 
     public function devices() {
-        $rows=[]; $code=0;
-        exec('/usr/sbin/asterisk -rx '.escapeshellarg('sccp show sessions').' 2>/dev/null',$rows,$code);
-        if ($code!==0) return [];
         $result=[];
-        foreach ($rows as $line) {
-            if (!preg_match('/\bSEP([A-F0-9]{12})\b/i',$line,$device)) continue;
-            if (!preg_match('/\b((?:\d{1,3}\.){3}\d{1,3})\b/',$line,$address)) continue;
-            if (!filter_var($address[1],FILTER_VALIDATE_IP,FILTER_FLAG_IPV4)) continue;
-            $result['SEP'.strtoupper($device[1])]=$address[1];
+        // The SCCP session list contains the socket peer IP; it is the
+        // reachable VPN address for remote phones, unlike provisioning IP.
+        foreach (['sccp show sessions', 'sccp show sessions all', 'sccp show devices'] as $command) {
+            $rows=[];$code=0;
+            exec('/usr/sbin/asterisk -rx '.escapeshellarg($command).' 2>/dev/null',$rows,$code);
+            if ($code!==0) continue;
+            foreach ($rows as $line) {
+                if (!preg_match('/\bSEP([A-F0-9]{12})\b/i',$line,$device)) continue;
+                if (!preg_match_all('/(?<![0-9])((?:[0-9]{1,3}\.){3}[0-9]{1,3})(?![0-9])/', $line,$addresses)) continue;
+                foreach ($addresses[1] as $ip) {
+                    if (!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4) || $ip==='0.0.0.0') continue;
+                    $result['SEP'.strtoupper($device[1])]=$ip;
+                    break;
+                }
+            }
+            if ($result) break;
         }
         return $result;
     }
@@ -49,11 +57,11 @@ final class notificationDelivery {
         return false;
     }
 
-    public function send($kind,$fields=[],$extensions=null) {
+    public function send($kind,$fields=[],$extensions=null,$test=false) {
         $settings=(new notificationConfig($this->module))->all();
         if (!isset($settings[$kind])) return 0;
         $options=$settings[$kind];
-        if (!$options['enabled']) return 0;
+        if (!$options['enabled'] && !$test) return 0;
         $values=[];
         foreach ($fields as $key=>$value) $values['{'.$key.'}']=(string)$value;
         $title=strtr($options['title'],$values);
@@ -77,9 +85,12 @@ final class notificationDelivery {
         }
         if (!$url && !$sound) return 0;
         $secret=(string)$this->module->getConfig('phonecontent_push_secret');
-        if ($secret==='') return 0;
+        if ($secret==='') throw new \RuntimeException('Push authentication is not configured. Save notification settings first.');
         $sent=0;
-        foreach ($this->devices() as $device=>$ip) {
+        $devices=$this->devices();
+        if (!$devices) throw new \RuntimeException('No connected SCCP phones were detected from Asterisk session/device output.');
+        $errors=[];
+        foreach ($devices as $device=>$ip) {
             if (!$this->forDevice($device,$extensions)) continue;
             $xml='<CiscoIPPhoneExecute>';
             if ($sound) $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1).'"/>';
@@ -98,8 +109,13 @@ final class notificationDelivery {
             $response=curl_exec($ch);
             $status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);
             curl_close($ch);
-            if ($status===200 && is_string($response) && strpos($response,'CiscoIPPhoneError')===false) $sent++;
+            if ($status===200 && is_string($response) && strpos($response,'CiscoIPPhoneError')===false) {
+                $sent++;
+            } else {
+                $errors[]=$device.' ('.$ip.'): HTTP '.$status.', '.substr(strip_tags((string)$response),0,120);
+            }
         }
+        if ($test && $errors) throw new \RuntimeException('Sent to '.$sent.' of '.count($devices).' phones. Failures: '.implode('; ',$errors));
         return $sent;
     }
 }
