@@ -51,7 +51,13 @@ try {
     $parent->phonecontent = $content;
     $parent->phonemenus = new phonemenus($parent);
     check($content->baseUrl() === 'http://192.168.0.25/sccp-manager', 'PBX URL');
+    // An upgrade must delete the retired intermediate menu artifacts.
+    file_put_contents($base . '/web/directory.xml', '<CiscoIPPhoneMenu/>');
+    file_put_contents($base . '/web/phonebook.xml', '<CiscoIPPhoneMenu/>');
     $content->publishDirectory();
+    check(!is_file($base . '/web/directory.xml') &&
+          !is_file($base . '/web/phonebook.xml'),
+          'Publishing direct Favorites cleans stale two-level directory files');
     check(is_file($base . '/web/phone.php'), 'PHP XML service endpoint must exist');
     $vmEndpoint = file_get_contents($base . '/web/voicemail.php');
     check(strpos($vmEndpoint, "\$bootstrap_settings['freepbx_auth'] = false;") !== false,
