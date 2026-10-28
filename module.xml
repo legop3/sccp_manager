@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.18</version>
+	<version>17.1.19</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.19 * - Fix Cisco wallpaper signed file header to include the full Desktops path; re-sign files that were incorrectly labeled
 		 * Version 17.1.18 * - Sign wallpaper List.xml and image files for ITL-trusted Cisco VPN phones, and ringtones; auto-sign existing media
 		 * Version 17.1.17 * - Restore FreePBX-native Phone Content UI; remove duplicate directory entries; automatically publish signed phone config on contact setup and wallpaper upload; report TFTP root mismatches
 		 * Version 17.1.16 * - Fix static directory hosting outside AMPWEBROOT, 7945G missing wallpaper commonProfile, and stale Directory URLs; add Phone Content diagnostics and improved UI
