@@ -193,3 +193,27 @@ The VM Menu softkey requests an authenticated phone service response with a Cisc
 The dedicated `_*9900.` pattern in `from-internal-custom` identifies the mailbox explicitly from the dialed suffix and runs `Answer()` then `VoiceMailMain(<mailbox>@default)`. This bypasses the broken `*97` path and does **not** skip the voicemail PIN. The installer refreshes the managed include file; run `fwconsole reload` after upgrading. The special code may conflict with locally defined extensions and should be checked with `asterisk -rx 'dialplan show *9900150@from-internal'` for a phone with extension 150.
 
 Open Phone Content once after upgrading so the public voicemail.php is republished. There is no signed SEP configuration change or phone reset required. Cisco 7945G call UI and audio behavior still require on-device testing.
+
+## 17.1.32 — Favorites and All Extensions
+
+The existing Directories -> Phone Book and Services -> Address Book entries now open
+a two-level index:
+
+1. **Favorites** — existing manually added address-book contacts and FreePBX
+   extensions marked Favorite. The same list is shared by all managed phones.
+2. **All Extensions** — the FreePBX Connectivity -> Extensions roster, including
+   SCCP devices. Members marked Hidden are excluded from both sections.
+
+FreePBX Core `getAllUsers()` is the single source of automatically discovered
+extensions. No separate chan_sccp table is queried, so a FreePBX extension
+cannot appear twice because it happens to use SCCP. Extension visibility can
+be set for each extension in Phone Content -> Address Book:
+All Extensions (default), Favorite + All Extensions, or Hidden.
+
+New extension and name changes are picked up whenever the Phone Content page
+is opened or the directory is explicitly published. The phones fetch the
+generated XML at the same existing URLs. **No phone reboot, new signed SEP
+configuration or VPN changes are required.** Cisco pages contain at most 30
+entries with a separate range index for larger directories. Existing manual
+contacts and existing configurable display text are preserved.
+
