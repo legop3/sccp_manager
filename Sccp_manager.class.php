@@ -1429,7 +1429,8 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             empty($dev_config['dev_authenticationURL']) &&
             empty($data_value['dev_authenticationURL'])) {
             $dev_config['dev_authenticationURL'] =
-                $this->phonecontent->baseUrl() . '/notification-auth.php';
+                $this->phonecontent->baseUrl() . '/notification-auth.php?token=' .
+                hash_hmac('sha256', strtoupper((string)$dev_id), (string)$this->getConfig('phonecontent_push_secret'));
         }
 
         $lang_data = $this->extconfigs->getExtConfig('sccp_lang');
