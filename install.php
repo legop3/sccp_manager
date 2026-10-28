@@ -70,24 +70,6 @@ if (!function_exists('sccp_manager_content_install')) {
         @chmod($dir, 0755);
         outn('<li>Phone Content: static Cisco directory/preview path ready.</li>');
 
-        // Visual voicemail audio must begin after the SCCP handset's RTP
-        // receiver is ready. Deploy a root-owned AGI that waits two seconds
-        // after auto-answer and then invokes VoiceMailPlayMsg by stable msg_id.
-        // Use Asterisk's normal AGI directory, never a public HTTP directory.
-        $agiSource = __DIR__ . '/scripts/sccp-manager-vm-playback.agi';
-        $agiDir = '/var/lib/asterisk/agi-bin';
-        $agiTarget = $agiDir . '/sccp-manager-vm-playback.agi';
-        if (!is_dir($agiDir) || is_link($agiDir) || !is_file($agiSource) ||
-            is_link($agiTarget) || (is_file($agiTarget) && !is_writable($agiTarget)) ||
-            !@copy($agiSource, $agiTarget) || !@chmod($agiTarget, 0755)) {
-            outn('<li>Phone Content: could not install voicemail playback AGI. Check ' .
-                htmlspecialchars($agiDir, ENT_QUOTES) . ' permissions.</li>');
-        } else {
-            @chown($agiTarget, 'root');
-            @chgrp($agiTarget, 'root');
-            outn('<li>Phone Content: voicemail playback AGI installed.</li>');
-        }
-
         // Install media converters once on Debian, without touching FreePBX's
         // existing configuration. A failure is non-fatal and explained in the UI.
         $missing = array();
