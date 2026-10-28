@@ -7,19 +7,19 @@ No separately downloaded certutils checkout or helper-install script is needed.
 
 ## Existing PBX: one module package
 
-First, take a FreePBX VM snapshot (preferred). The 17.1.10 preview targets an
+First, take a FreePBX VM snapshot (preferred). The 17.1.11 preview targets an
 existing functioning Nortien SCCP Manager 17.1.1 installation.
 Back up existing signing keys and ocserv files if not included in your VM snapshot.
 
 Download the preview module tarball from
-[the fork's preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.10).
+[the fork's preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.11).
 
 Then upgrade the module as root on the PBX, which lets the module install
 its own root-owned components in a single operation:
 
 ```bash
 sudo fwconsole ma downloadinstall \
-  https://github.com/legop3/sccp_manager/releases/download/vpn-preview-17.1.10/sccp_manager.tar.gz
+  https://github.com/legop3/sccp_manager/releases/download/vpn-preview-17.1.11/sccp_manager.tar.gz
 sudo fwconsole reload
 ```
 
