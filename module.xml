@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.35</version>
+	<version>17.1.36</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.36 * - Remove manual provisioning button, automatically sign updated Directories SEP configs on next Phone Content visit using existing process
 		 * Version 17.1.35 * - Fix physical Directories button: one canonical Favorites/All Extensions page, remove duplicate Phone Book layer and configurable Directories path; add explicit signed SEP publish button
 		 * Version 17.1.34 * - Replace leftover generic label editor with exact Phone Book/Favorites/All Extensions fields and preview, move Directories/Services root text into Menus
 		 * Version 17.1.33 * - Integrate custom contacts and FreePBX extensions into one searchable Address Book editor, shared Favorites/Hidden controls, and one atomic save
