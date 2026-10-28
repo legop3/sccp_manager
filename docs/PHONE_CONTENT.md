@@ -270,3 +270,24 @@ retained if it was customized. Scoped save forms update only their own
 fields, so changing Favorites does not rewrite Directories/Services and vice
 versa. The phone fetches fresh XML at existing URLs without a reboot.
 
+
+## 17.1.35 — Directories button opens Favorites / All Extensions directly
+
+The physical Cisco **Directories** key now has one canonical destination:
+`/sccp-manager/phone.php?doc=directory`, which returns a two-option
+`CiscoIPPhoneMenu`: **Favorites** and **All Extensions**. Selecting an option
+opens its paginated contact list. There is no intermediate Phone Book menu.
+
+The **Menus** tab no longer offers a separate editable Directories-button
+menu. It still controls Services and Messages. The root Directories title,
+prompt, and both option names are edited in **Address Book → Directories screen
+labels** alongside the contact-list titles and prompts. The previous extra
+Phone Book label fields and route have been removed rather than aliased.
+
+**One-time physical phone update:** Open **Phone Content → Menus** and click
+**Publish signed phone configurations**. This calls the module's existing
+signed SEP configuration generator for Cisco phones. Reset the phone once to
+load the new Directories button URL (no need to change VPN credentials). The
+phone-facing XML remains live-updated after that. Simply installing the module
+and republishing static XML does not change the URL already stored on a phone.
+
