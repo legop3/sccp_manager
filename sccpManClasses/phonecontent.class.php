@@ -507,8 +507,22 @@ PHP;
             $files[] = $dir . '/TN-PC-' . $id . '.png';
         }
         foreach ($files as $file) {
-            if (!is_file($file . '.sgn') ||
-                filemtime($file . '.sgn') < filemtime($file)) {
+            $signed = $file . '.sgn';
+            if (!is_file($signed) ||
+                filemtime($signed) < filemtime($file)) {
+                return true;
+            }
+            // Earlier builds generated a valid signature over the bytes, but
+            // wrote a basename-only HEADER_FILENAME. The 7945 rejects it
+            // because it requested the TFTP-relative path (Desktops/...).
+            // Check the literal filename in the signed TLV header and
+            // regenerate automatically when the filename is incorrect.
+            $expectedName = ltrim(substr($signed, strlen(rtrim($this->tftp, '/'))), '/');
+            $handle = @fopen($signed, 'rb');
+            if ($handle === false) return true;
+            $header = fread($handle, 2048);
+            fclose($handle);
+            if ($header === false || strpos($header, $expectedName . "\0") === false) {
                 return true;
             }
         }
