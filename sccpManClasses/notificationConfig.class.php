@@ -113,6 +113,9 @@ if (!is_file($file) || is_link($file)) {
 }
 header('Content-Type: text/xml; charset=UTF-8');
 header('Cache-Control: no-store');
+// Cisco XML browser omits pages already expired at load from its URL stack.
+// Notifications are launchers, not a destination to return to after voicemail.
+header('Expires: Thu, 01 Jan 2004 00:00:00 GMT');
 readfile($file);
 PHP;
         if (file_put_contents($displayPath,$displayScript."\n",LOCK_EX)===false)
