@@ -174,8 +174,8 @@ try {
     check(substr_count($view, '<table ') === 1,
         'Directory editor contains one table for FreePBX and custom contacts');
     check(strpos($view, 'content_action" value="directory_choices"') !== false &&
-        strpos($view, 'name="contact_choice[') !== false &&
-        strpos($view, 'name="extension_choice[') !== false,
+        strpos($view, "'contact_choice['") !== false &&
+        strpos($view, "'extension_choice['") !== false,
         'Unified editor saves both sources through one action');
     check(strpos($view, 'pc-directory-search') !== false &&
         strpos($view, 'pc-directory-filter') !== false,
