@@ -65,6 +65,10 @@ jobs:
           printf '%s' '{"gateway":"https://vpn.example.test:4443/svc","pbx_ip":"192.168.0.25","vpn_subnet":"10.254.77.0/24","udp_port":443,"max_same_clients":0}' |
             sudo /usr/local/libexec/sccp-manager-vpn-helper configure
           sudo systemctl is-active --quiet sccp-ocserv.service
+          curl -ksS -D /tmp/sccp-vpn-http-response -o /dev/null \
+            -A 'Cisco SVC IPPhone Client v1.0' https://127.0.0.1:4443/svc
+          grep -Eq '^HTTP/1\.[01] 200' /tmp/sccp-vpn-http-response
+          grep -qi 'Set-Cookie: webvpnlogin=1' /tmp/sccp-vpn-http-response
           printf '%s\n' 'test-ci-password-only' |
             sudo /usr/local/libexec/sccp-manager-vpn-helper set-account testphone
           sudo grep -q '^testphone::\$6\$' /etc/ocserv/ocpasswd
