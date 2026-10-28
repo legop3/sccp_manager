@@ -222,7 +222,7 @@ $response = ob_get_clean();
 // XML Error 4 is difficult to diagnose, so log it and respond with valid XML.
 $parsed = new \DOMDocument();
 if (!is_string($response) || !@$parsed->loadXML($response, LIBXML_NONET) ||
-    !in_array($parsed->documentElement->tagName, array('CiscoIPPhoneMenu','CiscoIPPhoneText'), true)) {
+    !in_array($parsed->documentElement->tagName, array('CiscoIPPhoneMenu','CiscoIPPhoneText','CiscoIPPhoneExecute'), true)) {
     error_log('sccp_manager visual voicemail: invalid generated XML response');
     $response = '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneText><Title>Voicemail</Title><Text>Unable to display voicemail menu</Text></CiscoIPPhoneText>';
     $responseCode = 200;
