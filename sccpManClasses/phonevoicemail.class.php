@@ -124,6 +124,30 @@ class phonevoicemail
         return array_slice($items, 0, 100);
     }
 
+    /** The visual voicemail parser is the authoritative source for notifications. */
+    public function inboxMessages($mailbox)
+    {
+        return array_values(array_filter($this->listMessages($mailbox),
+            static function ($m) { return $m['folder'] === 'INBOX'; }));
+    }
+
+    public function notificationFields($mailbox, array $msg, $count)
+    {
+        $time=(int)$msg['time'];
+        $name=(string)$msg['name'];
+        $number=(string)$msg['number'];
+        return array(
+            'id'=>(string)$msg['id'], 'extension'=>(string)$mailbox,
+            'count'=>(int)$count,
+            'caller'=>$name!==''?$name:($number!==''?$number:'Unknown caller'),
+            'number'=>$number!==''?$number:'Unknown',
+            'date'=>$time>0?date('M j, Y',$time):'Unknown',
+            'time'=>$time>0?date('g:i A',$time):'Unknown',
+            'received'=>$time>0?date('M j, Y \\a\\t g:i A',$time):'Unknown',
+            'length'=>sprintf('%d:%02d',intdiv((int)$msg['duration'],60),(int)$msg['duration']%60)
+        );
+    }
+
     /**
      * Message IDs persist when Asterisk moves a heard voicemail from INBOX
      * into Old, while msg000N filenames and folder names may change. Resolve
