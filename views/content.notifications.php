@@ -41,4 +41,8 @@ $rings=$this->phonecontent->ringtones();
 <p class="help-block">Image display is intended for scheduled notifications with an Image URL. Text is rendered beneath the image. </p><p class="help-block">For call alerts, {caller} is the caller identifier. Voicemail text supports {count} and {extension}. Sounds reuse uploaded ringtones.</p>
 <button type="submit" class="btn btn-primary">Save notification settings</button>
 </form>
+<form method="post" action="config.php?display=sccp_content#notifications" style="margin-top:15px">
+<input type="hidden" name="content_action" value="notifications_test">
+<button type="submit" class="btn btn-default">Send test scheduled notification to all phones</button>
+</form>
 </div>
