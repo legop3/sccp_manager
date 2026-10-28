@@ -163,7 +163,7 @@ $samples=[
 
  root.querySelectorAll('.ne-stripe-row').forEach(row=>{
   const color=row.querySelector('[data-stripe-color]'),active=row.querySelector('[data-stripe-active]'),hidden=row.querySelector('input[type=hidden]');
-  const update=()=>{hidden.value=active.checked?color.value:'';};color.addEventListener('input',()=>{active.checked=true;update();});active.addEventListener('change',update);
+  const update=()=>{hidden.value=active.checked?color.value:'';};color.addEventListener('input',()=>{active.checked=true;update();requestPreview(row.closest('.ne-panel'));});active.addEventListener('change',()=>{update();requestPreview(row.closest('.ne-panel'));});
  });
  root.querySelectorAll('[data-preset]').forEach(button=>button.addEventListener('click',()=>{
   const values=palettes[button.dataset.preset]||[];
