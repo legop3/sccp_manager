@@ -316,9 +316,9 @@ class phonevoicemail
             }
             if ($op === 'play') {
                 $this->playback($line, $msg);
-                $this->xml('Playing Voicemail', 'The recording will play on your phone.', array(
-                    array('Return to messages', $base)
-                ));
+                // Leave the message list behind the call, so the phone returns
+                // directly to it after playback ends.
+                $this->handle(array('phone'=>$device, 'key'=>$token, 'op'=>'list'));
                 return;
             }
             $this->xml(substr($from,0,55), 'Select an action', array(
