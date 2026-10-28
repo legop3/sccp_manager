@@ -32,6 +32,15 @@ try {
 }
 $serviceRunning = ($status['service'] ?? '') === 'active';
 $configured = !empty($status['vpn_configuration_exists']);
+$accounts = is_array($status['accounts'] ?? null) ? $status['accounts'] : array();
+$sessions = is_array($status['sessions'] ?? null) ? $status['sessions'] : array();
+$sessionsAvailable = isset($status['sessions']) && is_array($status['sessions']);
+$events = is_array($status['recent_events'] ?? null) ? $status['recent_events'] : array();
+$sessionCounts = array();
+foreach ($sessions as $session) {
+    $username = (string) ($session['username'] ?? '');
+    $sessionCounts[$username] = ($sessionCounts[$username] ?? 0) + 1;
+}
 $signingReady = !$statusError && !empty($status['signing_tools_installed'])
     && !empty($status['tftp_certificate_exists'])
     && !empty($status['sast_certificate_exists'])
@@ -145,7 +154,65 @@ $stateLabel = $statusError ? _('Unavailable') :
     </form>
 
     <hr style="margin:28px 0;">
-    <h4><?php echo _('VPN login'); ?></h4>
+    <h4><?php echo _('VPN accounts'); ?></h4>
+    <?php if (!empty($status['accounts_error'])): ?>
+        <div class="alert alert-warning"><?php echo $escape($status['accounts_error']); ?></div>
+    <?php elseif (!$accounts): ?>
+        <p class="text-muted"><?php echo _('No VPN accounts configured. Add one below.'); ?></p>
+    <?php else: ?>
+        <div class="table-responsive">
+            <table class="table table-striped table-condensed" style="max-width:850px;">
+                <thead><tr>
+                    <th><?php echo _('Username'); ?></th>
+                    <th><?php echo _('Status'); ?></th>
+                    <th><?php echo _('Connected'); ?></th>
+                    <th><?php echo _('Password'); ?></th>
+                    <th></th>
+                </tr></thead>
+                <tbody>
+                <?php foreach ($accounts as $account):
+                    $username = (string) ($account['username'] ?? '');
+                    if ($username === '') { continue; }
+                ?>
+                    <tr>
+                        <td style="vertical-align:middle;"><strong><?php echo $escape($username); ?></strong>
+                            <?php if (!empty($account['group'])): ?>
+                                <div class="text-muted"><?php echo $escape($account['group']); ?></div>
+                            <?php endif; ?>
+                        </td>
+                        <td style="vertical-align:middle;"><?php echo !empty($account['enabled']) ? _('Enabled') : _('Disabled'); ?></td>
+                        <td style="vertical-align:middle;">
+                            <?php echo $sessionsAvailable ? $escape((string) ($sessionCounts[$username] ?? 0)) : _('Unknown'); ?>
+                        </td>
+                        <td style="min-width:200px;">
+                            <form method="post" action="<?php echo $escape($actionUrl); ?>" autocomplete="off"
+                                  style="display:flex; gap:6px;">
+                                <input type="hidden" name="vpn_action" value="account">
+                                <input type="hidden" name="vpn_username" value="<?php echo $escape($username); ?>">
+                                <input type="password" class="form-control input-sm" name="vpn_password"
+                                       placeholder="<?php echo _('New password'); ?>" required autocomplete="new-password">
+                                <button type="submit" class="btn btn-default btn-sm" <?php echo !$configured || $statusError ? 'disabled' : ''; ?>>
+                                    <?php echo _('Change'); ?>
+                                </button>
+                            </form>
+                        </td>
+                        <td style="vertical-align:middle;">
+                            <form method="post" action="<?php echo $escape($actionUrl); ?>"
+                                  onsubmit="return confirm(<?php echo $escape(json_encode(_('Delete this VPN account?'))); ?>);">
+                                <input type="hidden" name="vpn_action" value="delete_account">
+                                <input type="hidden" name="vpn_username" value="<?php echo $escape($username); ?>">
+                                <button class="btn btn-link btn-sm text-danger" type="submit"><?php echo _('Delete'); ?></button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+    <p class="text-muted" style="margin-bottom:18px;"><?php echo _('Passwords are stored as hashes. Set a new password to change one.'); ?></p>
+
+    <h4><?php echo _('Add VPN account'); ?></h4>
     <form method="post" action="<?php echo $escape($actionUrl); ?>" autocomplete="off">
         <input type="hidden" name="vpn_action" value="account">
         <div class="row" style="max-width:640px;">
@@ -161,9 +228,44 @@ $stateLabel = $statusError ? _('Unavailable') :
             </div>
         </div>
         <button class="btn btn-default" type="submit" <?php echo $statusError || !$configured ? 'disabled' : ''; ?>>
-            <?php echo _('Save login'); ?>
+            <?php echo _('Add account'); ?>
         </button>
     </form>
+
+    <hr style="margin:28px 0;">
+    <h4><?php echo _('Connected VPN phones'); ?></h4>
+    <?php if (!$serviceRunning): ?>
+        <p class="text-muted"><?php echo _('VPN server is not running.'); ?></p>
+    <?php elseif (!$sessionsAvailable): ?>
+        <p class="text-muted"><?php echo _('Connected clients could not be read from the VPN service.'); ?></p>
+    <?php elseif (!$sessions): ?>
+        <p class="text-muted"><?php echo _('No phones are currently connected to the VPN.'); ?></p>
+    <?php else: ?>
+        <table class="table table-condensed table-striped">
+            <thead><tr>
+                <th><?php echo _('Account'); ?></th><th><?php echo _('Remote IP'); ?></th>
+                <th><?php echo _('VPN IP'); ?></th><th><?php echo _('Connected since'); ?></th>
+            </tr></thead>
+            <tbody>
+                <?php foreach ($sessions as $session): ?>
+                <tr>
+                    <td><?php echo $escape($session['username'] ?? ''); ?></td>
+                    <td><?php echo $escape($session['remote_ip'] ?? ''); ?></td>
+                    <td><?php echo $escape($session['vpn_ip'] ?? ''); ?></td>
+                    <td><?php echo $escape($session['connected_at'] ?? ''); ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+
+    <h4><?php echo _('Recent VPN activity'); ?> <small class="text-muted"><?php echo _('last 2 hours'); ?></small></h4>
+    <?php if ($events): ?>
+        <pre style="font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;"><?php echo $escape(implode("\n", $events)); ?></pre>
+    <?php else: ?>
+        <p class="text-muted"><?php echo _('No recent VPN connection events found.'); ?></p>
+    <?php endif; ?>
+    <p><a href="<?php echo $escape($actionUrl); ?>"><?php echo _('Refresh status'); ?></a></p>
 
     <hr style="margin:28px 0;">
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
