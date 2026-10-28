@@ -179,6 +179,26 @@ PHP;
         $this->publishFile($this->public . '/phone.php', $script . "\n");
     }
 
+    private function publishVoicemailEndpoint()
+    {
+        $script = <<<'PHP'
+<?php
+// This public route does not require FreePBX administrator login.
+// Every request must carry a per-device 256-bit bearer token provisioned in signed SEP XML.
+try {
+    require_once '/etc/freepbx.conf';
+    $module = \FreePBX::create()->Sccp_manager;
+    $module->phonevoicemail->handle($_GET);
+} catch (\Throwable $e) {
+    error_log('sccp_manager visual voicemail bootstrap: ' . $e->getMessage());
+    http_response_code(503);
+    header('Content-Type: text/xml; charset=UTF-8');
+    echo '<?xml version="1.0"?><CiscoIPPhoneText><Title>Voicemail</Title><Text>Service unavailable</Text></CiscoIPPhoneText>';
+}
+PHP;
+        $this->publishFile($this->public . '/voicemail.php', $script . "\n");
+    }
+
     public function publishDirectory()
     {
         $base = $this->baseUrl();
@@ -186,6 +206,7 @@ PHP;
             throw new \RuntimeException('Set the PBX address in Phone Content before publishing the directory.');
         }
         $this->publishPhoneEndpoint();
+        $this->publishVoicemailEndpoint();
         $labels = $this->directoryLabels();
         $contacts = $this->contacts();
         usort($contacts, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
