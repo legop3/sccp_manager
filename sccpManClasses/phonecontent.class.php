@@ -176,33 +176,13 @@ class phonecontent
     public static function defaultDirectoryLabels()
     {
         return array(
-            'menu_title' => 'Directories',
-            'menu_prompt' => 'Favorites or All Extensions',
-            'favorites_entry' => 'Favorites',
             'contacts_title' => 'Favorites',
             'contacts_prompt' => 'Select a contact to call',
-            'extensions_entry' => 'All Extensions',
             'extensions_title' => 'All Extensions',
             'extensions_prompt' => 'Select an extension to call',
             'services_title' => 'Phone Services',
             'services_prompt' => 'Choose a service'
         );
-    }
-
-    /**
-     * The Cisco 7945G XML parser enforces a 32-byte limit on Title and
-     * Prompt. Longer text is well-formed XML but causes XML Error [4].
-     * Avoid cutting a UTF-8 sequence in half when clipping old settings.
-     */
-    public static function shortCiscoField($value)
-    {
-        $text = (string) $value;
-        if (strlen($text) <= 32) return $text;
-        $text = substr($text, 0, 32);
-        while ($text !== '' && !preg_match('//u', $text)) {
-            $text = substr($text, 0, -1);
-        }
-        return rtrim($text);
     }
 
     public function directoryLabels()
@@ -339,7 +319,7 @@ class phonecontent
         $script = <<<'PHP'
 <?php
 $doc = (string) ($_GET['doc'] ?? '');
-if (!preg_match('/^(directory|services|contacts-[1-9][0-9]*|extensions-[1-9][0-9]*|favorites-pages|extensions-pages|pc-(sub|text)-[a-z0-9-]+)$/D', $doc)) {
+if (!preg_match('/^(services|contacts-[1-9][0-9]*|extensions-[1-9][0-9]*|favorites-pages|extensions-pages|pc-(sub|text)-[a-z0-9-]+)$/D', $doc)) {
     http_response_code(404);
     exit;
 }
@@ -424,14 +404,35 @@ PHP;
     }
 
 
-    /** Publish a Cisco 7945G-compatible directory in pages of 30 entries. */
-    private function publishContactPages(array $rows, $prefix, $title, $prompt, $base, $rangeLabel)
+    /** Add phone-native dialing and one shortcut between the two directories. */
+    private function directorySoftkeys(\DOMDocument $doc, \DOMElement $root, $base, $otherDoc, $otherLabel, $pageIndex = null)
+    {
+        $items = array(
+            array('Dial', 'SoftKey:Dial', 1),
+            $pageIndex === null
+                ? array('EditDial', 'SoftKey:EditDial', 2)
+                : array('Pages', $base . '/phone.php?doc=' . $pageIndex, 2),
+            array($otherLabel, $base . '/phone.php?doc=' . $otherDoc, 3),
+            array('Exit', 'SoftKey:Exit', 4)
+        );
+        foreach ($items as $item) {
+            $key = $root->appendChild($doc->createElement('SoftKeyItem'));
+            $this->element($doc, $key, 'Name', $item[0]);
+            $this->element($doc, $key, 'URL', $item[1]);
+            $this->element($doc, $key, 'Position', $item[2]);
+        }
+    }
+
+    /** Always open page one directly; show a Pages softkey only when needed. */
+    private function publishContactPages(array $rows, $prefix, $title, $prompt, $base, $otherDoc, $otherLabel)
     {
         $chunks = array_chunk($rows, 30);
         if (!$chunks) $chunks = array(array());
         if (count($chunks) > 30) {
             throw new \RuntimeException('Too many entries for one directory section (900 maximum).');
         }
+        $pageIndex = $prefix === 'contacts' ? 'favorites-pages' : 'extensions-pages';
+        $paged = count($chunks) > 1;
         foreach ($chunks as $i=>$chunk) {
             list($doc, $root) = $this->xml('CiscoIPPhoneDirectory');
             $this->element($doc, $root, 'Title', $title);
@@ -441,26 +442,32 @@ PHP;
                 $this->element($doc, $row, 'Name', $entry['name']);
                 $this->element($doc, $row, 'Telephone', $entry['number']);
             }
+            $this->directorySoftkeys($doc, $root, $base, $otherDoc, $otherLabel,
+                $paged ? $pageIndex : null);
             $this->publishFile($this->public . '/' . $prefix . '-' . ($i + 1) . '.xml', $doc->saveXML());
         }
         foreach (glob($this->public . '/' . $prefix . '-*.xml') ?: array() as $oldPage) {
             if (!preg_match('/^' . preg_quote($prefix, '/') . '-([0-9]+)\.xml$/D', basename($oldPage), $match)) continue;
             if ((int)$match[1] > count($chunks) && is_file($oldPage) && !is_link($oldPage)) @unlink($oldPage);
         }
-        if (count($chunks) === 1) return $base . '/phone.php?doc=' . $prefix . '-1';
-
-        list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
-        $this->element($doc, $root, 'Title', $title);
-        $this->element($doc, $root, 'Prompt', $prompt);
-        foreach ($chunks as $i=>$chunk) {
-            $row = $root->appendChild($doc->createElement('MenuItem'));
-            $this->element($doc, $row, 'Name', $rangeLabel . ' ' .
-                ($i * 30 + 1) . '-' . ($i * 30 + count($chunk)));
-            $this->element($doc, $row, 'URL', $base . '/phone.php?doc=' . $prefix . '-' . ($i + 1));
+        // A pager is an optional secondary navigation action, never the first
+        // screen shown after pressing the physical Directories button.
+        if ($paged) {
+            list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
+            $this->element($doc, $root, 'Title', $title);
+            $this->element($doc, $root, 'Prompt', $prompt);
+            foreach ($chunks as $i=>$chunk) {
+                $row = $root->appendChild($doc->createElement('MenuItem'));
+                $this->element($doc, $row, 'Name', $title . ' ' .
+                    ($i * 30 + 1) . '-' . ($i * 30 + count($chunk)));
+                $this->element($doc, $row, 'URL', $base . '/phone.php?doc=' . $prefix . '-' . ($i + 1));
+            }
+            $this->publishFile($this->public . '/' . $pageIndex . '.xml', $doc->saveXML());
+        } else {
+            $old = $this->public . '/' . $pageIndex . '.xml';
+            if (is_file($old) && !is_link($old)) @unlink($old);
         }
-        $indexName = $prefix === 'contacts' ? 'favorites-pages' : 'extensions-pages';
-        $this->publishFile($this->public . '/' . $indexName . '.xml', $doc->saveXML());
-        return $base . '/phone.php?doc=' . $indexName;
+        return $base . '/phone.php?doc=' . $prefix . '-1';
     }
 
     public function publishDirectory()
@@ -503,31 +510,20 @@ PHP;
         };
         usort($favorites, $sort);
         usort($allExtensions, $sort);
-        $favoritesUrl = $this->publishContactPages($favorites, 'contacts',
-            $labels['contacts_title'], $labels['contacts_prompt'], $base, $labels['favorites_entry']);
-        $extensionsUrl = $this->publishContactPages($allExtensions, 'extensions',
-            $labels['extensions_title'], $labels['extensions_prompt'], $base, $labels['extensions_entry']);
-
-        // The physical Directories button opens this chooser directly.
-        list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
-        $this->element($doc, $root, 'Title', $labels['menu_title']);
-        $this->element($doc, $root, 'Prompt', $labels['menu_prompt']);
-        foreach (array(
-            array($labels['favorites_entry'], $favoritesUrl),
-            array($labels['extensions_entry'], $extensionsUrl)
-        ) as $itemData) {
-            $row = $root->appendChild($doc->createElement('MenuItem'));
-            $this->element($doc, $row, 'Name', $itemData[0]);
-            $this->element($doc, $row, 'URL', $itemData[1]);
-        }
-        $this->publishFile($this->public . '/directory.xml', $doc->saveXML());
+        // The physical Directories key lands on contacts-1 immediately.
+        // Keep the All/Favs shortcuts symmetric. Nothing sits in front of
+        // either list and both retain native Dial/EditDial functionality.
+        $this->publishContactPages($favorites, 'contacts',
+            $labels['contacts_title'], $labels['contacts_prompt'], $base, 'extensions-1', 'All');
+        $this->publishContactPages($allExtensions, 'extensions',
+            $labels['extensions_title'], $labels['extensions_prompt'], $base, 'contacts-1', 'Favs');
         $this->parent->phonemenus->publish();
     }
 
     /** Only prevalidated generated XML filenames, within the managed web root. */
     public function publishMenuDocument($filename, $content)
     {
-        if (!preg_match('/^(directory|services|pc-(sub|text)-[a-z0-9-]+)\.xml$/D', (string) $filename)) {
+        if (!preg_match('/^(services|pc-(sub|text)-[a-z0-9-]+)\.xml$/D', (string) $filename)) {
             throw new \InvalidArgumentException('Invalid managed menu filename.');
         }
         $this->publishFile($this->public . '/' . $filename, $content);
@@ -543,7 +539,7 @@ PHP;
         $base = $this->baseUrl();
         if (!$base) return array();
         $changed = array();
-        foreach (array('dev_directoryURL' => '/phone.php?doc=directory',
+        foreach (array('dev_directoryURL' => '/phone.php?doc=contacts-1',
                        'dev_servicesURL' => '/phone.php?doc=services') as $key => $suffix) {
             $current = (string) ($this->parent->sccpvalues[$key]['data'] ?? '');
             $old = (string) $this->parent->getConfig('phonecontent_managed_' . $key);
@@ -572,7 +568,7 @@ PHP;
     public function status()
     {
         $base = $this->baseUrl();
-        $xml = $this->public . '/directory.xml';
+        $xml = $this->public . '/contacts-1.xml';
         $index = $this->tftp . '/Desktops/320x212x16/List.xml';
         $rings = $this->tftp . '/ringlist.xml';
         $conf = $this->parent->sccpvalues;
@@ -594,8 +590,8 @@ PHP;
             'directory_exists' => is_file($xml),
             'directory_readable' => is_readable($xml),
             'configured_url' => $url,
-            'expected_url' => $base ? $base . '/phone.php?doc=directory' : '',
-            'url_matches' => $url !== '' && $url === $base . '/phone.php?doc=directory',
+            'expected_url' => $base ? $base . '/phone.php?doc=contacts-1' : '',
+            'url_matches' => $url !== '' && $url === $base . '/phone.php?doc=contacts-1',
             'wallpaper_index' => $index,
             'wallpaper_index_exists' => is_file($index),
             'wallpaper_index_readable' => is_readable($index),
