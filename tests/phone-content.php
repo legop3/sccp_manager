@@ -30,6 +30,12 @@ mkdir($base . '/tftp');
 mkdir($base . '/web');
 try {
     $parent = new FakeContentParent();
+    // FreePBX AMPWEBROOT already IS /var/www/html. The old code mistakenly
+    // took dirname(), writing the directory outside Apache's document root.
+    $GLOBALS['amp_conf']['AMPWEBROOT'] = $base . '/web';
+    $defaultContent = new phonecontent($parent);
+    check($defaultContent->publicPath() === $base . '/web/sccp-manager',
+        'Directory must be inside the actual web root');
     $content = new phonecontent($parent, $base . '/tftp', $base . '/web');
     check($content->baseUrl() === 'http://192.168.0.25/sccp-manager', 'PBX URL');
     $content->publishDirectory();
@@ -61,6 +67,12 @@ try {
         'http://192.168.0.25/sccp-manager/directory.xml', 'Directory URL');
     $parent->sccpvalues['dev_servicesURL']['data'] = 'http://my-service.example/xml';
     check(count($content->syncUrls()) === 0, 'Never overwrite custom service URL');
+    check(count($content->syncUrls(true)) === 1, 'Explicit activation should replace custom service URL');
+    check($parent->sccpvalues['dev_servicesURL']['data'] ===
+        'http://192.168.0.25/sccp-manager/services.xml', 'Managed service URL is active');
+    check(count($content->restoreUrls()) === 2, 'Restore original URL settings');
+    check($parent->sccpvalues['dev_servicesURL']['data'] === 'http://my-service.example/xml',
+        'Prior manually configured URL recovered');
     $content->enableWallpapers();
     check($parent->sccpvalues['backgroundImageAccess']['data'] === 'on', 'Image setting');
     $parent->setConfig('phonecontent_wallpapers', array(
