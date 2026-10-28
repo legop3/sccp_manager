@@ -150,3 +150,19 @@ Voicemail menu links resolve messages by stable ID even if the recording moves b
 ## 17.1.26 playback adjustment
 
 The earlier two-second delay in the playback AGI and 1.2-second delay before call origination were speculative. Both are removed. Playback now runs directly via Asterisk `VoiceMailPlayMsg()`, with no hardcoded pause. The request-shutdown sequence still originates only after the complete Cisco XML document has been generated and flushed. Retained fixes include stable message IDs across INBOX/Old and XML validation. If a voicemail appears to cut off at the end, verify that the audio actually truncates and examine Asterisk playback completion and channel hangup logs rather than adding a delay.
+
+## 17.1.27 visual voicemail navigation
+
+- Playing a message returns to the **same message detail menu**, with a Play
+  Again action. It no longer jumps back to the full voicemail list after playback.
+- Each XML screen explicitly restores Select and offers Exit using the Cisco
+  `Init:Messages` command, which closes the Messages application instead of
+  recursively walking old page URLs. Detail and confirmation screens also
+  provide a dedicated Back softkey.
+- The voicemail HTTP endpoint now sends a valid past `Expires` header. On
+  Cisco 79xx phones this prevents a request URL from being appended to the
+  handset's internal Back/Exit history, independently of Cache-Control.
+- A first visit to Phone Content after upgrading republishes the voicemail
+  endpoint. No signing, VPN changes, or phone reset is needed.
+- Call playback and Caller ID are unchanged. No arbitrary playback delays.
+
