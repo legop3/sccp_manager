@@ -179,7 +179,9 @@ class phonecontent
             'menu_title' => 'Directories',
             'menu_prompt' => 'Select a directory',
             'menu_entry' => 'Phone Book',
-            'contacts_title' => 'Phone Book',
+            'phonebook_title' => 'Phone Book',
+            'phonebook_prompt' => 'Select Favorites or All Extensions',
+            'contacts_title' => 'Favorites',
             'contacts_prompt' => 'Select a contact to call',
             'favorites_entry' => 'Favorites',
             'extensions_entry' => 'All Extensions',
@@ -195,9 +197,23 @@ class phonecontent
     {
         $defaults = self::defaultDirectoryLabels();
         $saved = $this->parent->getConfig('phonecontent_directory_labels');
-        return is_array($saved) ? array_replace(
-            $defaults, array_intersect_key($saved, $defaults)
-        ) : $defaults;
+        if (!is_array($saved)) return $defaults;
+        $labels = array_replace($defaults, array_intersect_key($saved, $defaults));
+        // Older versions conflated the Directories-button entry text with
+        // the Phone Book screen title, and reused the Directories prompt for
+        // the Phone Book chooser. Preserve customized older labels until
+        // the admin explicitly edits the now-independent fields.
+        if (!array_key_exists('phonebook_title', $saved)) {
+            $labels['phonebook_title'] = $labels['menu_entry'];
+        }
+        if (!array_key_exists('phonebook_prompt', $saved) &&
+            $labels['menu_prompt'] !== 'Select a directory') {
+            $labels['phonebook_prompt'] = $labels['menu_prompt'];
+        }
+        if ($labels['contacts_title'] === 'Phone Book') {
+            $labels['contacts_title'] = 'Favorites';
+        }
+        return $labels;
     }
 
     public function saveDirectoryLabels($submitted)
@@ -205,12 +221,16 @@ class phonecontent
         if (!is_array($submitted)) {
             throw new \InvalidArgumentException('Missing directory display text.');
         }
-        $validated = array();
-        foreach (self::defaultDirectoryLabels() as $key => $default) {
-            if (!isset($submitted[$key]) || !is_string($submitted[$key])) {
-                throw new \InvalidArgumentException('Missing directory field: ' . $key);
+        if (!$submitted) {
+            throw new \InvalidArgumentException('No directory labels supplied.');
+        }
+        $validated = $this->directoryLabels();
+        $allowed = self::defaultDirectoryLabels();
+        foreach ($submitted as $key => $incoming) {
+            if (!array_key_exists($key, $allowed) || !is_string($incoming)) {
+                throw new \InvalidArgumentException('Unknown directory label field.');
             }
-            $value = trim($submitted[$key]);
+            $value = trim($incoming);
             // The 7945G has a small LCD. Limit lengths without limiting the
             // user's choice of language; DOMDocument escapes XML characters.
             $limit = strpos($key, 'prompt') !== false ? 80 : 60;
@@ -222,10 +242,16 @@ class phonecontent
             }
             $validated[$key] = $value;
         }
+        $previous = $this->parent->getConfig('phonecontent_directory_labels');
         $this->parent->setConfig('phonecontent_directory_labels', $validated);
-        // URLs and signed SEP phone provisioning are unchanged. The next
-        // Directories/Services request gets the updated static XML.
-        $this->publishDirectory();
+        // Keep the old settings if publishing fails, rather than persisting
+        // labels that the phones cannot actually retrieve.
+        try {
+            $this->publishDirectory();
+        } catch (\Throwable $error) {
+            $this->parent->setConfig('phonecontent_directory_labels', $previous);
+            throw $error;
+        }
     }
 
     public function baseUrl()
@@ -475,8 +501,8 @@ PHP;
         // Keep the original 'Phone Book' root URL. Inside it, Favorites is
         // first and All Extensions is one separate choice. No new SEP XML.
         list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
-        $this->element($doc, $root, 'Title', $labels['menu_entry']);
-        $this->element($doc, $root, 'Prompt', $labels['menu_prompt']);
+        $this->element($doc, $root, 'Title', $labels['phonebook_title']);
+        $this->element($doc, $root, 'Prompt', $labels['phonebook_prompt']);
         foreach (array(
             array($labels['favorites_entry'], $favoritesUrl),
             array($labels['extensions_entry'], $extensionsUrl)
