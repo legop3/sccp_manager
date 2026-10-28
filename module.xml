@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.30</version>
+	<version>17.1.31</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.31 * - Add VM Menu shortcut as a voicemail list softkey; close Messages and place a normal phone call to its mailbox via dedicated password-protected VoiceMailMain route
 		 * Version 17.1.30 * - Fix 7945G voicemail playback Caller ID: set chan_sccp CallingParty before ringing via Asterisk AMI PreDialGoSub and isolated dialplan contexts
 		 * Version 17.1.29 * - Replace CP-7945G delete confirmation XML parse-error screen with the existing working message-detail menu, preserving two-step deletion
 		 * Version 17.1.28 * - Fix visual voicemail deletion and mark-heard by validating Asterisk AMI Message success, verifying mailbox changes and correcting menu updates
