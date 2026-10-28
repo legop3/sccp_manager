@@ -122,6 +122,7 @@ def render(values):
         "ipv4-netmask = {mask}\n"
         "route = {pbx_ip}/255.255.255.255\n"
         "cisco-client-compat = true\n"
+        "cisco-svc-client-compat = true\n"
         "dtls-legacy = true\n"
         "keepalive = 32400\n"
         "dpd = 90\n"
