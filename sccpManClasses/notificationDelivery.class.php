@@ -101,7 +101,9 @@ final class notificationDelivery {
                 CURLOPT_POST=>true,
                 CURLOPT_POSTFIELDS=>http_build_query(['XML'=>$xml]),
                 CURLOPT_HTTPAUTH=>CURLAUTH_BASIC,
-                CURLOPT_USERPWD=>'sccpnotify:'.$secret,
+                // Cisco 79xx forwards Basic UserID but can omit Password in
+                // its authenticationURL callback. Use a secret-bearing identity.
+                CURLOPT_USERPWD=>'sccpnotify-'.substr(hash_hmac('sha256','cisco-push-user',$secret),0,32).':',
                 CURLOPT_CONNECTTIMEOUT=>2,
                 CURLOPT_TIMEOUT=>4,
                 CURLOPT_RETURNTRANSFER=>true
@@ -112,7 +114,7 @@ final class notificationDelivery {
             if ($status===200 && is_string($response) && strpos($response,'CiscoIPPhoneError')===false) {
                 $sent++;
             } else {
-                $errors[]=$device.' ('.$ip.'): HTTP '.$status.', '.substr(strip_tags((string)$response),0,120);
+                $errors[]=$device.' ('.$ip.'): HTTP '.$status.', '.substr(trim((string)$response),0,160);
             }
         }
         if ($test && $errors) throw new \RuntimeException('Sent to '.$sent.' of '.count($devices).' phones. Failures: '.implode('; ',$errors));
