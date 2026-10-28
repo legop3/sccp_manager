@@ -98,12 +98,39 @@ class phonecontent
         $parent->appendChild($node);
     }
 
+    /**
+     * Cisco XML services require MIME text/xml, not Apache's default
+     * application/xml. This endpoint serves only our generated static XML.
+     */
+    private function publishPhoneEndpoint()
+    {
+        $script = <<<'PHP'
+<?php
+$doc = (string) ($_GET['doc'] ?? '');
+if (!preg_match('/^(directory|services|contacts-[1-9][0-9]*)$/D', $doc)) {
+    http_response_code(404);
+    exit;
+}
+$path = __DIR__ . '/' . $doc . '.xml';
+if (!is_file($path) || is_link($path)) {
+    http_response_code(404);
+    exit;
+}
+header('Content-Type: text/xml; charset=UTF-8');
+header('Cache-Control: no-store');
+header('X-Content-Type-Options: nosniff');
+readfile($path);
+PHP;
+        $this->publishFile($this->public . '/phone.php', $script . "\n");
+    }
+
     public function publishDirectory()
     {
         $base = $this->baseUrl();
         if ($base === '') {
             throw new \RuntimeException('Set the PBX address in Phone Content before publishing the directory.');
         }
+        $this->publishPhoneEndpoint();
         $contacts = $this->contacts();
         usort($contacts, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
         // Directory screens handle only a limited number of items per request.
@@ -142,7 +169,7 @@ class phonecontent
             $label = count($chunks) === 1 ? 'Phone Book' :
                 'Phone Book ' . ($i * 30 + 1) . '-' . ($i * 30 + count($chunk));
             $this->element($doc, $item, 'Name', $label);
-            $this->element($doc, $item, 'URL', $base . '/contacts-' . ($i + 1) . '.xml');
+            $this->element($doc, $item, 'URL', $base . '/phone.php?doc=contacts-' . ($i + 1));
         }
         $this->publishFile($this->public . '/directory.xml', $doc->saveXML());
 
@@ -160,7 +187,7 @@ class phonecontent
         $this->element($doc, $root, 'Prompt', 'Choose a service');
         $item = $root->appendChild($doc->createElement('MenuItem'));
         $this->element($doc, $item, 'Name', 'Address Book');
-        $this->element($doc, $item, 'URL', $base . '/directory.xml');
+        $this->element($doc, $item, 'URL', $base . '/phone.php?doc=directory');
         $this->publishFile($this->public . '/services.xml', $doc->saveXML());
     }
 
@@ -174,8 +201,8 @@ class phonecontent
         $base = $this->baseUrl();
         if (!$base) return array();
         $changed = array();
-        foreach (array('dev_directoryURL' => '/directory.xml',
-                       'dev_servicesURL' => '/services.xml') as $key => $suffix) {
+        foreach (array('dev_directoryURL' => '/phone.php?doc=directory',
+                       'dev_servicesURL' => '/phone.php?doc=services') as $key => $suffix) {
             $current = (string) ($this->parent->sccpvalues[$key]['data'] ?? '');
             $old = (string) $this->parent->getConfig('phonecontent_managed_' . $key);
             $new = $base . $suffix;
@@ -214,8 +241,8 @@ class phonecontent
             'directory_exists' => is_file($xml),
             'directory_readable' => is_readable($xml),
             'configured_url' => $url,
-            'expected_url' => $base ? $base . '/directory.xml' : '',
-            'url_matches' => $url !== '' && $url === $base . '/directory.xml',
+            'expected_url' => $base ? $base . '/phone.php?doc=directory' : '',
+            'url_matches' => $url !== '' && $url === $base . '/phone.php?doc=directory',
             'wallpaper_index' => $index,
             'wallpaper_index_exists' => is_file($index),
             'wallpaper_index_readable' => is_readable($index),
@@ -360,8 +387,9 @@ class phonecontent
     private function renderPng($image, $width, $height)
     {
         $out = imagecreatetruecolor($width, $height);
-        imagealphablending($out, false);
-        imagesavealpha($out, true);
+        imagealphablending($out, true);
+        imagesavealpha($out, false);
+        imagefill($out, 0, 0, imagecolorallocate($out, 0, 0, 0));
         $sw = imagesx($image);
         $sh = imagesy($image);
         $scale = max($width / $sw, $height / $sh);
