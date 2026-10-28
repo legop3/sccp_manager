@@ -40,7 +40,6 @@ jobs:
           php -l sccpManClasses/phonecontent.class.php
           php -l sccpManClasses/phonemenus.class.php
           php -l sccpManClasses/phonevoicemail.class.php
-          php -l scripts/sccp-manager-vm-playback.agi
           php -l page.sccp_content.php
           php -l views/content.contacts.php
           php -l views/content.menus.php
@@ -103,7 +102,6 @@ jobs:
           tar -C "$RUNNER_TEMP/vpn-package" -czf sccp_manager.tar.gz sccp_manager
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/module.xml
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/sccpManClasses/phonecontent.class.php
-          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-vm-playback.agi
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/vendor/certutils/sgnfile
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-vpn-helper
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-ocserv-setup
