@@ -536,6 +536,12 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                 }
                 $this->phonecontent->syncUrls();
             }
+            // Existing wallpaper uploads predate ITL-aware media signing.
+            // When opening Phone Content, publish missing signatures with the
+            // phone's already trusted TFTP key; never regenerate its ITL.
+            if ($this->phonecontent->wallpaperSignaturesMissing()) {
+                $this->phonecontent->publishWallpapers();
+            }
         } catch (\Throwable $e) {
             $this->phoneContentError = $e->getMessage();
         }
