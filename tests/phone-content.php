@@ -48,9 +48,9 @@ try {
     $xml = simplexml_load_file($base . '/web/contacts-1.xml');
     check(count($xml->DirectoryEntry) === 2, 'Directory entries');
     $menu = simplexml_load_file($base . '/web/directory.xml');
-    check((string) $menu->MenuItem[0]->URL === 'Application:Cisco/MissedCalls',
-        'Missed-call menu retained');
-    check((string) $menu->MenuItem[3]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1',
+    check(count($menu->MenuItem) === 1, 'Built-in call history must not be duplicated');
+    check((string) $menu->MenuItem[0]->Name === 'Phone Book', 'Phone book menu first');
+    check((string) $menu->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1',
         'Directory menu links to contacts');
 
     check((string) $xml->DirectoryEntry[0]->Name === 'Alice & Bob', 'XML escaping');
@@ -68,6 +68,7 @@ try {
     $menu = simplexml_load_file($base . '/web/directory.xml');
     check($menu->getName() === 'CiscoIPPhoneMenu', 'Directory pagination');
     check(file_exists($base . '/web/contacts-2.xml'), 'Second contact page');
+    check(count($menu->MenuItem) === 2, 'Only contact pages should be in expanded directory menu');
     check(count($parent->dbinterface->writes) === 0, 'No implicit DB mutations');
     $changed = $content->syncUrls();
     check(count($changed) === 2, 'Autofill both phone URLs');
