@@ -1,5 +1,6 @@
 <?php
 // Validate the actual Cisco 7945G template, not an artificial fixture.
+require_once __DIR__ . '/../sccpManTraits/helperFunctions.php';
 require_once __DIR__ . '/../sccpManClasses/xmlinterface.class.php';
 use FreePBX\modules\Sccp_manager\xmlinterface;
 
