@@ -20,6 +20,7 @@ class phonemenus
             'received' => 'Received Calls (native)',
             'placed' => 'Placed Calls (native)',
             'voicemail' => 'Voicemail (native)',
+            'visualvoicemail' => 'Visual Voicemail (auto-answer playback)',
             'url' => 'Cisco XML URL',
             'dial' => 'Dial Number',
             'text' => 'Text Page',
@@ -81,8 +82,8 @@ class phonemenus
             if (!preg_match('//u', $value) || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $value)) {
                 throw new \InvalidArgumentException('Invalid characters in menu entry.');
             }
-            if ($section === 'messages' && !in_array($type, array('voicemail', 'url'), true)) {
-                throw new \InvalidArgumentException('Messages supports the native voicemail application or an XML service URL.');
+            if ($section === 'messages' && !in_array($type, array('voicemail', 'visualvoicemail', 'url'), true)) {
+                throw new \InvalidArgumentException('Messages supports the native voicemail application, Visual Voicemail, or an XML service URL.');
             }
             if ($section !== 'messages' && $type === 'voicemail') {
                 throw new \InvalidArgumentException('Native Voicemail belongs under Messages.');
@@ -180,6 +181,7 @@ class phonemenus
             case 'received': return 'Application:Cisco/ReceivedCalls';
             case 'placed': return 'Application:Cisco/PlacedCalls';
             case 'voicemail': return 'Application:Cisco/Voicemail';
+            case 'visualvoicemail': return $base . '/voicemail.php';
             case 'url': return $item['value'];
             case 'dial': return 'Dial:' . $item['value'];
             case 'text': return $base . '/phone.php?doc=pc-text-' . $section . '-' . $index;
@@ -254,7 +256,7 @@ class phonemenus
     }
 
     /** Inject into final per-phone SEP document BEFORE the existing signing step. */
-    public function applyProvisioning(\SimpleXMLElement $phone)
+    public function applyProvisioning(\SimpleXMLElement $phone, $deviceId = '')
     {
         $config = $this->config();
         if (empty($config['enabled'])) return;
@@ -273,7 +275,9 @@ class phonemenus
                 $entry->setAttribute('type', $type);
                 $entry->setAttribute('category', '0');
                 $this->child($doc, $entry, 'name', $item['name']);
-                $this->child($doc, $entry, 'url', $this->urlFor($item, $section, $i, $base));
+                $this->child($doc, $entry, 'url', $item['type'] === 'visualvoicemail' ?
+                    $this->parent->phonevoicemail->serviceUrl($deviceId) :
+                    $this->urlFor($item, $section, $i, $base));
                 $this->child($doc, $entry, 'vendor', '');
                 $this->child($doc, $entry, 'version', '');
             }
