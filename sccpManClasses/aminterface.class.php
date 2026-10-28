@@ -90,14 +90,25 @@ class aminterface
         if ($this->_config['enabled']) {
             // Ami is not hard disabled in __construct line 63.
             if ($this->open()) {
-                // Can open a connection. Now check compatibility with chan-sccp.
-                // will return true if compatible.
-                if (!$this->get_compatible_sccp(true)[1]) {
-                    // Close the open socket as will not use
+                // An absent chan_sccp driver reports version code 0 through
+                // an otherwise healthy AMI connection. Keep that connection
+                // available so the first-install path can bootstrap the driver.
+                // Only disconnect for a known, incompatible installed version.
+                $driver = $this->getSCCPVersion();
+                if (self::shouldDisconnectForSccpCode((int) $driver['vCode'])) {
                     $this->close();
                 }
             }
         }
+    }
+
+    /**
+     * Version 0 means no SCCP driver response, not an AMI login failure.
+     * The installer must retain AMI to install that missing driver.
+     */
+    public static function shouldDisconnectForSccpCode($code)
+    {
+        return $code > 0 && $code < 433;
     }
 
     private function _errorException($message)
