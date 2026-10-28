@@ -194,8 +194,15 @@ class phonevoicemail
             if (strtolower($login['Response'] ?? '') !== 'success') {
                 throw new \RuntimeException('Asterisk Manager login failed.');
             }
+            // Synchronous Asterisk Originate now waits for the SCCP phone
+            // to answer (max Timeout). Give AMI enough response timeout
+            // rather than incorrectly treating a slow VPN call as failed.
+            $replyTimeout = ($fields['Action'] ?? '') === 'Originate'
+                ? (int)ceil(((int)($fields['Timeout'] ?? 10000)) / 1000) + 3
+                : 4;
+            stream_set_timeout($stream, $replyTimeout);
             $this->sendAmi($stream, $fields);
-            $reply = $this->readAmi($stream, $list);
+            $reply = $this->readAmi($stream, $list, $replyTimeout);
             $this->sendAmi($stream, array('Action'=>'Logoff'));
             if (strtolower($reply['Response'] ?? '') !== 'success') {
                 throw new \RuntimeException('Asterisk rejected ' . $fields['Action'] . ': ' . ($reply['Message'] ?? 'unknown error'));
@@ -221,12 +228,12 @@ class phonevoicemail
         }
     }
 
-    private function readAmi($stream, $list = false)
+    private function readAmi($stream, $list = false, $timeoutSeconds = 4)
     {
         $records = array();
         $one = array();
         $completed = false;
-        $deadline = microtime(true) + 4;
+        $deadline = microtime(true) + max(1, min(30, (int)$timeoutSeconds));
         while (microtime(true) < $deadline && !feof($stream)) {
             $line = fgets($stream, 65536);
             if ($line === false) break;
