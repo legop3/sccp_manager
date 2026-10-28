@@ -32,9 +32,11 @@ SRC_DIR="/usr/src"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 DEV_MODE=0
+INITIAL_INSTALL=0
 for arg in "$@"; do
     case "$arg" in
         --dev) DEV_MODE=1 ;;
+        --initial-install) INITIAL_INSTALL=1 ;;
         *) echo "Unknown option: $arg" >&2; exit 2 ;;
     esac
 done
@@ -307,13 +309,40 @@ if [ ! -e "$SCCP_CONF" ]; then
     chmod 0664 "$SCCP_CONF"
 fi
 
-log "Restarting Asterisk (full restart - never hot-swap a freshly built .so)"
-fwconsole restart
+# Fresh module installation runs inside "fwconsole ma downloadinstall".
+# Running a nested "fwconsole restart" there can fail to stop Asterisk and
+# leave the parent's AMI connection stuck on "Asterisk is shutting down".
+# Loading a module that was not previously loaded does NOT hot-swap an active
+# binary and avoids restarting the entire PBX in the middle of its installer.
+if [ "$INITIAL_INSTALL" -eq 1 ]; then
+    log "Loading new chan-sccp driver into running Asterisk"
+    if asterisk -rx "module show like chan_sccp.so" 2>/dev/null | grep -Eq '^chan_sccp[.]so[[:space:]]'; then
+        die "chan_sccp.so is already loaded; refusing to hot-swap an active driver during module installation"
+    fi
+
+    # chan_skinny listens on SCCP port 2000. modules.conf stops it from
+    # loading on the next boot, but it may still be running right now.
+    if asterisk -rx "module show like chan_skinny.so" 2>/dev/null | grep -Eq '^chan_skinny[.]so[[:space:]]'; then
+        log "Unloading stock chan_skinny before loading chan-sccp"
+        asterisk -rx "module unload chan_skinny.so" || die "Unable to unload chan_skinny.so"
+        if asterisk -rx "module show like chan_skinny.so" 2>/dev/null | grep -Eq '^chan_skinny[.]so[[:space:]]'; then
+            die "chan_skinny.so is still loaded and may occupy SCCP port 2000"
+        fi
+    fi
+    load_result=$(asterisk -rx "module load chan_sccp.so" 2>&1) || die "Asterisk could not load chan_sccp.so"
+    printf '%s\n' "$load_result"
+else
+    # Explicit standalone driver replacement may update a loaded .so.
+    log "Restarting Asterisk to activate updated SCCP driver"
+    fwconsole restart
+fi
 
 log "Verifying chan-sccp initialized correctly"
-sleep 3
-if asterisk -rx "sccp show version" 2>/dev/null | grep -q "Skinny Client Control Protocol"; then
-    log "chan-sccp is running and fully initialized"
-else
-    die "chan-sccp did not initialize. Check: asterisk -rx \"module show like sccp\" and grep chan_skinny /var/log/asterisk/full"
-fi
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+    if asterisk -rx "sccp show version" 2>/dev/null | grep -q "Skinny Client Control Protocol"; then
+        log "chan-sccp is running and fully initialized"
+        exit 0
+    fi
+    sleep 1
+done
+die "chan-sccp did not initialize. Check: asterisk -rx \"module show like sccp\" and grep chan_skinny /var/log/asterisk/full"
