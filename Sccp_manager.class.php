@@ -533,13 +533,13 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         return $this->pagedata;
     }
 
-    public function phoneContentRegenerate() {
+    public function phoneContentRegenerate($activateUrls = false) {
         $changed = array();
         $errors = array();
         $this->phonecontent->publishDirectory();
-        // "Apply" is an explicit administrator action: enable the managed
-        // directory/services URLs even if older placeholder URLs were set.
-        $this->phonecontent->syncUrls(true);
+        // Content actions configure only the settings they own. Never replace
+        // a manually configured Services URL during a wallpaper upload.
+        $this->phonecontent->syncUrls($activateUrls);
         $this->createDefaultSccpXml();
         $devices = $this->dbinterface->getSccpDeviceTableData('SccpDevice', array('type' => 'cisco'));
         foreach ((array) $devices as $device) {
@@ -559,8 +559,7 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             throw new \RuntimeException('Regenerated ' . count($changed) . ' phones; failed: ' .
                 implode('; ', $errors) . '. See /var/log/asterisk/freepbx.log');
         }
-        return 'Published updated configurations for ' . count($changed) .
-            ' SCCP phone(s). Reset phones via Phones Manager to load the new URLs.';
+        return count($changed) . ' signed SCCP phone configuration(s) updated.';
     }
 
     public function infoServerShowPage() {
