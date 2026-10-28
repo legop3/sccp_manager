@@ -21,6 +21,78 @@ class phonecontent
     }
 
     public function contacts() { return $this->items('phonecontent_contacts'); }
+
+    /** FreePBX Connectivity -> Extensions, including registered SCCP phones. */
+    public function extensions()
+    {
+        $rows = array();
+        try {
+            $core = isset($this->parent->FreePBX->Core)
+                ? $this->parent->FreePBX->Core : null;
+            if ($core && method_exists($core, 'getAllUsers')) {
+                foreach ((array)$core->getAllUsers() as $user) {
+                    if (!is_array($user)) continue;
+                    $number = (string)($user['extension'] ?? '');
+                    if (!preg_match('/^[0-9]{1,16}$/D', $number)) continue;
+                    $name = trim((string)($user['name'] ?? ''));
+                    if ($name === '' || !preg_match('//u', $name)) {
+                        $name = 'Extension ' . $number;
+                    }
+                    $name = preg_replace('/[\x00-\x1F\x7F]/', '', $name);
+                    $rows[$number] = array('number'=>$number, 'name'=>$name);
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('sccp_manager address book extension lookup: ' . $e->getMessage());
+        }
+        uasort($rows, function ($a, $b) {
+            $diff = strcasecmp($a['name'], $b['name']);
+            return $diff ?: strnatcmp($a['number'], $b['number']);
+        });
+        return $rows;
+    }
+
+    public function extensionChoices()
+    {
+        $saved = $this->parent->getConfig('phonecontent_extension_choices');
+        if (!is_array($saved)) return array();
+        $choices = array();
+        foreach ($saved as $number=>$choice) {
+            if (preg_match('/^[0-9]{1,16}$/D', (string)$number) &&
+                in_array($choice, array('favorite', 'hidden'), true)) {
+                $choices[(string)$number] = $choice;
+            }
+        }
+        return $choices;
+    }
+
+    public function saveExtensionChoices($submitted)
+    {
+        if (!is_array($submitted)) {
+            throw new \InvalidArgumentException('Invalid extension directory settings.');
+        }
+        $known = $this->extensions();
+        $choices = array();
+        foreach ($submitted as $number=>$choice) {
+            $number = (string)$number;
+            if (!preg_match('/^[0-9]{1,16}$/D', $number) ||
+                !array_key_exists($number, $known) ||
+                !is_string($choice) ||
+                !in_array($choice, array('directory', 'favorite', 'hidden'), true)) {
+                throw new \InvalidArgumentException('Invalid extension directory selection.');
+            }
+            if ($choice !== 'directory') $choices[$number] = $choice;
+        }
+        $old = $this->parent->getConfig('phonecontent_extension_choices');
+        $this->parent->setConfig('phonecontent_extension_choices', $choices);
+        try {
+            $this->publishDirectory();
+        } catch (\Throwable $e) {
+            $this->parent->setConfig('phonecontent_extension_choices', $old);
+            throw $e;
+        }
+    }
+
     public function wallpapers() { return $this->items('phonecontent_wallpapers'); }
     public function ringtones() { return $this->items('phonecontent_ringtones'); }
     public function publicPath() { return $this->public; }
@@ -44,6 +116,10 @@ class phonecontent
             'menu_entry' => 'Phone Book',
             'contacts_title' => 'Phone Book',
             'contacts_prompt' => 'Select a contact to call',
+            'favorites_entry' => 'Favorites',
+            'extensions_entry' => 'All Extensions',
+            'extensions_title' => 'All Extensions',
+            'extensions_prompt' => 'Select an extension to call',
             'services_title' => 'Phone Services',
             'services_prompt' => 'Choose a service',
             'services_entry' => 'Address Book'
@@ -162,7 +238,7 @@ class phonecontent
         $script = <<<'PHP'
 <?php
 $doc = (string) ($_GET['doc'] ?? '');
-if (!preg_match('/^(directory|phonebook|services|contacts-[1-9][0-9]*|pc-(sub|text)-[a-z0-9-]+)$/D', $doc)) {
+if (!preg_match('/^(directory|phonebook|services|contacts-[1-9][0-9]*|extensions-[1-9][0-9]*|favorites-pages|extensions-pages|pc-(sub|text)-[a-z0-9-]+)$/D', $doc)) {
     http_response_code(404);
     exit;
 }
@@ -798,6 +874,8 @@ PHP;
             case 'contact': $this->saveContact((string) ($post['id'] ?? ''),
                 $post['contact_name'] ?? '', $post['contact_number'] ?? ''); return 'Contact saved.';
             case 'delete_contact': $this->removeContact((string) ($post['id'] ?? '')); return 'Contact removed.';
+            case 'extension_choices': $this->saveExtensionChoices($post['extension_choice'] ?? array());
+                return 'Shared Favorites and hidden extension settings saved.';
             case 'wallpaper': $this->addWallpaper($files['media'] ?? null, $post['label'] ?? ''); return 'Wallpaper published.';
             case 'delete_wallpaper': $this->removeWallpaper((string) ($post['id'] ?? '')); return 'Wallpaper removed.';
             case 'ringtone': $this->addRingtone($files['media'] ?? null, $post['label'] ?? ''); return 'Ringtone published.';
