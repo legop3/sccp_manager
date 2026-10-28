@@ -482,6 +482,16 @@ class xmlinterface
             return false;
         }
 
+        // Apply managed menus after the template walker and VPN provisioning.
+        // The walker intentionally strips any template phoneServices block.
+        // In legacy mode this is a no-op; no existing phone behavior changes.
+        try {
+            $this->paren_class->phonemenus->applyProvisioning($xml_work);
+        } catch (\Throwable $e) {
+            freepbx_log(FPBX_LOG_ERROR, 'sccp_manager: menu provisioning failed for ' . $safe_dev_id . ': ' . $e->getMessage());
+            return false;
+        }
+
         $this->saveXml($xml_work, $xml_name);  // Save
 
         // A phone which has installed its ITL expects a freshly signed config
