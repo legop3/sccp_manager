@@ -226,7 +226,7 @@ PHP;
         $base = $this->baseUrl();
         $xml = $this->public . '/directory.xml';
         $index = $this->tftp . '/Desktops/320x212x16/List.xml';
-        $rings = $this->tftp . '/RingList.xml';
+        $rings = $this->tftp . '/ringlist.xml';
         $conf = $this->parent->sccpvalues;
         $url = (string) ($conf['dev_directoryURL']['data'] ?? '');
         // Debian TFTP's actual served directory may differ from SCCP's
@@ -574,7 +574,7 @@ PHP;
         $rows = $this->ringtones();
         if (count($rows) >= 50) throw new \RuntimeException('Cisco supports at most 50 custom ringtones.');
         $this->ensureDirectory($this->tftp);
-        $this->managedIndex($this->tftp . '/RingList.xml', 'Managed by SCCP Manager');
+        $this->managedIndex($this->tftp . '/ringlist.xml', 'Managed by SCCP Manager');
         $id = bin2hex(random_bytes(8));
         $output = $this->tftp . '/PC-' . $id . '.raw';
         $cmd = array($ffmpeg, '-v', 'error', '-nostdin', '-y', '-i',
@@ -621,7 +621,7 @@ PHP;
 
     public function publishRingtones()
     {
-        $path = $this->tftp . '/RingList.xml';
+        $path = $this->tftp . '/ringlist.xml';
         $this->managedIndex($path, 'Managed by SCCP Manager');
         list($doc, $root) = $this->xml('CiscoIPPhoneRingList');
         $root->appendChild($doc->createComment(' Managed by SCCP Manager '));
