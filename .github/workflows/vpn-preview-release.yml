@@ -120,11 +120,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view vpn-preview-17.1.37 >/dev/null 2>&1; then
-            gh release create vpn-preview-17.1.37 \
-              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.37 VPN + Phone Content preview" \
+          if ! gh release view vpn-preview-17.1.38 >/dev/null 2>&1; then
+            gh release create vpn-preview-17.1.38 \
+              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.38 VPN + Phone Content preview" \
               --notes "Development build from feature/vpn-provisioning. Not upstream. Test on a backed-up FreePBX installation." \
               --prerelease --latest=false sccp_manager.tar.gz
           else
-            gh release upload vpn-preview-17.1.37 sccp_manager.tar.gz --clobber
+            gh release upload vpn-preview-17.1.38 sccp_manager.tar.gz --clobber
           fi
