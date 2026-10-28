@@ -50,13 +50,19 @@ def certificate_hash():
     print(base64.b64encode(certificate_digest(VPN_CERT)).decode("ascii"))
 
 
-def validate_paths(device):
+def validate_paths(device, source_dir=""):
     if not DEVICE.fullmatch(device):
         raise ValueError("Expected SEP and exactly 12 uppercase hexadecimal digits")
-    # Never follow a symlink out of TFTP (including the /tftpboot root itself).
+    # Only allow a direct child of the TFTP root as the generator's source.
+    # No absolute paths, traversal, nested directories, or symlinks.
+    if source_dir and not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", source_dir):
+        raise ValueError("Invalid relative TFTP configuration directory")
     if not TFTP.is_dir() or TFTP.is_symlink():
         raise RuntimeError("Unexpected TFTP root")
-    xml = TFTP / (device + ".cnf.xml")
+    directory = TFTP / source_dir if source_dir else TFTP
+    if not directory.is_dir() or directory.is_symlink():
+        raise RuntimeError("Missing or unsafe TFTP configuration directory")
+    xml = directory / (device + ".cnf.xml")
     if not xml.is_file() or xml.is_symlink():
         raise RuntimeError("Missing or unsafe phone XML: " + str(xml))
     return xml
@@ -71,8 +77,8 @@ def verify_trust(cert_path, trust_file):
         raise RuntimeError("Existing ITL does not contain the configured TFTP certificate; refusing to replace it")
 
 
-def sign(device):
-    xml = validate_paths(device)
+def sign(device, source_dir=""):
+    xml = validate_paths(device, source_dir)
     signer_cert = KEY_DIR / "tftp.pem"
     sast_cert = KEY_DIR / "sast.pem"
     for key in (signer_cert, sast_cert):
@@ -113,8 +119,14 @@ def sign(device):
             os.chmod(temp_itl, 0o644)
             os.replace(temp_itl, itl)
 
+        # The module's normal store may be /tftpboot/settings, but Cisco
+        # phones request SEP...cnf.xml and its signature at the TFTP root.
+        # Publish the verified signature first, then the EXACT XML it signs.
+        # Never sign stale root XML while a newer configuration sits in settings.
         os.chmod(signed, 0o644)
+        os.chmod(source, 0o644)
         os.replace(signed, target)
+        os.replace(source, TFTP / xml.name)
     print("Signed", device)
 
 
@@ -361,14 +373,14 @@ def main():
         start_service()
     elif len(sys.argv) == 2 and sys.argv[1] == "configure":
         configure_server()
-    elif len(sys.argv) == 3 and sys.argv[1] == "sign":
-        sign(sys.argv[2])
+    elif len(sys.argv) in (3, 4) and sys.argv[1] == "sign":
+        sign(sys.argv[2], sys.argv[3] if len(sys.argv) == 4 else "")
     elif len(sys.argv) == 3 and sys.argv[1] == "set-account":
         set_account(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] == "delete-account":
         delete_account(sys.argv[2])
     else:
-        raise ValueError("Usage: helper hash|status|start|configure|sign DEVICE|set-account USER|delete-account USER")
+        raise ValueError("Usage: helper hash|status|start|configure|sign DEVICE [TFTP_SUBDIR]|set-account USER|delete-account USER")
 
 
 if __name__ == "__main__":
