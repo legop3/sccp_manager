@@ -530,6 +530,13 @@ PHP;
         $this->publishContactPages($allExtensions, 'extensions',
             $labels['extensions_title'], $labels['extensions_prompt'], $base, 'contacts-1', 'Favs');
         $this->parent->phonemenus->publish();
+        // Both intermediate menu files belong to the retired two-level
+        // directory design. Remove them rather than leaving stale
+        // alternatives alongside the canonical Favorites page.
+        foreach (array('directory.xml', 'phonebook.xml') as $retired) {
+            $path = $this->public . '/' . $retired;
+            if (is_file($path) && !is_link($path)) @unlink($path);
+        }
     }
 
     /** Only prevalidated generated XML filenames, within the managed web root. */
