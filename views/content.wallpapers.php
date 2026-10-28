@@ -69,6 +69,23 @@ $status = $pc->status();
                     (<?php echo $status['wallpaper_index_readable'] ? _('readable') : _('missing or unreadable'); ?>)
                 </p>
                 <p><?php echo _('TFTP server root:'); ?> <code><?php echo $esc($status['tftp_service_root'] ?: _('not detected')); ?></code></p>
+                <p><?php echo _('Wallpaper selection setting:'); ?>
+                    <strong><?php echo $status['wallpaper_access_enabled'] ? _('enabled') : _('disabled'); ?></strong>
+                </p>
+                <?php if ($status['phones']): ?>
+                <table class="table table-condensed">
+                    <thead><tr><th><?php echo _('Phone'); ?></th><th><?php echo _('Wallpaper selection in published config'); ?></th><th><?php echo _('Signed config'); ?></th></tr></thead>
+                    <tbody>
+                    <?php foreach ($status['phones'] as $phone): ?>
+                        <tr>
+                            <td><?php echo $esc($phone['id']); ?></td>
+                            <td><?php echo $esc($phone['wallpaper_enabled'] ?: _('missing')); ?></td>
+                            <td><?php echo $phone['signature_exists'] ? _('Yes') : _('No'); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+                <?php endif; ?>
                 <p><?php echo _('If the phone still says Selections Unavailable, use this command while opening Background Images to see whether the phone actually requests the file:'); ?></p>
                 <pre>sudo tcpdump -ni any -s0 -A 'udp port 69'</pre>
                 <p class="help-block"><?php echo _('If no List.xml request appears, check the phone’s TFTP address and VPN/firewall. If a request appears but fails, inspect the TFTP root and file permissions.'); ?></p>
