@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.9</version>
+	<version>17.1.10</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -13,6 +13,7 @@
 		<sccp_phone	sort="3">Phones Manager</sccp_phone>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.10 * - Keep AMI connected when chan-sccp is absent so a clean installation can bootstrap the driver
 		 * Version 17.1.9 * - Bootstrap chan-sccp on first installation from root CLI, including a completely removed driver
 		 * Version 17.1.8 * - Streamline VPN and signing UI into Server Config; detect PBX LAN IP and simplify VPN address input
 		 * Version 17.1.7 * - Save VPN firewall services and client zone without starting or restarting FreePBX Firewall
