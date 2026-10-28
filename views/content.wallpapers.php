@@ -22,8 +22,8 @@ $base = $pc->baseUrl();
         <?php foreach ($wallpapers as $item): ?>
             <div class="col-xs-6 col-md-3" style="margin-bottom:18px">
                 <div class="thumbnail">
-                    <?php if ($base): ?><img alt="" style="width:100%;image-rendering:auto"
-                        src="<?php echo $esc($base . '/wallpaper-' . $item['id'] . '.png'); ?>"><?php endif; ?>
+                    <img alt="" style="width:100%;image-rendering:auto"
+                        src="<?php echo $esc('/sccp-manager/wallpaper-' . $item['id'] . '.png'); ?>">
                     <div class="caption">
                         <strong><?php echo $esc($item['name']); ?></strong>
                         <form method="post" action="config.php?display=sccp_content#wallpapers" style="margin-top:8px"
