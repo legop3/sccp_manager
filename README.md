@@ -1,7 +1,7 @@
 # SCCP Manager
 
-> **Development build 17.1.13 — self-contained Cisco phone VPN setup.** The
-> [installable preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.13)
+> **Development build 17.1.14 — self-contained Cisco phone VPN setup.** The
+> [installable preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.14)
 > bundles SCCP Manager, Cisco VPN profile generation, signed provisioning,
 > signing utilities and ocserv server installation/configuration. No separate
 > helper, VPN server package, certificate script, or manual ocserv config required.
