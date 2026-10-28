@@ -542,6 +542,13 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             if ($this->phonecontent->wallpaperSignaturesMissing()) {
                 $this->phonecontent->publishWallpapers();
             }
+            // The 7945G explicitly requests lowercase ringlist.xml.sgn.
+            // Older code wrote RingList.xml.sgn, which TFTP cannot resolve on
+            // Linux. Publish the phone's exact requested filename automatically.
+            if ($this->phonecontent->ringtones() &&
+                !is_file($this->phonecontent->tftpPath() . '/ringlist.xml')) {
+                $this->phonecontent->publishRingtones();
+            }
         } catch (\Throwable $e) {
             $this->phoneContentError = $e->getMessage();
         }
