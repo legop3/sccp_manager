@@ -16,7 +16,7 @@ class phonecontent
     {
         $this->parent = $parent;
         $this->tftp = $tftp ?: ($parent->sccppath['tftp_path'] ?? '/tftpboot');
-        $root = dirname((string) ($GLOBALS['amp_conf']['AMPWEBROOT'] ?? '/var/www/html/admin'));
+        $root = rtrim((string) ($GLOBALS['amp_conf']['AMPWEBROOT'] ?? '/var/www/html'), '/');
         $this->public = $public ?: $root . '/sccp-manager';
     }
 
