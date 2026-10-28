@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.33</version>
+	<version>17.1.34</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.34 * - Replace leftover generic label editor with exact Phone Book/Favorites/All Extensions fields and preview, move Directories/Services root text into Menus
 		 * Version 17.1.33 * - Integrate custom contacts and FreePBX extensions into one searchable Address Book editor, shared Favorites/Hidden controls, and one atomic save
 		 * Version 17.1.32 * - Add central Favorites and All Extensions directories with per-extension hidden/favorite controls using only FreePBX Connectivity Extensions including SCCP phones
 		 * Version 17.1.31 * - Add VM Menu shortcut as a voicemail list softkey; close Messages and place a normal phone call to its mailbox via dedicated password-protected VoiceMailMain route
