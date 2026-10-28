@@ -573,6 +573,14 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                 // are picked up without changing signed SEP provisioning.
                 $this->phonecontent->publishDirectory();
                 $this->phonecontent->syncUrls();
+                // After this directory update, automatically republish the
+                // signed SEP configs once through the existing provisioning
+                // path. Never reset remote phones from an admin page load.
+                if (!empty($this->phonemenus->config()['enabled']) &&
+                    !$this->getConfig('phonecontent_directories_signed_1736')) {
+                    $this->phoneContentRegenerate(false);
+                    $this->setConfig('phonecontent_directories_signed_1736', true);
+                }
             }
             // Existing wallpaper uploads predate ITL-aware media signing.
             // When opening Phone Content, publish missing signatures with the
