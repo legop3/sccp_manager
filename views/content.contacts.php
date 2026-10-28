@@ -65,6 +65,49 @@ $base = $pc->baseUrl();
             </table>
         </div>
         <p class="text-muted"><?php echo count($contacts); ?> <?php echo _('contacts'); ?>. <?php echo _('Changes appear on the phone the next time the directory is opened.'); ?></p>
+        <details style="margin-top:18px">
+            <summary><?php echo _('Phone display text'); ?></summary>
+            <form method="post" action="config.php?display=sccp_content#general" style="margin-top:14px">
+                <input type="hidden" name="content_action" value="directory_text">
+                <?php
+                $labels = $pc->directoryLabels();
+                $groups = array(
+                    _('Directories menu') => array(
+                        'menu_title' => _('Screen title'),
+                        'menu_prompt' => _('Bottom prompt'),
+                        'menu_entry' => _('Phone Book entry')
+                    ),
+                    _('Contact list') => array(
+                        'contacts_title' => _('Screen title'),
+                        'contacts_prompt' => _('Bottom prompt')
+                    ),
+                    _('Services menu') => array(
+                        'services_title' => _('Screen title'),
+                        'services_prompt' => _('Bottom prompt'),
+                        'services_entry' => _('Address Book entry')
+                    )
+                );
+                ?>
+                <?php foreach ($groups as $groupName => $fields): ?>
+                    <h4><?php echo $esc($groupName); ?></h4>
+                    <div class="row">
+                        <?php foreach ($fields as $key => $fieldName): ?>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="form-group">
+                                <label for="sccp-text-<?php echo $esc($key); ?>"><?php echo $esc($fieldName); ?></label>
+                                <input type="text" class="form-control" id="sccp-text-<?php echo $esc($key); ?>"
+                                    name="directory_text[<?php echo $esc($key); ?>]"
+                                    value="<?php echo $esc($labels[$key]); ?>"
+                                    maxlength="<?php echo strpos($key, 'prompt') !== false ? 80 : 60; ?>" required>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
+                <button type="submit" class="btn btn-primary"><?php echo _('Save'); ?></button>
+                <p class="help-block"><?php echo _('Changes appear the next time the phone opens the menu. No phone reset or configuration regeneration is required.'); ?></p>
+            </form>
+        </details>
         <details style="margin-top:24px">
             <summary><?php echo _('Directory connection settings'); ?></summary>
             <div class="well" style="margin-top:12px">
