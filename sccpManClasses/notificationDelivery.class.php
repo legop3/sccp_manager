@@ -102,9 +102,38 @@ final class notificationDelivery {
         $errors=[];
         foreach ($devices as $device=>$ip) {
             if (!$this->forDevice($device,$extensions)) continue;
+            // Every handset needs its own authenticated voicemail links.
+            // Do not publish the bearer token in a shared document.
+            $deviceUrl=$url;
+            if ($kind==='voicemail' && $options['style']==='text') {
+                $actions=[];
+                try {
+                    $vm=$this->module->phonevoicemail;
+                    if ($vm->mailboxForDevice($device)===(string)($fields['extension']??'')) {
+                        $base=$vm->serviceUrl($device);
+                        $items=$vm->listMessages((string)$fields['extension']);
+                        $newest=null;
+                        foreach ($items as $item) {
+                            if ($item['folder']==='INBOX' && ($newest===null || $item['time']>$newest['time'])) $newest=$item;
+                        }
+                        if ($newest!==null) $actions['Listen']=$base.'&op=play&id='.rawurlencode($newest['id']);
+                        $actions['Messages']=$base;
+                    }
+                } catch (\Throwable $e) {
+                    error_log('SCCP notification voicemail actions: '.$e->getMessage());
+                }
+                $actions['Dismiss']='Init:Messages';
+                $deviceUrl=$this->publicDocument(phoneNotifications::interactive($title,$message,$actions));
+            } elseif ($kind==='missed' && $options['style']==='text') {
+                $actions=[];
+                $number=(string)($fields['number']??'');
+                if (preg_match('/^[+0-9*#]{1,32}$/D',$number)) $actions['Call Back']='Dial:'.$number;
+                $actions['Dismiss']='Init:Messages';
+                $deviceUrl=$this->publicDocument(phoneNotifications::interactive($title,$message,$actions));
+            }
             $xml='<CiscoIPPhoneExecute>';
             if ($sound) $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1).'"/>';
-            if ($url) $xml.='<ExecuteItem URL="'.htmlspecialchars($url,ENT_XML1).'"/>';
+            if ($deviceUrl) $xml.='<ExecuteItem URL="'.htmlspecialchars($deviceUrl,ENT_XML1).'"/>';
             $xml.='</CiscoIPPhoneExecute>';
             $ch=curl_init('http://'.$ip.'/CGI/Execute');
             curl_setopt_array($ch,[
