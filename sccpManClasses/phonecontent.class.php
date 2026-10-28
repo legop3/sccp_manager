@@ -185,6 +185,18 @@ class phonecontent
         );
     }
 
+    /** Preserve UTF-8 boundaries when limiting Cisco XML titles/prompts. */
+    public static function shortCiscoField($value)
+    {
+        $text = (string) $value;
+        if (strlen($text) <= 32) return $text;
+        $text = substr($text, 0, 32);
+        while ($text !== '' && !preg_match('//u', $text)) {
+            $text = substr($text, 0, -1);
+        }
+        return rtrim($text);
+    }
+
     public function directoryLabels()
     {
         $defaults = self::defaultDirectoryLabels();
