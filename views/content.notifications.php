@@ -90,7 +90,9 @@ $samples=[
       <label><input type="checkbox" name="notifications[<?php echo $kind;?>][show_number]" value="1" <?php echo $settings['show_number']?'checked':'';?>> Display caller number</label>
       <label style="margin-left:15px"><input type="checkbox" name="notifications[<?php echo $kind;?>][show_details]" value="1" <?php echo $settings['show_details']?'checked':'';?>> Display details</label>
       <h4 style="margin-top:18px">Section colors</h4><div class="ne-colors">
-       <?php $defaults=['background'=>'#13293D','header'=>'#1E425B','header_text'=>'#5AC4F5','name_text'=>'#FAFCFF','secondary_text'=>'#A8CEE5','details_background'=>'#13293D','details_label'=>'#A8CEE5','details_text'=>'#FAFCFF','accent'=>'#5AC4F5'];
+       <?php $themes=['ocean'=>['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],'charcoal'=>['#181B20','#30343C','#FFFFFF','#BFC6D0','#FFD084'],'plum'=>['#301C3F','#513162','#FFFFFF','#DFC6EC','#FF9BC8'],'forest'=>['#123C31','#245C48','#F5FFF8','#C1E9D2','#91E7B1']];
+       $palette=$themes[$settings['theme']]??$themes['ocean'];
+       $defaults=['background'=>$palette[0],'header'=>$palette[1],'header_text'=>$palette[4],'name_text'=>$palette[2],'secondary_text'=>$palette[3],'details_background'=>$palette[0],'details_label'=>$palette[3],'details_text'=>$palette[2],'accent'=>$palette[4]];
        foreach ($colorLabels as $key=>$label): ?>
        <label><?php echo $label;?><input type="color" name="notifications[<?php echo $kind;?>][colors][<?php echo $key;?>]" value="<?php echo $esc($settings['colors'][$key]??$defaults[$key]);?>"></label>
        <?php endforeach;?></div>
