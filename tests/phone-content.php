@@ -98,7 +98,7 @@ try {
     check(count($phoneXml->DirectoryEntry) === 10,
         'Every real extension is present without needing a separate SCCP lookup');
     check((string)$phoneXml->Title === 'All numbers show heres',
-        'The user's short custom All Extensions title is retained');
+        'Custom All Extensions title is retained');
     check(strlen((string)$phoneXml->Prompt) <= 32,
         'All Extensions never publishes the prompt that causes XML Error [4]');
     check((string)$phoneXml->Prompt === substr($longPrompt, 0, 32),
