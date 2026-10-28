@@ -166,3 +166,20 @@ The earlier two-second delay in the playback AGI and 1.2-second delay before cal
   endpoint. No signing, VPN changes, or phone reset is needed.
 - Call playback and Caller ID are unchanged. No arbitrary playback delays.
 
+
+## 17.1.30 SCCP voicemail caller display
+
+Earlier playback used AMI application-mode Originate with `CallerID`. That sets Asterisk's channel CallerID, but does not fill chan_sccp's separate `CallingParty` fields when the channel has no source/requestor. The 7945G consequently displays `From Unknown Number`.
+
+This revision uses AMI synchronous extension Originate with `PreDialGoSub` (supported by Asterisk 22.6). The pre-dial context sets `CHANNEL(CallingParty)` on the SCCP channel from the sanitized voicemail caller name and number, before chan_sccp sends the phone's call-info screen. The extension then calls `VoiceMailPlayMsg` directly on the SCCP channel. Playback is not delayed and still auto-answers muted.
+
+The root module installer writes `/etc/asterisk/sccp-manager-voicemail.conf` and includes it once in `/etc/asterisk/extensions_custom.conf`. Run `fwconsole reload` after installation to make the contexts active. The contexts are not included in `from-internal` and do not expose the mailbox to callers.
+
+To verify deployment:
+
+```bash
+sudo asterisk -rx 'dialplan show s@sccp-manager-voicemail-predial'
+sudo asterisk -rx 'dialplan show s@sccp-manager-voicemail-play'
+```
+
+The end-to-end Cisco display behavior requires a real phone test; CI verifies the generated AMI and dialplan syntax paths, not the live SCCP display.
