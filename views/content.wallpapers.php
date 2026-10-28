@@ -19,6 +19,9 @@ $status = $pc->status();
             </div>
             <button type="submit" class="btn btn-primary"><i class="fa fa-upload"></i> <?php echo _('Upload'); ?></button>
         </form>
+        <?php if ($status['wallpaper_requires_signing'] && !$status['wallpaper_signed']): ?>
+            <div class="alert alert-danger"><?php echo _('Your phone requires signed wallpapers, but List.xml.sgn is missing. Check the SCCP Manager signing helper.'); ?></div>
+        <?php endif; ?>
         <?php if (!$status['tftp_root_matches']): ?>
             <div class="alert alert-warning">
                 <?php echo _('The TFTP server and SCCP Manager are using different root directories.'); ?>
@@ -64,6 +67,9 @@ $status = $pc->status();
             <div class="well" style="margin-top:12px">
                 <p><?php echo _('The 7945G fetches this file from its configured TFTP server:'); ?>
                     <code>Desktops/320x212x16/List.xml</code>
+                </p>
+                <p><?php echo _('Signed file requested by your Cisco 7945G:'); ?> <code><?php echo $esc($status['wallpaper_index'] . '.sgn'); ?></code>
+                   (<?php echo $status['wallpaper_signed'] ? _('published') : _('missing'); ?>)
                 </p>
                 <p><?php echo _('Generated file on PBX:'); ?> <code><?php echo $esc($status['wallpaper_index']); ?></code>
                     (<?php echo $status['wallpaper_index_readable'] ? _('readable') : _('missing or unreadable'); ?>)
