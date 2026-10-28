@@ -94,6 +94,9 @@ with tempfile.TemporaryDirectory(prefix="sccp-vpn-integration-") as tmp:
              "--tftp", str(module.KEY_DIR / "tftp.pem")],
             check=True, capture_output=True, text=True)
         assert "Valid signature" in parsed.stdout
+        expected_name = source.relative_to(module.TFTP).as_posix() + ".sgn"
+        assert ("Filename:         " + expected_name) in parsed.stdout, (
+            "Signed Cisco header does not contain full TFTP-relative path: " + parsed.stdout)
     assert trust.read_bytes() == old_trust, "Signing content changed the phone ITL"
 
     ringlist = module.TFTP / "RingList.xml"
@@ -104,6 +107,12 @@ with tempfile.TemporaryDirectory(prefix="sccp-vpn-integration-") as tmp:
     module.sign_content("ringtones")
     assert (module.TFTP / "RingList.xml.sgn").is_file()
     assert (module.TFTP / "PC-abcdef0123456789.raw.sgn").is_file()
+    parsed_ring = subprocess.run(
+        [str(module.BIN_DIR / "sgnfile"), "--parse",
+         str(module.TFTP / "RingList.xml.sgn"),
+         "--tftp", str(module.KEY_DIR / "tftp.pem")],
+        check=True, capture_output=True, text=True)
+    assert "Filename:         RingList.xml.sgn" in parsed_ring.stdout
     assert trust.read_bytes() == old_trust, "Signing ring content changed phone ITL"
 
     for bad_kind in ("../../etc", "root", "wallpapers/../etc"):
