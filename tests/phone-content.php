@@ -39,16 +39,22 @@ try {
     $content = new phonecontent($parent, $base . '/tftp', $base . '/web');
     check($content->baseUrl() === 'http://192.168.0.25/sccp-manager', 'PBX URL');
     $content->publishDirectory();
-    check(strpos(file_get_contents($base . '/web/directory.xml'), 'CiscoIPPhoneDirectory') !== false,
+    check(strpos(file_get_contents($base . '/web/directory.xml'), 'CiscoIPPhoneMenu') !== false,
         'Empty directory');
     $content->saveContact('', 'Alice & Bob', '150');
     $content->saveContact('', 'Garage', '*80');
-    $xml = simplexml_load_file($base . '/web/directory.xml');
+    $xml = simplexml_load_file($base . '/web/contacts-1.xml');
     check(count($xml->DirectoryEntry) === 2, 'Directory entries');
+    $menu = simplexml_load_file($base . '/web/directory.xml');
+    check((string) $menu->MenuItem[0]->URL === 'Application:Cisco/MissedCalls',
+        'Missed-call menu retained');
+    check((string) $menu->MenuItem[3]->URL === 'http://192.168.0.25/sccp-manager/contacts-1.xml',
+        'Directory menu links to contacts');
+
     check((string) $xml->DirectoryEntry[0]->Name === 'Alice & Bob', 'XML escaping');
     $id = $content->contacts()[0]['id'];
     $content->saveContact($id, 'Alice', '151');
-    check((string) simplexml_load_file($base . '/web/directory.xml')->DirectoryEntry[0]->Telephone === '151',
+    check((string) simplexml_load_file($base . '/web/contacts-1.xml')->DirectoryEntry[0]->Telephone === '151',
         'Edit contacts');
     try {
         $content->saveContact('', 'Unsafe', '123</Telephone>');
