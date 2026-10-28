@@ -224,6 +224,7 @@ foreach ($entries as $entry) {
                     )
                 );
                 ?>
+                <p class="help-block"><?php echo _('Cisco 7945G titles and prompts are limited to 32 characters. Older longer text is shortened automatically so the phone does not display XML Error [4].'); ?></p>
                 <div class="row">
                     <?php foreach ($labelGroups as $group): ?>
                     <div class="col-lg-4 col-md-6" style="margin-bottom:16px">
@@ -239,7 +240,7 @@ foreach ($entries as $entry) {
                                         data-label-key="<?php echo $esc($key); ?>"
                                         name="directory_text[<?php echo $esc($key); ?>]"
                                         value="<?php echo $esc($labels[$key]); ?>"
-                                        maxlength="<?php echo strpos($key, 'prompt') !== false ? 80 : 60; ?>" required>
+                                        maxlength="<?php echo preg_match('/_(title|prompt)$/D', $key) ? 32 : 60; ?>" required>
                                 </div>
                                 <?php endforeach; ?>
                             </div>
