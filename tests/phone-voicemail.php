@@ -73,6 +73,32 @@ verify((string)$xml->MenuItem[0]->Name === 'Play Again (47 sec)',
     'After playback, remain on selected message details');
 verify((string)$xml->MenuItem[0]->URL === $baseUrl . '&op=play&id=1782735000-00000123',
     'Replay points to same stable voicemail ID');
+// A separate 'Delete Message?' Cisco menu failed with XML Error 4 on CP-7945G.
+// Confirmation now reuses the verified detail menu template, changing only
+// the actions. No voicemail can be removed on the first Delete press.
+ob_start();
+$detail->invoke($vm, $baseUrl, $relocated, false, true);
+$deleteXml = simplexml_load_string(ob_get_clean());
+verify($deleteXml !== false, 'Delete confirmation must be valid XML');
+verify((string)$deleteXml->getName() === 'CiscoIPPhoneMenu',
+    'Delete confirmation uses the known-working CiscoIPPhoneMenu object');
+verify((string)$deleteXml->Title === (string)$xml->Title &&
+    (string)$deleteXml->Prompt === (string)$xml->Prompt,
+    'Delete confirmation retains the same title and prompt as normal message detail');
+verify((string)$deleteXml->MenuItem[0]->Name === 'CONFIRM DELETE',
+    'Deleting requires an explicit second confirmation');
+verify((string)$deleteXml->MenuItem[0]->URL ===
+    $baseUrl . '&op=confirm-delete&id=1782735000-00000123',
+    'Confirmation link targets the same stable voicemail ID');
+verify((string)$deleteXml->MenuItem[1]->Name === 'Cancel' &&
+    (string)$deleteXml->MenuItem[1]->URL ===
+    $baseUrl . '&op=detail&id=1782735000-00000123',
+    'Deletion can be cancelled without changing the mailbox');
+verify((string)$deleteXml->SoftKeyItem[0]->URL === 'SoftKey:Select',
+    'Delete confirmation restores Cisco Select softkey');
+verify(strpos($deleteXml->asXML(), 'Delete Message?') === false,
+    'Avoid the failing standalone Delete Message confirmation XML page');
+
 $names = array();
 foreach ($xml->MenuItem as $item) $names[] = (string)$item->Name;
 verify(!in_array('Mark as Heard', $names, true),
