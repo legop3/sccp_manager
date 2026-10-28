@@ -318,14 +318,14 @@ try {
         $content->saveDirectoryLabels($bad);
         throw new RuntimeException('Overlong menu label accepted');
     } catch (InvalidArgumentException $ok) {}
-    check($content->directoryLabels() === $custom, 'Invalid update changed saved text');
+    check($content->directoryLabels() === $preError, 'Invalid update changed saved text');
     try {
         $bad = $custom;
         $bad['contacts_title'] = "Foo\nBar";
         $content->saveDirectoryLabels($bad);
         throw new RuntimeException('Control character accepted');
     } catch (InvalidArgumentException $ok) {}
-    check($content->directoryLabels() === $custom, 'Invalid control character changed saved text');
+    check($content->directoryLabels() === $preError, 'Invalid control character changed saved text');
     check(count($parent->dbinterface->writes) === 0, 'No implicit DB mutations');
     $changed = $content->syncUrls();
     check(count($changed) === 2, 'Autofill both phone URLs');
