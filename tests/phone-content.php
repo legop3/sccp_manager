@@ -69,6 +69,58 @@ try {
     check(strpos(file_get_contents($base . '/web/phone.php'), 'Content-Type: text/xml') !== false, 'Cisco XML MIME type');
     check(strpos(file_get_contents($base . '/web/directory.xml'), 'CiscoIPPhoneMenu') !== false,
         'Empty directory');
+    // Reproduce the real Cisco 7945G XML Error [4] report: the HTTP body
+    // contains ten valid FreePBX extensions but a >32 character prompt.
+    $allPhones = array(
+        array('extension'=>'111', 'name'=>'Upstairs Phone'),
+        array('extension'=>'112', 'name'=>'polycom conference'),
+        array('extension'=>'150', 'name'=>'Chime'),
+        array('extension'=>'42', 'name'=>'Rotated'),
+        array('extension'=>'6144711930', 'name'=>'Home Phone'),
+        array('extension'=>'67', 'name'=>'Shizu'),
+        array('extension'=>'700', 'name'=>'bignuts'),
+        array('extension'=>'7677', 'name'=>'Rossa'),
+        array('extension'=>'777', 'name'=>'Roomba Phone'),
+        array('extension'=>'899', 'name'=>'iTalkBB')
+    );
+    $parent->FreePBX->Core->users = $allPhones;
+    $longPrompt = 'some of these may be disconnected or not work at all';
+    check(strlen($longPrompt) > 32, 'Reproduction prompt exceeds Cisco schema');
+    $parent->setConfig('phonecontent_directory_labels', array(
+        'extensions_title'=>'All numbers show heres',
+        'extensions_prompt'=>$longPrompt,
+        'contacts_prompt'=>str_repeat('F', 40)
+    ));
+    $content->publishDirectory();
+    $phoneXml = simplexml_load_file($base . '/web/extensions-1.xml');
+    check($phoneXml !== false && $phoneXml->getName() === 'CiscoIPPhoneDirectory',
+        'All Extensions produces a Cisco directory object');
+    check(count($phoneXml->DirectoryEntry) === 10,
+        'Every real extension is present without needing a separate SCCP lookup');
+    check((string)$phoneXml->Title === 'All numbers show heres',
+        'The user's short custom All Extensions title is retained');
+    check(strlen((string)$phoneXml->Prompt) <= 32,
+        'All Extensions never publishes the prompt that causes XML Error [4]');
+    check((string)$phoneXml->Prompt === substr($longPrompt, 0, 32),
+        'Legacy long prompt is automatically shortened on XML output');
+    check(strlen((string)simplexml_load_file($base . '/web/contacts-1.xml')->Prompt) <= 32,
+        'Favorites prompt is protected by the same XML schema limit');
+    check(strlen((string)simplexml_load_file($base . '/web/directory.xml')->Prompt) <= 32,
+        'Root Directories prompt is also protected');
+    check(!preg_match('/[^\x00-\x7F]/', phonecontent::shortCiscoField(str_repeat('x', 31).'éextra')),
+        'UTF-8 clipping preserves valid encoded characters');
+    check(preg_match('//u', phonecontent::shortCiscoField(str_repeat('x', 31).'éextra')) === 1,
+        'UTF-8 clipping does not split a multibyte character');
+    check(strlen(phonecontent::shortCiscoField(str_repeat('x', 31).'éextra')) <= 32,
+        'UTF-8 clipping stays inside schema byte limit');
+    try {
+        $content->saveDirectoryLabels(array('extensions_prompt'=>$longPrompt));
+        throw new RuntimeException('New overlength prompt accepted');
+    } catch (InvalidArgumentException $ok) {}
+    $parent->setConfig('phonecontent_directory_labels', null);
+    $parent->FreePBX->Core->users = array();
+    $content->publishDirectory();
+
     $content->saveContact('', 'Alice & Bob', '150');
     $content->saveContact('', 'Garage', '*80');
     $xml = simplexml_load_file($base . '/web/contacts-1.xml');
