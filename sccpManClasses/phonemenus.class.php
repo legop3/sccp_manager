@@ -33,11 +33,8 @@ class phonemenus
         $labels = $this->parent->phonecontent->directoryLabels();
         return array(
             'enabled' => false,
-            'directories' => array(
-                array('name' => $labels['menu_entry'], 'type' => 'phonebook', 'value' => '')
-            ),
             'services' => array(
-                array('name' => $labels['services_entry'], 'type' => 'phonebook', 'value' => '')
+                array('name' => 'Address Book', 'type' => 'phonebook', 'value' => '')
             ),
             'messages' => array(
                 array('name' => 'Voicemail', 'type' => 'voicemail', 'value' => '')
@@ -49,7 +46,11 @@ class phonemenus
     public function config()
     {
         $saved = $this->parent->getConfig('phonecontent_menus');
-        return is_array($saved) ? $saved : $this->defaults();
+        if (!is_array($saved)) return $this->defaults();
+        // The Directories button is now a fixed route to the shared directory
+        // chooser, not a second configurable menu.
+        unset($saved['directories']);
+        return $saved;
     }
 
     private function label($text, $max = 48)
@@ -143,14 +144,14 @@ class phonemenus
             $ids[] = $id;
         }
         $out = array('enabled' => ($incoming['enabled'] ?? false) === true);
-        foreach (array('directories', 'services', 'messages') as $section) {
+        foreach (array('services', 'messages') as $section) {
             $out[$section] = $this->validateRows($incoming[$section] ?? null, $section, $ids);
         }
         if (!$out['messages'] || count($out['messages']) !== 1) {
             throw new \InvalidArgumentException('Messages requires exactly one entry to keep the Messages button working.');
         }
-        if (!$out['directories'] || !$out['services']) {
-            throw new \InvalidArgumentException('Directories and Services must each contain at least one entry.');
+        if (!$out['services']) {
+            throw new \InvalidArgumentException('Services must contain at least one entry.');
         }
         $out['submenus'] = array();
         foreach ($subs as $sub) {
@@ -175,9 +176,8 @@ class phonemenus
     {
         switch ($item['type']) {
             case 'phonebook':
-                // The shared address book now has Favorites and All Extensions.
-                // Always open the index, never bypass it for small lists.
-                return $base . '/phone.php?doc=phonebook';
+                // Services may link to the same canonical Directories screen.
+                return $base . '/phone.php?doc=directory';
             case 'missed': return 'Application:Cisco/MissedCalls';
             case 'received': return 'Application:Cisco/ReceivedCalls';
             case 'placed': return 'Application:Cisco/PlacedCalls';
@@ -214,7 +214,7 @@ class phonemenus
     }
 
     /**
-     * Rebuilds legacy XML menus and supporting pages. No phone reboot is
+     * Rebuilds Services menus and supporting pages. No phone reboot is
      * required to see updated HTTP content.
      */
     public function publish()
@@ -224,13 +224,11 @@ class phonemenus
         if ($base === '') throw new \RuntimeException('Set the Phone Content PBX IPv4 address first.');
         $labels = $this->parent->phonecontent->directoryLabels();
         $files = array();
-        $files['directory.xml'] = $this->menuXml($config['directories'], $labels['menu_title'], $labels['menu_prompt'], 'directories', $base);
         $files['services.xml'] = $this->menuXml($config['services'], $labels['services_title'], $labels['services_prompt'], 'services', $base);
         foreach ($config['submenus'] as $sub) {
             $files['pc-sub-' . $sub['id'] . '.xml'] = $this->menuXml($sub['items'], $sub['name'], 'Select an item', 'sub-' . $sub['id'], $base);
         }
         foreach (array_merge(array(
-            'directories' => $config['directories'],
             'services' => $config['services']
         ), array_reduce($config['submenus'], function ($carry, $sub) {
             $carry['sub-' . $sub['id']] = $sub['items'];
@@ -270,7 +268,17 @@ class phonemenus
         }
         $services = $root->appendChild($doc->createElement('phoneServices'));
         $this->child($doc, $services, 'provisioning', '0');
-        foreach (array('directories' => '1', 'services' => '0', 'messages' => '2') as $section => $type) {
+        // Exactly one direct entry for the physical Directories button.
+        // The 7945G should not navigate through a second Phone Book menu.
+        $directory = $services->appendChild($doc->createElement('phoneService'));
+        $directory->setAttribute('type', '1');
+        $directory->setAttribute('category', '0');
+        $labels = $this->parent->phonecontent->directoryLabels();
+        $this->child($doc, $directory, 'name', $labels['menu_title']);
+        $this->child($doc, $directory, 'url', $base . '/phone.php?doc=directory');
+        $this->child($doc, $directory, 'vendor', '');
+        $this->child($doc, $directory, 'version', '');
+        foreach (array('services' => '0', 'messages' => '2') as $section => $type) {
             foreach ($config[$section] as $i => $item) {
                 $entry = $services->appendChild($doc->createElement('phoneService'));
                 $entry->setAttribute('type', $type);
