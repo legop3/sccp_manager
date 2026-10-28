@@ -175,7 +175,7 @@ class phonemenus
         switch ($item['type']) {
             case 'phonebook':
                 return $base . '/phone.php?doc=' .
-                    (count($this->parent->phonecontent->contacts()) <= 30 ? 'contacts-1' : 'directory');
+                    (count($this->parent->phonecontent->contacts()) <= 30 ? 'contacts-1' : 'phonebook');
             case 'missed': return 'Application:Cisco/MissedCalls';
             case 'received': return 'Application:Cisco/ReceivedCalls';
             case 'placed': return 'Application:Cisco/PlacedCalls';
