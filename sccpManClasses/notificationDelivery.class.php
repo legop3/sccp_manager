@@ -125,7 +125,7 @@ final class notificationDelivery {
                     error_log('SCCP notification voicemail actions: '.$e->getMessage());
                 }
                 $actions['Dismiss']='SoftKey:Exit';
-                $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,$actions);
+                $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,$actions,$options);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->publicDocument($graphic);
             } elseif ($kind==='missed' && $options['style']==='text') {
@@ -133,7 +133,7 @@ final class notificationDelivery {
                 $number=(string)($fields['number']??'');
                 if (preg_match('/^[+0-9*#]{1,32}$/D',$number)) $actions['Call Back']='Dial:'.$number;
                 $actions['Dismiss']='SoftKey:Exit';
-                $graphic=phoneNotifications::graphic($this->module,'missed',$fields,$actions);
+                $graphic=phoneNotifications::graphic($this->module,'missed',$fields,$actions,$options);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->publicDocument($graphic);
             }
