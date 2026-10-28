@@ -1,4 +1,4 @@
-# Cisco Phone Content (SCCP Manager 17.1.16)
+# Cisco Phone Content (SCCP Manager 17.1.17)
 
 Open **SCCP Connectivity → Phone Content** in FreePBX. The page has three
 tabs: Address Book, Wallpapers and Ringtones.
@@ -58,7 +58,7 @@ practice if needed.
 Phone Content does not replace VPN credentials, ITL, or signing certificates.
 Regenerating phones uses the existing signed provisioning pipeline.
 
-## 17.1.16 compatibility fixes
+## 17.1.17 compatibility fixes
 
 - The publicly served directory is under AMPWEBROOT/sccp-manager, not the parent of AMPWEBROOT.
 - The phone's directory URL is http://PBX-IP/sccp-manager/phone.php?doc=directory, with a valid CiscoIPPhoneMenu and links to contacts. The PHP endpoint explicitly returns Content-Type: text/xml.
@@ -70,3 +70,11 @@ Regenerating phones uses the existing signed provisioning pipeline.
 Check the HTTP endpoint using: curl -i 'http://192.168.0.25/sccp-manager/phone.php?doc=directory'. Expect HTTP 200, text/xml, and CiscoIPPhoneMenu.
 
 Check TFTP delivery using: tftp 192.168.0.25 -m binary -c get Desktops/320x212x16/List.xml /tmp/7945-wallpapers.xml.
+
+## 17.1.17 UI and directory behavior
+
+- The Phone Content pages now use standard FreePBX/Bootstrap form controls and tables; custom status cards and separate URL/Apply buttons are removed.
+- Directory XML includes only Phone Book pages, starting with Phone Book. Native phone call-history entries are not duplicated. Cisco firmware may still place its built-in call histories before an appended custom directory item; the XML cannot force a firmware-defined ordering.
+- Contact edits republish the directory on save. Initial contact setup configures phone XML automatically if needed.
+- Wallpaper upload publishes List.xml and PNG thumbnails, enables background access, and regenerates the signed phone configuration automatically. It does not interrupt live calls by forcing a reset.
+- The Wallpapers tab checks whether tftpd-hpa's configured TFTP_DIRECTORY matches the SCCP Manager publishing root. If Selections Unavailable persists, watch real TFTP requests while opening Background Images: sudo tcpdump -ni any -s0 -A 'udp port 69'. This is the remaining reliable way to distinguish a missing request from a TFTP-server error on the actual VPN path.
