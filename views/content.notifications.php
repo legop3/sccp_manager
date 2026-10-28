@@ -123,7 +123,7 @@ $samples=[
       ?>
       <?php if ($preview):?><img class="ne-screen" src="<?php echo $esc($preview);?>" alt="Actual Cisco phone PNG preview">
       <?php else:?><p>Unable to generate PNG preview. Check PHP GD and your public content folder.</p><?php endif;?>
-      <p class="ne-help">This PNG was generated using exactly the same PHP renderer as the real notifications. Save to regenerate the preview with changed settings.</p>
+      <p class="ne-help">This PNG was generated using exactly the same PHP renderer as the real notifications. Changing appearance settings updates this image using the same server renderer as the phone.</p>
      </div>
     <?php else: ?><div class="ne-card"><h4>Scheduled notifications</h4><p>Scheduled images use the incoming feed image; they are not generated with the call/voicemail graphic renderer.</p><p>Use the source and schedule controls to configure delivery.</p></div><?php endif;?>
    </div>
@@ -158,6 +158,7 @@ $samples=[
    secondary_text:t[3],details_background:t[0],details_label:t[3],
    details_text:t[2],accent:t[4]};
   Object.keys(values).forEach(key=>{const input=panel.querySelector('[name$="[colors]['+key+']"]');if(input)input.value=values[key];});
+  requestPreview(panel);
  }));
 
  root.querySelectorAll('.ne-stripe-row').forEach(row=>{
@@ -170,6 +171,34 @@ $samples=[
   rows.forEach((row,i)=>{const color=row.querySelector('[data-stripe-color]'),active=row.querySelector('[data-stripe-active]'),hidden=row.querySelector('input[type=hidden]');color.value=values[i]||'#FFFFFF';active.checked=!!values[i];hidden.value=values[i]||'';});
   const panel=root.querySelector('[data-ne-panel="'+button.dataset.kind+'"]');
   panel.querySelector('[name$="[stripe_position]"]').value='header';
+  requestPreview(panel);
  }));
+ const pending=new WeakMap();
+ function requestPreview(panel){
+  if(!panel || panel.dataset.nePanel==='scheduled')return;
+  if(pending.has(panel))clearTimeout(pending.get(panel));
+  pending.set(panel,setTimeout(async()=>{
+   const kind=panel.dataset.nePanel;
+   const values=new URLSearchParams();
+   values.set('content_action','notifications_preview');values.set('kind',kind);
+   panel.querySelectorAll('[name]').forEach(el=>{
+    if(el.type==='checkbox'&&!el.checked)return;
+    const match=el.name.match(/^notifications\\[(voicemail|missed)\\]\\[(.+)$/);
+    if(match && match[1]===kind)values.append('appearance['+match[2],el.value);
+   });
+   try{
+    const response=await fetch('config.php?display=sccp_content',{method:'POST',body:values,credentials:'same-origin'});
+    const data=await response.json();if(!response.ok||!data.url)throw new Error(data.error||'Preview failed');
+    const img=panel.querySelector('.ne-screen');if(img)img.src=data.url;
+   }catch(err){const note=panel.querySelector('.ne-preview-status');if(note)note.textContent='Preview error: '+err.message;}
+  },180));
+ }
+ root.querySelectorAll('.ne-panel').forEach(panel=>{
+  panel.querySelectorAll('input,select').forEach(el=>{
+   if(el.matches('.ne-theme,[data-stripe-color],[data-stripe-active]'))return;
+   el.addEventListener('change',()=>requestPreview(panel));
+   if(el.type==='color')el.addEventListener('input',()=>{const theme=panel.querySelector('.ne-theme');if(theme)theme.value='custom';requestPreview(panel);});
+  });
+ });
 })();
 </script>
