@@ -250,10 +250,8 @@ class phonevoicemail
         return array(
             'Action'=>'Originate',
             'Channel'=>'SCCP/' . $line . '/aa=1w',
-            // Execute an AGI on the answered SCCP channel: it waits two
-            // seconds for the handset's RTP receiver before streaming audio.
-            'Application'=>'AGI',
-            'Data'=>'sccp-manager-vm-playback.agi,' . $line . ',' . $message['id'],
+            'Application'=>'VoiceMailPlayMsg',
+            'Data'=>$line . '@default,' . $message['id'],
             'CallerID'=>'"' . $cidName . '" <' . $cidNum . '>',
             'Timeout'=>'10000',
             'Async'=>'true'
@@ -262,10 +260,6 @@ class phonevoicemail
 
     public function playback($line, array $message)
     {
-        $helper = '/var/lib/asterisk/agi-bin/sccp-manager-vm-playback.agi';
-        if (!is_file($helper) || !is_executable($helper)) {
-            throw new \RuntimeException('Voicemail playback AGI is not installed. Reinstall SCCP Manager as root.');
-        }
         $this->assertNotOnCall($line);
         $this->ami(self::originateFields($line, $message));
     }
@@ -278,15 +272,10 @@ class phonevoicemail
     public function queuePlayback($line, array $message)
     {
         $this->assertNotOnCall($line);
-        $helper = '/var/lib/asterisk/agi-bin/sccp-manager-vm-playback.agi';
-        if (!is_file($helper) || !is_executable($helper)) {
-            throw new \RuntimeException('Voicemail playback AGI is not installed. Reinstall SCCP Manager as root.');
-        }
         ignore_user_abort(true);
         register_shutdown_function(function () use ($line, $message) {
-            // The web endpoint sets Content-Length and flushes the complete
-            // XML before this shutdown handler is invoked.
-            usleep(1200000);
+            // Playback starts at PHP request shutdown, after the XML
+            // response has been written and flushed. No fixed timer.
             try {
                 $this->playback($line, $message);
             } catch (\Throwable $e) {
