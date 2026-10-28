@@ -52,7 +52,7 @@ if (!function_exists('sccp_manager_content_install')) {
     function sccp_manager_content_install()
     {
         global $amp_conf;
-        $dir = dirname((string) ($amp_conf['AMPWEBROOT'] ?? '/var/www/html/admin')) . '/sccp-manager';
+        $dir = rtrim((string) ($amp_conf['AMPWEBROOT'] ?? '/var/www/html'), '/') . '/sccp-manager';
         if (function_exists('posix_geteuid') && posix_geteuid() !== 0) {
             outn('<li>Phone Content: public directory setup requires a root fwconsole upgrade.</li>');
             return;
