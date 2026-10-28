@@ -9,7 +9,7 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
 <div class="fpbx-container container-fluid">
     <div class="display no-border">
         <h3><?php echo _('Phone Menus'); ?></h3>
-        <p><?php echo _('The physical Directories button always opens the shared Favorites / All Extensions menu. Customize Services and Messages below.'); ?></p>
+        <p><?php echo _('The Directories button opens Favorites directly, with All Extensions on the All softkey. Customize Services and Messages below.'); ?></p>
         <form id="pc-menu-form" method="post" action="config.php?display=sccp_content#menus">
             <input type="hidden" name="content_action" value="save_menus">
             <input type="hidden" name="menu_config" id="pc-menu-config" value="">
@@ -19,7 +19,7 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
                     <?php echo _('Use custom phone-button menus (internal service provisioning)'); ?>
                 </label>
                 <p class="help-block" style="margin-bottom:0">
-                    <?php echo _('Off: use the phone firmware’s built-in buttons. On: Directories opens Favorites / All Extensions directly; Services and Messages use the settings below.'); ?>
+                    <?php echo _('Off: use the phone firmware’s built-in buttons. On: Directories opens Favorites immediately, with an All softkey; Services and Messages use the settings below.'); ?>
                     <?php echo _('Saving menus automatically regenerates the signed phone configurations. Phones load button changes after their next restart.'); ?>
                 </p>
             </div>
@@ -80,7 +80,7 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
         <?php if ($pcBase): ?>
         <p class="help-block" style="margin-top:14px">
             <?php echo _('Test served XML:'); ?>
-            <a href="<?php echo $pcEsc($pcBase . '/phone.php?doc=directory'); ?>" target="_blank" rel="noopener noreferrer"><?php echo _('Directories'); ?></a>
+            <a href="<?php echo $pcEsc($pcBase . '/phone.php?doc=contacts-1'); ?>" target="_blank" rel="noopener noreferrer"><?php echo _('Directories'); ?></a>
             &middot;
             <a href="<?php echo $pcEsc($pcBase . '/phone.php?doc=services'); ?>" target="_blank" rel="noopener noreferrer"><?php echo _('Services'); ?></a>
         </p>
