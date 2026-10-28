@@ -537,7 +537,9 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         $changed = array();
         $errors = array();
         $this->phonecontent->publishDirectory();
-        $this->phonecontent->syncUrls();
+        // "Apply" is an explicit administrator action: enable the managed
+        // directory/services URLs even if older placeholder URLs were set.
+        $this->phonecontent->syncUrls(true);
         $this->createDefaultSccpXml();
         $devices = $this->dbinterface->getSccpDeviceTableData('SccpDevice', array('type' => 'cisco'));
         foreach ((array) $devices as $device) {
