@@ -302,6 +302,14 @@ class vpnprovisioning
         return is_array($status) ? $status : array('service' => 'unknown');
     }
 
+    public function deleteVpnAccount($username)
+    {
+        if (!is_string($username) || !preg_match('/^[A-Za-z0-9_.-]{1,64}$/D', $username)) {
+            throw new \InvalidArgumentException('Invalid VPN username');
+        }
+        return $this->runHelper(array('delete-account', $username));
+    }
+
     public function startManagedService()
     {
         return $this->runHelper(array('start'));
