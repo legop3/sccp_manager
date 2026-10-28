@@ -103,7 +103,7 @@ final class notificationDelivery {
                 CURLOPT_HTTPAUTH=>CURLAUTH_BASIC,
                 // Cisco 79xx forwards Basic UserID but can omit Password in
                 // its authenticationURL callback. Use a secret-bearing identity.
-                CURLOPT_USERPWD=>'sccpnotify-'.substr(hash_hmac('sha256','cisco-push-user',$secret),0,32).':',
+                CURLOPT_USERPWD=>'sccpnotify:',
                 CURLOPT_CONNECTTIMEOUT=>2,
                 CURLOPT_TIMEOUT=>4,
                 CURLOPT_RETURNTRANSFER=>true
