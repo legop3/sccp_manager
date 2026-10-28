@@ -984,7 +984,8 @@ PHP;
         switch ($action) {
             case 'address': $this->setAddress($post['pbx_address'] ?? ''); return 'Directory URL updated.';
             case 'save_menus': $this->parent->phonemenus->save($post['menu_config'] ?? '');
-                return 'Menus published. Updated phone configurations will be signed; reset phones to activate button changes.';
+                return 'Services and Messages menus published.';
+            case 'publish_buttons': return 'Directory XML published.';
             case 'directory_text': $this->saveDirectoryLabels($post['directory_text'] ?? null);
                 return 'Directory display text saved.';
             case 'contact': $this->saveContact((string) ($post['id'] ?? ''),
