@@ -2,6 +2,7 @@
 if (!defined('FREEPBX_IS_AUTH')) {
     die('No direct script access allowed');
 }
+echo '<link rel="stylesheet" href="modules/sccp_manager/assets/css/phone_content.css?v=17.1.16">';
 $display_info = _('Phone Content');
 $display_page = \FreePBX::create()->Sccp_manager->phoneContentShowPage();
 if (!empty(\FreePBX::create()->Sccp_manager->phoneContentError)) {
