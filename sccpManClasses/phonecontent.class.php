@@ -162,7 +162,7 @@ class phonecontent
         $script = <<<'PHP'
 <?php
 $doc = (string) ($_GET['doc'] ?? '');
-if (!preg_match('/^(directory|services|contacts-[1-9][0-9]*)$/D', $doc)) {
+if (!preg_match('/^(directory|phonebook|services|contacts-[1-9][0-9]*|pc-(sub|text)-[a-z0-9-]+)$/D', $doc)) {
     http_response_code(404);
     exit;
 }
@@ -221,24 +221,27 @@ PHP;
             $this->element($doc, $item, 'Name', $label);
             $this->element($doc, $item, 'URL', $base . '/phone.php?doc=contacts-' . ($i + 1));
         }
-        $this->publishFile($this->public . '/directory.xml', $doc->saveXML());
+        // Phone Book pagination is independent of the editable Directories
+        // menu: a book with >30 contacts must not link back to directory.xml.
+        $this->publishFile($this->public . '/phonebook.xml', $doc->saveXML());
 
-        // Retire old pages when the directory shrinks. Otherwise deleted
-        // contacts remain available at old static URLs.
+        // Retire old pages when the directory shrinks.
         foreach (glob($this->public . '/contacts-*.xml') ?: array() as $oldPage) {
             if (!preg_match('/^contacts-([0-9]+)\.xml$/D', basename($oldPage), $match)) continue;
             if ((int) $match[1] > count($chunks)) {
                 if (is_file($oldPage) && !is_link($oldPage)) @unlink($oldPage);
             }
         }
-        // Optional Services button integration, without needing a separate server.
-        list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
-        $this->element($doc, $root, 'Title', $labels['services_title']);
-        $this->element($doc, $root, 'Prompt', $labels['services_prompt']);
-        $item = $root->appendChild($doc->createElement('MenuItem'));
-        $this->element($doc, $item, 'Name', $labels['services_entry']);
-        $this->element($doc, $item, 'URL', $base . '/phone.php?doc=directory');
-        $this->publishFile($this->public . '/services.xml', $doc->saveXML());
+        $this->parent->phonemenus->publish();
+    }
+
+    /** Only prevalidated generated XML filenames, within the managed web root. */
+    public function publishMenuDocument($filename, $content)
+    {
+        if (!preg_match('/^(directory|services|pc-(sub|text)-[a-z0-9-]+)\.xml$/D', (string) $filename)) {
+            throw new \InvalidArgumentException('Invalid managed menu filename.');
+        }
+        $this->publishFile($this->public . '/' . $filename, $content);
     }
 
     /**
@@ -720,6 +723,8 @@ PHP;
         $action = (string) ($post['content_action'] ?? '');
         switch ($action) {
             case 'address': $this->setAddress($post['pbx_address'] ?? ''); return 'Directory URL updated.';
+            case 'save_menus': $this->parent->phonemenus->save($post['menu_config'] ?? '');
+                return 'Menus published. Updated phone configurations will be signed; reset phones to activate button changes.';
             case 'directory_text': $this->saveDirectoryLabels($post['directory_text'] ?? null);
                 return 'Directory display text saved.';
             case 'contact': $this->saveContact((string) ($post['id'] ?? ''),
