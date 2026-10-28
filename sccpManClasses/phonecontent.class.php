@@ -27,8 +27,9 @@ class phonecontent
     {
         $rows = array();
         try {
-            $core = isset($this->parent->FreePBX->Core)
-                ? $this->parent->FreePBX->Core : null;
+            // BMO modules are loaded via FreePBX::__get(); __isset() is
+            // not guaranteed to report a lazily loaded Core instance.
+            $core = isset($this->parent->FreePBX) ? $this->parent->FreePBX->Core : null;
             if ($core && method_exists($core, 'getAllUsers')) {
                 foreach ((array)$core->getAllUsers() as $user) {
                     if (!is_array($user)) continue;
