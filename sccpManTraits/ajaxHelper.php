@@ -123,7 +123,9 @@ trait ajaxHelper {
                 foreach ($models as $data) {
                     $ver_id = $this->createSccpDeviceXML($data['name']);
                     if (empty($ver_id)) {                       // the generator returns a version stamp, or false on failure
-                        return array('status' => false, 'message' => 'Error Create Configuration Divice :' . $data['name']);
+                        return array('status' => false,
+                            'message' => 'Configuration generation or signing failed for ' . $data['name'] .
+                                '. Check /var/log/asterisk/freepbx.log for the underlying error.');
                     }
                 };
 
