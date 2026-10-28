@@ -111,14 +111,13 @@ final class notificationDelivery {
                     $vm=new phonevoicemail($this->module);
                     if ($vm->mailboxForDevice($device)===(string)($fields['extension']??'')) {
                         $base=$vm->serviceUrl($device).'&service=1';
-                        $items=$vm->listMessages((string)$fields['extension']);
-                        $newest=null;
-                        foreach ($items as $item) {
-                            if ($item['folder']==='INBOX' && ($newest===null || $item['time']>$newest['time'])) $newest=$item;
-                        }
-                        if ($newest!==null) {
-                            $actions['Listen']=$base.'&single=1&op=play&id='.rawurlencode($newest['id']);
-                            $actions['Details']=$base.'&single=1&op=detail&id='.rawurlencode($newest['id']);
+                        $id=(string)($fields['id']??'');
+                        if ($id!=='' && preg_match('/^[A-Za-z0-9_.-]{1,120}$/D',$id)) {
+                            // Resolve the event's original ID; never substitute
+                            // an unrelated newer message.
+                            $item=phonevoicemail::resolveMessage($vm->listMessages((string)$fields['extension']),$id);
+                            $actions['Listen']=$base.'&single=1&op=play&id='.rawurlencode($item['id']);
+                            $actions['Details']=$base.'&single=1&op=detail&id='.rawurlencode($item['id']);
                         }
                         $actions['Messages']=$base;
                     }
