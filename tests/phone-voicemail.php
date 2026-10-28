@@ -90,4 +90,29 @@ $phoneContentSource = file_get_contents(__DIR__ . '/../sccpManClasses/phoneconte
 verify(strpos($phoneContentSource, 'Expires: Thu, 01 Jan 1970 00:00:01 GMT') !== false,
     'Voicemail HTTP endpoint explicitly prevents Cisco URL history stacking');
 
+// Asterisk 22 returns Response: Success even for failed voicemail mutations.
+$mutations = array(
+    array('VoicemailRemove','Message remove successful'),
+    array('VoicemailMove','Message move successful')
+);
+foreach ($mutations as $mutation) {
+    phonevoicemail::requireMutationSuccess($mutation[0], array(
+        'Response'=>'Success', 'Message'=>$mutation[1] . "\n"));
+    foreach (array('Response'=>'Error', 'Message'=>str_replace('successful','failed',$mutation[1])) as $key=>$badValue) {
+        $reply = array('Response'=>'Success', 'Message'=>$mutation[1]);
+        $reply[$key] = $badValue;
+        try {
+            phonevoicemail::requireMutationSuccess($mutation[0], $reply);
+            throw new LogicException('Incorrectly accepted a failed voicemail AMI operation');
+        } catch (RuntimeException $expected) {
+            verify(strpos($expected->getMessage(),'failed:') !== false,
+                'Voicemail mutation errors must be visible to the menu');
+        }
+    }
+}
+try {
+    phonevoicemail::requireMutationSuccess('Originate', array('Response'=>'Success'));
+    throw new LogicException('Unsupported voicemail mutation was accepted');
+} catch (InvalidArgumentException $expected) { }
+
 echo "Visual voicemail tests passed.\n";
