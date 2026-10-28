@@ -2,7 +2,9 @@
 // Standalone regression test; no FreePBX server or external services required.
 error_reporting(E_ALL);
 require __DIR__ . '/../sccpManClasses/phonecontent.class.php';
+require __DIR__ . '/../sccpManClasses/phonemenus.class.php';
 use FreePBX\modules\Sccp_manager\phonecontent;
+use FreePBX\modules\Sccp_manager\phonemenus;
 
 function check($condition, $message) {
     if (!$condition) throw new RuntimeException($message);
@@ -17,6 +19,8 @@ class FakeContentParent {
     private $config = array();
     public $sccpvalues = array();
     public $dbinterface;
+    public $phonecontent;
+    public $phonemenus;
     public function __construct() {
         $this->dbinterface = new FakeContentDb();
     }
@@ -37,6 +41,8 @@ try {
     check($defaultContent->publicPath() === $base . '/web/sccp-manager',
         'Directory must be inside the actual web root');
     $content = new phonecontent($parent, $base . '/tftp', $base . '/web');
+    $parent->phonecontent = $content;
+    $parent->phonemenus = new phonemenus($parent);
     check($content->baseUrl() === 'http://192.168.0.25/sccp-manager', 'PBX URL');
     $content->publishDirectory();
     check(is_file($base . '/web/phone.php'), 'PHP XML service endpoint must exist');
@@ -68,7 +74,11 @@ try {
     $menu = simplexml_load_file($base . '/web/directory.xml');
     check($menu->getName() === 'CiscoIPPhoneMenu', 'Directory pagination');
     check(file_exists($base . '/web/contacts-2.xml'), 'Second contact page');
-    check(count($menu->MenuItem) === 2, 'Only contact pages should be in expanded directory menu');
+    check(count($menu->MenuItem) === 1, 'Top-level menu is independent from contact pagination');
+    $book = simplexml_load_file($base . '/web/phonebook.xml');
+    check(count($book->MenuItem) === 2, 'Expanded phone book indexes both pages');
+    check((string) $menu->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=phonebook',
+        'Phone Book entry must not point back to directory itself');
 
     // Every visible Cisco XML Title/Prompt/Name must be configurable. The
     // settings update must republish immediately without changing phone URLs
@@ -92,8 +102,11 @@ try {
     $menu = simplexml_load_file($base . '/web/directory.xml');
     check((string) $menu->Title === 'My directories', 'Custom menu title');
     check((string) $menu->Prompt === 'Choose a list', 'Custom menu prompt');
-    check((string) $menu->MenuItem[0]->Name === 'People & Teams 1-30',
-        'Custom entry label used for paginated directories');
+    check((string) $menu->MenuItem[0]->Name === 'People & Teams',
+        'Custom menu entry label persisted');
+    $book = simplexml_load_file($base . '/web/phonebook.xml');
+    check((string) $book->MenuItem[0]->Name === 'People & Teams 1-30',
+        'Custom entry label used for paginated phone book');
     $page = simplexml_load_file($base . '/web/contacts-1.xml');
     check((string) $page->Title === 'Family & Friends', 'Custom contact title');
     check((string) $page->Prompt === 'Pick <one>', 'Escaped custom prompt');
