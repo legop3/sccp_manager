@@ -44,7 +44,7 @@ tabs: Address Book, Menus, Wallpapers and Ringtones.
 - URLs refer to Cisco-compatible XML services reachable by the phones over VPN.
 
 Regression checks: php tests/phone-content.php ; php tests/phone-menus.php
-## Visual Voicemail (17.1.25 preview)
+## Visual Voicemail (17.1.26 preview)
 
 1. In **Phone Content → Menus**, select **Messages** and change the action from
    **Voicemail (native)** to **Visual Voicemail (auto-answer playback)**.
@@ -146,3 +146,7 @@ Check TFTP delivery using: tftp 192.168.0.25 -m binary -c get Desktops/320x212x1
 ## 17.1.25 playback fixes
 
 Voicemail menu links resolve messages by stable ID even if the recording moves between INBOX and Old. Web responses are buffered and validated as Cisco XML, then flushed before playback begins. Asterisk plays recordings through an installed AGI which waits two seconds after SCCP auto-answer so the phone can establish its audio stream. Open Phone Content once after upgrading to publish the updated web endpoint; no phone reset is needed.
+
+## 17.1.26 playback adjustment
+
+The earlier two-second delay in the playback AGI and 1.2-second delay before call origination were speculative. Both are removed. Playback now runs directly via Asterisk `VoiceMailPlayMsg()`, with no hardcoded pause. The request-shutdown sequence still originates only after the complete Cisco XML document has been generated and flushed. Retained fixes include stable message IDs across INBOX/Old and XML validation. If a voicemail appears to cut off at the end, verify that the audio actually truncates and examine Asterisk playback completion and channel hangup logs rather than adding a delay.
