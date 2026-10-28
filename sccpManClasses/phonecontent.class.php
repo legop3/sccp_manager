@@ -251,6 +251,8 @@ PHP;
             'wallpaper_index' => $index,
             'wallpaper_index_exists' => is_file($index),
             'wallpaper_index_readable' => is_readable($index),
+            'wallpaper_signed' => is_file($index . '.sgn'),
+            'wallpaper_requires_signing' => $this->needsSignedContent(),
             'wallpaper_count' => count($this->wallpapers()),
             'wallpaper_access_enabled' => in_array(
                 strtolower((string) ($conf['backgroundImageAccess']['data'] ?? 'off')),
@@ -455,6 +457,64 @@ PHP;
         $this->enableWallpapers();
     }
 
+    /**
+     * Cisco ITL-enabled 7945Gs fetch List.xml.sgn, not List.xml.
+     * Use the exact root-owned TFTP signer already trusted by the phone.
+     */
+    private function needsSignedContent()
+    {
+        return realpath($this->tftp) === '/tftpboot' &&
+            count(glob($this->tftp . '/ITLSEP*.tlv') ?: array()) > 0;
+    }
+
+    private function signContent($kind)
+    {
+        if (!$this->needsSignedContent()) return;
+        $helper = '/usr/local/libexec/sccp-manager-vpn-helper';
+        if (!is_executable($helper)) {
+            throw new \RuntimeException(
+                'Cisco phones have ITL trust, but the managed signing helper is not installed.');
+        }
+        $argv = array('/usr/bin/sudo', '-n', $helper, 'sign-content', $kind);
+        $pipes = array();
+        $proc = proc_open($argv, array(
+            0 => array('file', '/dev/null', 'r'),
+            1 => array('pipe', 'w'),
+            2 => array('pipe', 'w')
+        ), $pipes);
+        if (!is_resource($proc)) {
+            throw new \RuntimeException('Cannot start Cisco content signer');
+        }
+        $stdout = stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        if (proc_close($proc) !== 0) {
+            throw new \RuntimeException('Could not sign Cisco ' . $kind .
+                ': ' . substr(trim($stderr ?: $stdout), 0, 300));
+        }
+    }
+
+    public function wallpaperSignaturesMissing()
+    {
+        if (!$this->wallpapers() || !$this->needsSignedContent()) return false;
+        $dir = $this->tftp . '/Desktops/320x212x16';
+        $files = array($dir . '/List.xml');
+        foreach ($this->wallpapers() as $item) {
+            $id = (string) ($item['id'] ?? '');
+            if (!preg_match('/^[a-f0-9]{16}$/D', $id)) continue;
+            $files[] = $dir . '/PC-' . $id . '.png';
+            $files[] = $dir . '/TN-PC-' . $id . '.png';
+        }
+        foreach ($files as $file) {
+            if (!is_file($file . '.sgn') ||
+                filemtime($file . '.sgn') < filemtime($file)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function publishWallpapers()
     {
         $dir = $this->tftp . '/Desktops/320x212x16';
@@ -470,6 +530,7 @@ PHP;
             $elem->setAttribute('URL', 'TFTP:Desktops/320x212x16/PC-' . $item['id'] . '.png');
         }
         $this->publishFile($index, $doc->saveXML());
+        $this->signContent('wallpapers');
     }
 
     public function removeWallpaper($id)
@@ -557,6 +618,7 @@ PHP;
             $this->element($doc, $ring, 'FileName', 'PC-' . $item['id'] . '.raw');
         }
         $this->publishFile($path, $doc->saveXML());
+        $this->signContent('ringtones');
     }
 
     private function validateId($id)
