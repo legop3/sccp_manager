@@ -44,7 +44,7 @@ tabs: Address Book, Menus, Wallpapers and Ringtones.
 - URLs refer to Cisco-compatible XML services reachable by the phones over VPN.
 
 Regression checks: php tests/phone-content.php ; php tests/phone-menus.php
-## Visual Voicemail (17.1.23 preview)
+## Visual Voicemail (17.1.24 preview)
 
 1. In **Phone Content → Menus**, select **Messages** and change the action from
    **Voicemail (native)** to **Visual Voicemail (auto-answer playback)**.
@@ -77,6 +77,12 @@ does not reset phones automatically.
 
 **Playback note:** The 7945G firmware's exact behavior with a custom Messages
 service and SCCP auto-answer playback still requires an on-device test.
+
+A 17.1.24 fix ensures the standalone web endpoint boots FreePBX in unauthenticated
+phone-service mode and loads the known installed BMO class explicitly. The first
+Phone Content page load after upgrade republishes voicemail.php. No device reset
+is required for this web endpoint correction. Access control still relies on the
+per-device token and trusted LAN/VPN HTTP network restrictions.
 
 Test: `php tests/phone-voicemail.php`.
 ## Wallpapers
