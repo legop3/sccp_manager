@@ -117,8 +117,8 @@ final class notificationDelivery {
                             if ($item['folder']==='INBOX' && ($newest===null || $item['time']>$newest['time'])) $newest=$item;
                         }
                         if ($newest!==null) {
-                            $actions['Listen']=$base.'&op=notification-play&id='.rawurlencode($newest['id']);
-                            $actions['Details']=$base.'&op=notification&id='.rawurlencode($newest['id']);
+                            $actions['Listen']=$base.'&single=1&op=play&id='.rawurlencode($newest['id']);
+                            $actions['Details']=$base.'&single=1&op=detail&id='.rawurlencode($newest['id']);
                         }
                         $actions['Messages']=$base;
                     }
