@@ -486,7 +486,7 @@ class xmlinterface
         // The walker intentionally strips any template phoneServices block.
         // In legacy mode this is a no-op; no existing phone behavior changes.
         try {
-            $this->paren_class->phonemenus->applyProvisioning($xml_work);
+            $this->paren_class->phonemenus->applyProvisioning($xml_work, $safe_dev_id);
         } catch (\Throwable $e) {
             freepbx_log(FPBX_LOG_ERROR, 'sccp_manager: menu provisioning failed for ' . $safe_dev_id . ': ' . $e->getMessage());
             return false;
