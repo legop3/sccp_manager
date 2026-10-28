@@ -7,19 +7,19 @@ No separately downloaded certutils checkout or helper-install script is needed.
 
 ## Existing PBX: one module package
 
-First, take a FreePBX VM snapshot (preferred). The 17.1.7 preview targets an
+First, take a FreePBX VM snapshot (preferred). The 17.1.8 preview targets an
 existing functioning Nortien SCCP Manager 17.1.1 installation.
 Back up existing signing keys and ocserv files if not included in your VM snapshot.
 
 Download the preview module tarball from
-[the fork's preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.7).
+[the fork's preview release](https://github.com/legop3/sccp_manager/releases/tag/vpn-preview-17.1.8).
 
 Then upgrade the module as root on the PBX, which lets the module install
 its own root-owned components in a single operation:
 
 ```bash
 sudo fwconsole ma downloadinstall \
-  https://github.com/legop3/sccp_manager/releases/download/vpn-preview-17.1.7/sccp_manager.tar.gz
+  https://github.com/legop3/sccp_manager/releases/download/vpn-preview-17.1.8/sccp_manager.tar.gz
 sudo fwconsole reload
 ```
 
@@ -45,10 +45,10 @@ settings page reports a port conflict rather than forcibly stopping it.
 
 ## In the FreePBX UI
 
-Configure Server Config > **VPN Phones** once:
+Configure Server Config > **VPN & Signing** once:
 1. Enable Cisco built-in VPN provisioning.
-2. Set the public VPN URI (for example `https://otter.land:4443/svc`).
-3. Enter the PBX **internal LAN IP**, VPN address pool and UDP port (default 443).
+2. Set the public VPN hostname (for example `otter.land`). The full Cisco VPN URL is generated automatically.
+3. The PBX IPv4 address is detected automatically; adjust network defaults under Advanced settings if needed.
 4. Choose global VPN default **Off** and signed provisioning **Automatic**.
 5. Click **Save settings and configure VPN server**. The module creates the
    ocserv config, self-signed server TLS certificate (first time only), and
