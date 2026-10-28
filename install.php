@@ -74,6 +74,7 @@ if (!function_exists('sccp_manager_content_install')) {
         $missing = array();
         if (!function_exists('imagecreatefromstring')) $missing[] = 'php-gd';
         if (!is_executable('/usr/bin/ffmpeg') && !is_executable('/usr/local/bin/ffmpeg')) $missing[] = 'ffmpeg';
+        $converterInstalled = false;
         if ($missing && is_executable('/usr/bin/apt-get')) {
             $output = array();
             $status = 0;
@@ -83,12 +84,16 @@ if (!function_exists('sccp_manager_content_install')) {
                 outn('<li>Phone Content: converter setup unavailable; install ' .
                     htmlspecialchars(implode(' ', $missing), ENT_QUOTES) .
                     ' manually when needed.</li>');
+            } else {
+                // New extensions are loaded on the next PHP invocation, not the
+                // current fwconsole process that just installed php-gd.
+                $converterInstalled = true;
             }
         }
-        if (!function_exists('imagecreatefromstring')) {
+        if (!$converterInstalled && !function_exists('imagecreatefromstring')) {
             outn('<li>Phone Content: PHP GD is required for wallpaper conversion (apt install php-gd).</li>');
         }
-        if (!is_executable('/usr/bin/ffmpeg') && !is_executable('/usr/local/bin/ffmpeg')) {
+        if (!$converterInstalled && !is_executable('/usr/bin/ffmpeg') && !is_executable('/usr/local/bin/ffmpeg')) {
             outn('<li>Phone Content: ffmpeg is required for ringtone conversion (apt install ffmpeg).</li>');
         }
     }
