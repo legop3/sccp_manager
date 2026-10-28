@@ -127,6 +127,36 @@ class phonevoicemail
      * into Old, while msg000N filenames and folder names may change. Resolve
      * every operation against the CURRENT folder instead of stale menu links.
      */
+    /** Asterisk's VoicemailMove/Remove can ACK failed operations with
+     * Response: Success. The Message field, not Response alone, reports the
+     * actual operation result in app_voicemail.c.
+     */
+    public static function requireMutationSuccess($action, array $reply)
+    {
+        $messages = array(
+            'VoicemailRemove' => 'Message remove successful',
+            'VoicemailMove' => 'Message move successful'
+        );
+        if (!isset($messages[$action])) {
+            throw new \InvalidArgumentException('Unknown voicemail mutation.');
+        }
+        $status = strtolower(trim((string) ($reply['Response'] ?? '')));
+        $message = strtolower(trim((string) ($reply['Message'] ?? '')));
+        if ($status !== 'success' || $message !== strtolower($messages[$action])) {
+            throw new \RuntimeException($action . ' failed: ' .
+                ($message !== '' ? $message : 'Asterisk returned no confirmation.'));
+        }
+    }
+
+    public function containsMessageId($mailbox, $id)
+    {
+        clearstatcache(true);
+        foreach ($this->listMessages($mailbox) as $message) {
+            if ($message['id'] === $id) return true;
+        }
+        return false;
+    }
+
     private function messageById($mailbox, $id)
     {
         if (!is_string($id) || !preg_match('/^[A-Za-z0-9_.-]{1,120}$/D', $id)) {
@@ -375,9 +405,14 @@ class phonevoicemail
             $from = $msg['name'] ?: ($msg['number'] ?: 'Unknown Caller');
             if ($op === 'mark') {
                 if ($folder !== 'INBOX') throw new \InvalidArgumentException('Message is already marked heard.');
-                $this->ami(array('Action'=>'VoicemailMove','Context'=>'default','Mailbox'=>$line,
+                $reply = $this->ami(array('Action'=>'VoicemailMove','Context'=>'default','Mailbox'=>$line,
                     'Folder'=>'INBOX','ID'=>$id,'ToFolder'=>'Old'));
-                $this->xml('Marked Heard', 'Message moved to Old.', array(array('Back to messages', $base)), $base);
+                self::requireMutationSuccess('VoicemailMove', $reply);
+                $moved = $this->messageById($line, $id);
+                if ($moved['folder'] !== 'Old') {
+                    throw new \RuntimeException('Asterisk reported success but voicemail is not in Old.');
+                }
+                $this->showMessageDetail($base, $moved);
                 return;
             }
             if ($op === 'delete') {
@@ -388,9 +423,15 @@ class phonevoicemail
                 return;
             }
             if ($op === 'confirm-delete') {
-                $this->ami(array('Action'=>'VoicemailRemove','Context'=>'default','Mailbox'=>$line,
+                $reply = $this->ami(array('Action'=>'VoicemailRemove','Context'=>'default','Mailbox'=>$line,
                     'Folder'=>$folder,'ID'=>$id));
-                $this->xml('Message Deleted','Voicemail deleted.',array(array('Back to messages',$base)), $base);
+                self::requireMutationSuccess('VoicemailRemove', $reply);
+                if ($this->containsMessageId($line, $id)) {
+                    throw new \RuntimeException('Asterisk acknowledged deletion, but the message is still present.');
+                }
+                // Show the current list immediately. No misleading success
+                // page and no extra page for the phone's history to traverse.
+                $this->showMessageList($line, $base, $this->listMessages($line));
                 return;
             }
             if ($op === 'play') {
