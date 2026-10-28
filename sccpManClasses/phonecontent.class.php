@@ -322,60 +322,103 @@ PHP;
         $this->publishFile($this->public . '/voicemail.php', $script . "\n");
     }
 
-    public function publishDirectory()
+
+    /** Publish a Cisco 7945G-compatible directory in pages of 30 entries. */
+    private function publishContactPages(array $rows, $prefix, $title, $prompt, $base, $rangeLabel)
     {
-        $base = $this->baseUrl();
-        if ($base === '') {
-            throw new \RuntimeException('Set the PBX address in Phone Content before publishing the directory.');
-        }
-        $this->publishPhoneEndpoint();
-        $this->publishVoicemailEndpoint();
-        $labels = $this->directoryLabels();
-        $contacts = $this->contacts();
-        usort($contacts, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
-        // Directory screens handle only a limited number of items per request.
-        // Single-page directory for <= 30 contacts; otherwise link to paged XML.
-        $chunks = array_chunk($contacts, 30);
+        $chunks = array_chunk($rows, 30);
         if (!$chunks) $chunks = array(array());
-        // Cisco's Directories URL must always return CiscoIPPhoneMenu, not a
-        // directory object directly. A menu can then link to one or more
-        // CiscoIPPhoneDirectory documents containing up to 32 entries.
-        foreach ($chunks as $i => $chunk) {
+        if (count($chunks) > 30) {
+            throw new \RuntimeException('Too many entries for one directory section (900 maximum).');
+        }
+        foreach ($chunks as $i=>$chunk) {
             list($doc, $root) = $this->xml('CiscoIPPhoneDirectory');
-            $this->element($doc, $root, 'Title', $labels['contacts_title']);
-            $this->element($doc, $root, 'Prompt', $labels['contacts_prompt']);
+            $this->element($doc, $root, 'Title', $title);
+            $this->element($doc, $root, 'Prompt', $prompt);
             foreach ($chunk as $entry) {
                 $row = $root->appendChild($doc->createElement('DirectoryEntry'));
                 $this->element($doc, $row, 'Name', $entry['name']);
                 $this->element($doc, $row, 'Telephone', $entry['number']);
             }
-            $this->publishFile($this->public . '/contacts-' . ($i + 1) . '.xml', $doc->saveXML());
+            $this->publishFile($this->public . '/' . $prefix . '-' . ($i + 1) . '.xml', $doc->saveXML());
         }
+        foreach (glob($this->public . '/' . $prefix . '-*.xml') ?: array() as $oldPage) {
+            if (!preg_match('/^' . preg_quote($prefix, '/') . '-([0-9]+)\.xml$/D', basename($oldPage), $match)) continue;
+            if ((int)$match[1] > count($chunks) && is_file($oldPage) && !is_link($oldPage)) @unlink($oldPage);
+        }
+        if (count($chunks) === 1) return $base . '/phone.php?doc=' . $prefix . '-1';
 
         list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
-        $this->element($doc, $root, 'Title', $labels['menu_title']);
-        $this->element($doc, $root, 'Prompt', $labels['menu_prompt']);
-        // The Cisco handset renders its own Missed/Received/Placed Calls.
-        // Do not echo them into the remote XML menu: that creates duplicates.
-        // The phone book is the first (and normally only) custom item.
-        foreach ($chunks as $i => $chunk) {
-            $item = $root->appendChild($doc->createElement('MenuItem'));
-            $label = count($chunks) === 1 ? $labels['menu_entry'] :
-                $labels['menu_entry'] . ' ' . ($i * 30 + 1) . '-' . ($i * 30 + count($chunk));
-            $this->element($doc, $item, 'Name', $label);
-            $this->element($doc, $item, 'URL', $base . '/phone.php?doc=contacts-' . ($i + 1));
+        $this->element($doc, $root, 'Title', $title);
+        $this->element($doc, $root, 'Prompt', $prompt);
+        foreach ($chunks as $i=>$chunk) {
+            $row = $root->appendChild($doc->createElement('MenuItem'));
+            $this->element($doc, $row, 'Name', $rangeLabel . ' ' .
+                ($i * 30 + 1) . '-' . ($i * 30 + count($chunk)));
+            $this->element($doc, $row, 'URL', $base . '/phone.php?doc=' . $prefix . '-' . ($i + 1));
         }
-        // Phone Book pagination is independent of the editable Directories
-        // menu: a book with >30 contacts must not link back to directory.xml.
-        $this->publishFile($this->public . '/phonebook.xml', $doc->saveXML());
+        $indexName = $prefix === 'contacts' ? 'favorites-pages' : 'extensions-pages';
+        $this->publishFile($this->public . '/' . $indexName . '.xml', $doc->saveXML());
+        return $base . '/phone.php?doc=' . $indexName;
+    }
 
-        // Retire old pages when the directory shrinks.
-        foreach (glob($this->public . '/contacts-*.xml') ?: array() as $oldPage) {
-            if (!preg_match('/^contacts-([0-9]+)\.xml$/D', basename($oldPage), $match)) continue;
-            if ((int) $match[1] > count($chunks)) {
-                if (is_file($oldPage) && !is_link($oldPage)) @unlink($oldPage);
+    public function publishDirectory()
+    {
+        $base = $this->baseUrl();
+        if ($base === '') throw new \RuntimeException('Set the PBX address in Phone Content before publishing the directory.');
+        $this->publishPhoneEndpoint();
+        $this->publishVoicemailEndpoint();
+        $labels = $this->directoryLabels();
+        $choices = $this->extensionChoices();
+        $extensions = $this->extensions();
+
+        // Preserve existing manually entered contacts as shared Favorites.
+        // Hidden overrides both sections when a manual contact references
+        // a hidden extension. Avoid duplicate favorites by dialable number.
+        $favorites = array();
+        $favoriteNumbers = array();
+        foreach ($this->contacts() as $contact) {
+            $number = (string)($contact['number'] ?? '');
+            if (($choices[$number] ?? '') === 'hidden') continue;
+            $favorites[] = $contact;
+            $favoriteNumbers[$number] = true;
+        }
+        $allExtensions = array();
+        foreach ($extensions as $number=>$ext) {
+            $choice = $choices[$number] ?? 'directory';
+            if ($choice === 'hidden') continue;
+            $display = array('name'=>$ext['name'] . ' (' . $number . ')', 'number'=>$number);
+            $allExtensions[] = $display;
+            if ($choice === 'favorite' && !isset($favoriteNumbers[$number])) {
+                $favorites[] = $display;
+                $favoriteNumbers[$number] = true;
             }
         }
+        $sort = function ($a, $b) {
+            $cmp = strcasecmp($a['name'], $b['name']);
+            return $cmp ?: strnatcmp($a['number'], $b['number']);
+        };
+        usort($favorites, $sort);
+        usort($allExtensions, $sort);
+        $favoritesUrl = $this->publishContactPages($favorites, 'contacts',
+            $labels['contacts_title'], $labels['contacts_prompt'], $base, $labels['favorites_entry']);
+        $extensionsUrl = $this->publishContactPages($allExtensions, 'extensions',
+            $labels['extensions_title'], $labels['extensions_prompt'], $base, $labels['extensions_entry']);
+
+        // Keep the original 'Phone Book' root URL. Inside it, Favorites is
+        // first and All Extensions is one separate choice. No new SEP XML.
+        list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
+        $this->element($doc, $root, 'Title', $labels['menu_entry']);
+        $this->element($doc, $root, 'Prompt', $labels['menu_prompt']);
+        foreach (array(
+            array($labels['favorites_entry'], $favoritesUrl),
+            array($labels['extensions_entry'], $extensionsUrl)
+        ) as $itemData) {
+            $row = $root->appendChild($doc->createElement('MenuItem'));
+            $this->element($doc, $row, 'Name', $itemData[0]);
+            $this->element($doc, $row, 'URL', $itemData[1]);
+        }
+        $this->publishFile($this->public . '/phonebook.xml', $doc->saveXML());
         $this->parent->phonemenus->publish();
     }
 
