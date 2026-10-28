@@ -184,40 +184,40 @@ foreach ($entries as $entry) {
         </p>
         <?php $labels = $pc->directoryLabels(); ?>
         <details id="pc-phone-labels" style="margin-top:20px">
-            <summary style="font-weight:600"><?php echo _('Phone Book screen labels'); ?></summary>
+            <summary style="font-weight:600"><?php echo _('Directories screen labels'); ?></summary>
             <p class="help-block" style="margin-top:12px">
-                <?php echo _('These are the actual screens seen after opening Phone Book. Text for the separate Directories and Services buttons is under the Menus tab.'); ?>
+                <?php echo _('Pressing the physical Directories button opens Favorites and All Extensions directly. These fields control that menu and the two contact lists.'); ?>
             </p>
             <p class="text-muted">
                 <i class="fa fa-sitemap" aria-hidden="true"></i>
-                <?php echo _('Directories → Phone Book → Favorites / All Extensions'); ?>
+                <?php echo _('Directories → Favorites / All Extensions'); ?>
             </p>
             <form method="post" action="config.php?display=sccp_content#general" id="pc-phone-label-form">
                 <input type="hidden" name="content_action" value="directory_text">
                 <?php
                 $labelGroups = array(
                     array(
-                        'heading' => _('1. Phone Book — choose a list'),
-                        'description' => _('This screen appears when you select Phone Book. The Favorites and All Extensions options are shown here.'),
+                        'heading' => _('1. Directories — choose a list'),
+                        'description' => _('This is the first screen when you press Directories on the phone.'),
                         'fields' => array(
-                            'phonebook_title' => _('Title at top of Phone Book'),
-                            'phonebook_prompt' => _('Prompt below the two options')
+                            'menu_title' => _('Title on Directories screen'),
+                            'menu_prompt' => _('Prompt on Directories screen')
                         )
                     ),
                     array(
                         'heading' => _('2. Favorites — contact list'),
-                        'description' => _('The first option within Phone Book. Shows shared favorites and non-hidden custom contacts.'),
+                        'description' => _('The first option in Directories. Shows shared favorites and non-hidden custom contacts.'),
                         'fields' => array(
-                            'favorites_entry' => _('Name of option on Phone Book screen'),
+                            'favorites_entry' => _('Name of option on Directories screen'),
                             'contacts_title' => _('Title at top of Favorites list'),
                             'contacts_prompt' => _('Prompt below the Favorites list')
                         )
                     ),
                     array(
                         'heading' => _('3. All Extensions — extension list'),
-                        'description' => _('The second option within Phone Book. Shows non-hidden FreePBX extensions.'),
+                        'description' => _('The second option in Directories. Shows non-hidden FreePBX extensions.'),
                         'fields' => array(
-                            'extensions_entry' => _('Name of option on Phone Book screen'),
+                            'extensions_entry' => _('Name of option on Directories screen'),
                             'extensions_title' => _('Title at top of All Extensions list'),
                             'extensions_prompt' => _('Prompt below the All Extensions list')
                         )
@@ -251,17 +251,17 @@ foreach ($entries as $entry) {
                     <div class="panel-heading"><strong><?php echo _('Phone screen preview'); ?></strong></div>
                     <div class="panel-body" style="padding:12px">
                         <div id="pc-label-preview" style="border:1px solid #aaa;border-radius:3px;padding:10px">
-                            <strong data-preview="phonebook_title"><?php echo $esc($labels['phonebook_title']); ?></strong>
+                            <strong data-preview="menu_title"><?php echo $esc($labels['menu_title']); ?></strong>
                             <hr style="margin:8px 0">
                             <div>1. <span data-preview="favorites_entry"><?php echo $esc($labels['favorites_entry']); ?></span></div>
                             <div>2. <span data-preview="extensions_entry"><?php echo $esc($labels['extensions_entry']); ?></span></div>
                             <hr style="margin:8px 0">
-                            <small class="text-muted" data-preview="phonebook_prompt"><?php echo $esc($labels['phonebook_prompt']); ?></small>
+                            <small class="text-muted" data-preview="menu_prompt"><?php echo $esc($labels['menu_prompt']); ?></small>
                         </div>
                         <p class="help-block" style="margin:8px 0 0">
                             <?php echo _('Select a preview screen:'); ?>
                             <select id="pc-label-preview-screen" class="form-control input-sm" style="margin-top:4px">
-                                <option value="phonebook"><?php echo _('Phone Book (two options)'); ?></option>
+                                <option value="directory"><?php echo _('Directories (two options)'); ?></option>
                                 <option value="favorites"><?php echo _('Favorites (contact list)'); ?></option>
                                 <option value="extensions"><?php echo _('All Extensions (extension list)'); ?></option>
                             </select>
@@ -377,7 +377,7 @@ foreach ($entries as $entry) {
             root.querySelector('#pc-contact-delete-form').submit();
         });
     });
-    // Preview only the three Phone Book screens edited in this section.
+    // Preview the three real Directories screens edited in this section.
     // Never render user-supplied text as HTML.
     var labelInputs = root.querySelectorAll('.pc-label-input');
     var previewScreen = root.querySelector('#pc-label-preview-screen');
@@ -389,16 +389,16 @@ foreach ($entries as $entry) {
             values[field.getAttribute('data-label-key')] = field.value;
         });
         var mode = previewScreen.value;
-        var titleKey = mode === 'phonebook' ? 'phonebook_title' :
+        var titleKey = mode === 'directory' ? 'menu_title' :
             mode === 'favorites' ? 'contacts_title' : 'extensions_title';
-        var promptKey = mode === 'phonebook' ? 'phonebook_prompt' :
+        var promptKey = mode === 'directory' ? 'menu_prompt' :
             mode === 'favorites' ? 'contacts_prompt' : 'extensions_prompt';
         preview.textContent = '';
         var heading = document.createElement('strong');
         heading.textContent = values[titleKey] || '';
         preview.appendChild(heading);
         preview.appendChild(document.createElement('hr'));
-        var entries = mode === 'phonebook' ?
+        var entries = mode === 'directory' ?
             [values.favorites_entry, values.extensions_entry] :
             (mode === 'favorites' ? ['Example Contact — 111'] : ['Example Extension — 150']);
         entries.forEach(function (value, i) {
