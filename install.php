@@ -70,6 +70,38 @@ if (!function_exists('sccp_manager_content_install')) {
         @chmod($dir, 0755);
         outn('<li>Phone Content: static Cisco directory/preview path ready.</li>');
 
+        // FreePBX 17 keeps extensions_custom.conf across fwconsole reloads.
+        // Install an isolated, module-owned dialplan file and a single include.
+        // PreDialGoSub must execute on the SCCP channel BEFORE the phone's
+        // call-info screen is built. The default AMI CallerID field alone
+        // does not update chan_sccp's separate callingParty structure.
+        $astDir = '/etc/asterisk';
+        $custom = $astDir . '/extensions_custom.conf';
+        $target = $astDir . '/sccp-manager-voicemail.conf';
+        $source = __DIR__ . '/conf/voicemail-dialplan.conf';
+        $includeLine = '#include sccp-manager-voicemail.conf';
+        $vmReady = false;
+        if (is_dir($astDir) && !is_link($astDir) && is_file($source) &&
+            is_file($custom) && !is_link($custom) &&
+            !is_link($target) && (!file_exists($target) || is_file($target))) {
+            $customText = @file_get_contents($custom);
+            if ($customText !== false && @copy($source, $target) && @chmod($target, 0644)) {
+                $exists = preg_match('/^[ \t]*#include[ \t]+["\x27]?sccp-manager-voicemail\.conf["\x27]?[ \t]*$/m', $customText);
+                if ($exists) {
+                    $vmReady = true;
+                } else {
+                    $joiner = $customText === '' || substr($customText, -1) === "\n" ? '' : "\n";
+                    $vmReady = @file_put_contents($custom, $joiner . $includeLine . "\n", FILE_APPEND | LOCK_EX) !== false;
+                }
+            }
+        }
+        if ($vmReady) {
+            outn('<li>Visual Voicemail: SCCP caller display dialplan installed; fwconsole reload will activate it.</li>');
+        } else {
+            outn('<li>Visual Voicemail: could not install pre-dial caller display contexts under /etc/asterisk. Verify extensions_custom.conf is a regular writable file.</li>');
+        }
+
+
         // Install media converters once on Debian, without touching FreePBX's
         // existing configuration. A failure is non-fatal and explained in the UI.
         $missing = array();
