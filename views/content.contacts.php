@@ -1,113 +1,187 @@
 <?php
 $pc = $this->phonecontent;
-$esc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
-$contacts = $pc->contacts();
+$esc = function ($value) { return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); };
+$base = $pc->baseUrl();
 $extensions = $pc->extensions();
 $extensionChoices = $pc->extensionChoices();
-$base = $pc->baseUrl();
-?>
-<div class="fpbx-container container-fluid">
-    <div class="display no-border">
-        <h3><?php echo _('Address Book'); ?></h3>
-        <div class="row">
-            <div class="col-md-9">
-                <form method="post" action="config.php?display=sccp_content#general" class="form-inline" style="margin-bottom:16px">
-                    <input type="hidden" name="content_action" value="contact">
-                    <div class="form-group">
-                        <label class="sr-only" for="new-contact-name"><?php echo _('Name'); ?></label>
-                        <input class="form-control" id="new-contact-name" name="contact_name" maxlength="100" required placeholder="<?php echo _('Contact name'); ?>">
-                    </div>
-                    <div class="form-group">
-                        <label class="sr-only" for="new-contact-number"><?php echo _('Number'); ?></label>
-                        <input class="form-control" id="new-contact-number" name="contact_number" maxlength="40" required placeholder="<?php echo _('Extension or number'); ?>">
-                    </div>
-                    <button class="btn btn-primary" type="submit"><i class="fa fa-plus"></i> <?php echo _('Add'); ?></button>
-                </form>
-            </div>
-            <div class="col-md-3">
-                <input type="search" class="form-control" id="sccp-contact-filter" placeholder="<?php echo _('Search contacts'); ?>" aria-label="<?php echo _('Search contacts'); ?>">
-            </div>
-        </div>
-        <div class="table-responsive">
-            <table id="sccp-contact-table" class="table table-striped table-hover">
-                <thead>
-                    <tr><th><?php echo _('Name'); ?></th><th><?php echo _('Number'); ?></th><th class="text-right"><?php echo _('Actions'); ?></th></tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($contacts as $contact): ?>
-                    <tr class="sccp-contact-entry" data-search="<?php echo $esc(strtolower($contact['name'] . ' ' . $contact['number'])); ?>">
-                        <td><?php echo $esc($contact['name']); ?></td>
-                        <td><?php echo $esc($contact['number']); ?></td>
-                        <td class="text-right">
-                            <button type="button" class="btn btn-default btn-sm sccp-contact-edit" title="<?php echo _('Edit'); ?>" aria-label="<?php echo _('Edit contact'); ?>"><i class="fa fa-pencil"></i></button>
-                            <form method="post" action="config.php?display=sccp_content#general" style="display:inline" onsubmit="return confirm('Delete contact?')">
-                                <input type="hidden" name="content_action" value="delete_contact">
-                                <input type="hidden" name="id" value="<?php echo $esc($contact['id']); ?>">
-                                <button class="btn btn-default btn-sm" type="submit" title="<?php echo _('Delete'); ?>" aria-label="<?php echo _('Delete contact'); ?>"><i class="fa fa-trash"></i></button>
-                            </form>
-                        </td>
-                    </tr>
-                    <tr class="sccp-contact-edit-row" style="display:none">
-                        <td colspan="3">
-                            <form method="post" action="config.php?display=sccp_content#general" class="form-inline">
-                                <input type="hidden" name="content_action" value="contact">
-                                <input type="hidden" name="id" value="<?php echo $esc($contact['id']); ?>">
-                                <input class="form-control" name="contact_name" maxlength="100" value="<?php echo $esc($contact['name']); ?>" required aria-label="<?php echo _('Contact name'); ?>">
-                                <input class="form-control" name="contact_number" maxlength="40" value="<?php echo $esc($contact['number']); ?>" required aria-label="<?php echo _('Contact number'); ?>">
-                                <button type="submit" class="btn btn-primary"><?php echo _('Save'); ?></button>
-                                <button type="button" class="btn btn-default sccp-contact-cancel"><?php echo _('Cancel'); ?></button>
-                            </form>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                    <?php if (!$contacts): ?>
-                    <tr><td colspan="3" class="text-center text-muted"><?php echo _('No contacts yet.'); ?></td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-        <p class="text-muted"><?php echo count($contacts); ?> <?php echo _('manually managed contacts. These remain shared Favorites. Changes appear the next time a phone opens the directory.'); ?></p>
+$contacts = $pc->contacts();
+$contactVisibility = $pc->contactVisibility();
 
-        <h4><?php echo _('FreePBX Extensions'); ?></h4>
-        <p class="help-block"><?php echo _('Loaded from Connectivity → Extensions, including SCCP phones. Favorites appear first for everybody. Directory extensions appear only under All Extensions. Hidden extensions appear in neither list. These settings are shared across phones.'); ?></p>
-        <form method="post" action="config.php?display=sccp_content#general">
-            <input type="hidden" name="content_action" value="extension_choices">
-            <div class="row" style="margin-bottom:12px">
-                <div class="col-sm-6">
-                    <input type="search" class="form-control" id="sccp-extension-filter" placeholder="<?php echo _('Filter extensions'); ?>" aria-label="<?php echo _('Filter extensions'); ?>">
+// A single management table: FreePBX and manually added contacts belong to
+// the same shared phone book. The old data is reused, not migrated or reset.
+$entries = array();
+foreach ($extensions as $ext) {
+    $number = (string)$ext['number'];
+    $entries[] = array(
+        'type'=>'extension', 'id'=>$number, 'name'=>$ext['name'],
+        'number'=>$number, 'visibility'=>$extensionChoices[$number] ?? 'directory'
+    );
+}
+foreach ($contacts as $contact) {
+    $id = (string)($contact['id'] ?? '');
+    $entries[] = array(
+        'type'=>'custom', 'id'=>$id, 'name'=>$contact['name'],
+        'number'=>$contact['number'], 'visibility'=>$contactVisibility[$id] ?? 'favorite'
+    );
+}
+usort($entries, function ($a, $b) {
+    $compare = strcasecmp($a['name'], $b['name']);
+    return $compare ?: strnatcmp($a['number'], $b['number']);
+});
+$counts = array('all'=>count($entries), 'favorite'=>0, 'hidden'=>0);
+foreach ($entries as $entry) {
+    if ($entry['visibility'] === 'favorite') $counts['favorite']++;
+    if ($entry['visibility'] === 'hidden') $counts['hidden']++;
+}
+?>
+<div class="fpbx-container container-fluid" id="pc-directory-manager">
+    <div class="display no-border">
+        <div class="row" style="margin-bottom:12px">
+            <div class="col-sm-8">
+                <h3 style="margin-top:0;margin-bottom:5px"><?php echo _('Address Book'); ?></h3>
+                <p class="text-muted" style="margin-bottom:0">
+                    <?php echo _('One shared directory for all Cisco phones. FreePBX extensions appear automatically; custom contacts can be added here.'); ?>
+                </p>
+            </div>
+            <div class="col-sm-4 text-right" style="padding-top:6px">
+                <button class="btn btn-default" id="pc-add-contact" type="button">
+                    <i class="fa fa-plus" aria-hidden="true"></i> <?php echo _('Add contact'); ?>
+                </button>
+            </div>
+        </div>
+
+        <div class="well" id="pc-contact-editor" style="display:none;margin-bottom:18px">
+            <form id="pc-contact-editor-form" method="post" action="config.php?display=sccp_content#general">
+                <input type="hidden" name="content_action" value="contact">
+                <input type="hidden" name="id" id="pc-editor-id" value="">
+                <h4 id="pc-editor-title" style="margin-top:0"><?php echo _('Add contact'); ?></h4>
+                <div class="row">
+                    <div class="col-sm-5">
+                        <div class="form-group">
+                            <label for="pc-editor-name"><?php echo _('Name'); ?></label>
+                            <input id="pc-editor-name" class="form-control" name="contact_name" maxlength="100" required>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="form-group">
+                            <label for="pc-editor-number"><?php echo _('Number to dial'); ?></label>
+                            <input id="pc-editor-number" class="form-control" name="contact_number" maxlength="40" required>
+                        </div>
+                    </div>
+                    <div class="col-sm-3" style="padding-top:25px">
+                        <button type="submit" class="btn btn-primary"><?php echo _('Save contact'); ?></button>
+                        <button id="pc-editor-cancel" type="button" class="btn btn-default"><?php echo _('Cancel'); ?></button>
+                    </div>
                 </div>
-                <div class="col-sm-6 text-right">
-                    <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> <?php echo _('Save Extension Directory'); ?></button>
+            </form>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <div class="row" style="margin:0">
+                    <div class="col-md-5" style="padding:0 8px 0 0">
+                        <label class="sr-only" for="pc-directory-search"><?php echo _('Find a contact or extension'); ?></label>
+                        <input type="search" class="form-control" id="pc-directory-search"
+                            placeholder="<?php echo _('Search name or number'); ?>"
+                            aria-label="<?php echo _('Search name or number'); ?>">
+                    </div>
+                    <div class="col-md-7" style="padding:4px 0 0">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="<?php echo _('Filter directory contacts'); ?>">
+                            <button type="button" class="btn btn-default active pc-directory-filter" data-filter="all" aria-pressed="true"><?php echo _('All'); ?> <span id="pc-count-all"><?php echo (int)$counts['all']; ?></span></button>
+                            <button type="button" class="btn btn-default pc-directory-filter" data-filter="favorite" aria-pressed="false"><?php echo _('Favorites'); ?> <span id="pc-count-favorite"><?php echo (int)$counts['favorite']; ?></span></button>
+                            <button type="button" class="btn btn-default pc-directory-filter" data-filter="hidden" aria-pressed="false"><?php echo _('Hidden'); ?> <span id="pc-count-hidden"><?php echo (int)$counts['hidden']; ?></span></button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="table-responsive" style="max-height:450px; overflow:auto">
-                <table class="table table-striped table-hover" id="sccp-extension-table">
-                    <thead>
-                        <tr><th><?php echo _('Name'); ?></th><th><?php echo _('Extension'); ?></th><th><?php echo _('Display in directory'); ?></th></tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($extensions as $ext): $extNumber = (string) $ext['number']; $extChoice = $extensionChoices[$extNumber] ?? 'directory'; ?>
-                        <tr class="sccp-extension-entry" data-search="<?php echo $esc(strtolower($ext['name'] . ' ' . $extNumber)); ?>">
-                            <td><?php echo $esc($ext['name']); ?></td>
-                            <td><?php echo $esc($extNumber); ?></td>
-                            <td>
-                                <select class="form-control input-sm" name="extension_choice[<?php echo $esc($extNumber); ?>]" aria-label="<?php echo $esc('Directory setting for ' . $extNumber); ?>">
-                                    <option value="directory" <?php echo $extChoice === 'directory' ? 'selected' : ''; ?>><?php echo _('All Extensions'); ?></option>
-                                    <option value="favorite" <?php echo $extChoice === 'favorite' ? 'selected' : ''; ?>><?php echo _('Favorite + All Extensions'); ?></option>
-                                    <option value="hidden" <?php echo $extChoice === 'hidden' ? 'selected' : ''; ?>><?php echo _('Hidden'); ?></option>
-                                </select>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <?php if (!$extensions): ?>
-                        <tr><td colspan="3" class="text-center text-muted"><?php echo _('No extensions found in FreePBX.'); ?></td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-            <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> <?php echo _('Save Extension Directory'); ?></button>
-            <p class="help-block"><?php echo _('No phone reboot is necessary. These choices affect every Cisco phone using the shared Phone Book.'); ?></p>
+            <form id="pc-directory-choices-form" method="post" action="config.php?display=sccp_content#general">
+                <input type="hidden" name="content_action" value="directory_choices">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="pc-directory-table" style="margin-bottom:0">
+                        <thead>
+                            <tr>
+                                <th><?php echo _('Contact'); ?></th>
+                                <th><?php echo _('Number'); ?></th>
+                                <th><?php echo _('Source'); ?></th>
+                                <th style="min-width:175px"><?php echo _('Show in'); ?></th>
+                                <th class="text-right"><?php echo _('Actions'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($entries as $entry):
+                                $custom = $entry['type'] === 'custom';
+                                $selectName = $custom ? 'contact_choice[' . $entry['id'] . ']' :
+                                    'extension_choice[' . $entry['number'] . ']';
+                            ?>
+                            <tr class="pc-directory-entry"
+                                data-search="<?php echo $esc(strtolower($entry['name'] . ' ' . $entry['number'])); ?>"
+                                data-visibility="<?php echo $esc($entry['visibility']); ?>"
+                                data-source="<?php echo $esc($entry['type']); ?>">
+                                <td><strong><?php echo $esc($entry['name']); ?></strong></td>
+                                <td><?php echo $esc($entry['number']); ?></td>
+                                <td class="text-muted">
+                                    <?php echo $custom ? _('Custom') : _('FreePBX'); ?>
+                                </td>
+                                <td>
+                                    <select class="form-control input-sm pc-visibility"
+                                        name="<?php echo $esc($selectName); ?>"
+                                        aria-label="<?php echo $esc('Directory visibility for ' . $entry['name']); ?>">
+                                        <?php if (!$custom): ?>
+                                        <option value="directory" <?php echo $entry['visibility'] === 'directory' ? 'selected' : ''; ?>><?php echo _('All Extensions'); ?></option>
+                                        <?php endif; ?>
+                                        <option value="favorite" <?php echo $entry['visibility'] === 'favorite' ? 'selected' : ''; ?>><?php echo _('Favorites'); ?></option>
+                                        <option value="hidden" <?php echo $entry['visibility'] === 'hidden' ? 'selected' : ''; ?>><?php echo _('Hidden'); ?></option>
+                                    </select>
+                                </td>
+                                <td class="text-right" style="white-space:nowrap">
+                                    <?php if ($custom): ?>
+                                    <button type="button" class="btn btn-default btn-sm pc-edit-contact"
+                                        data-id="<?php echo $esc($entry['id']); ?>"
+                                        data-name="<?php echo $esc($entry['name']); ?>"
+                                        data-number="<?php echo $esc($entry['number']); ?>"
+                                        title="<?php echo _('Edit contact'); ?>" aria-label="<?php echo _('Edit contact'); ?>">
+                                        <i class="fa fa-pencil" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-default btn-sm pc-delete-contact"
+                                        data-id="<?php echo $esc($entry['id']); ?>"
+                                        data-name="<?php echo $esc($entry['name']); ?>"
+                                        title="<?php echo _('Delete contact'); ?>" aria-label="<?php echo _('Delete contact'); ?>">
+                                        <i class="fa fa-trash" aria-hidden="true"></i>
+                                    </button>
+                                    <?php else: ?>
+                                    <span class="text-muted" title="<?php echo _('Rename this extension in FreePBX Connectivity → Extensions'); ?>">
+                                        <i class="fa fa-lock" aria-hidden="true"></i>
+                                    </span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <?php if (!$entries): ?>
+                            <tr id="pc-directory-empty"><td colspan="5" class="text-center text-muted">
+                                <?php echo _('No extensions or custom contacts found.'); ?>
+                            </td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="panel-footer" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+                    <span id="pc-directory-visible-count" class="text-muted">
+                        <?php echo count($entries); ?> <?php echo _('contacts'); ?>
+                    </span>
+                    <button type="submit" id="pc-directory-save" class="btn btn-primary" disabled>
+                        <i class="fa fa-save" aria-hidden="true"></i> <?php echo _('Save directory'); ?>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <form id="pc-contact-delete-form" method="post" action="config.php?display=sccp_content#general">
+            <input type="hidden" name="content_action" value="delete_contact">
+            <input type="hidden" name="id" id="pc-delete-id" value="">
         </form>
+        <p class="help-block">
+            <?php echo _('Favorites appear first on every phone. All Extensions includes non-hidden FreePBX extensions. Hidden contacts are excluded from the phone directory. No phone reset is required.'); ?>
+        </p>
         <details style="margin-top:18px">
             <summary><?php echo _('Phone display text'); ?></summary>
             <form method="post" action="config.php?display=sccp_content#general" style="margin-top:14px">
@@ -177,32 +251,89 @@ $base = $pc->baseUrl();
         </details>
     </div>
 </div>
+
 <script>
-(function(){
-    var filter=document.getElementById('sccp-contact-filter');
-    if(filter){filter.addEventListener('input',function(){
-        var query=this.value.trim().toLowerCase();
-        document.querySelectorAll('#sccp-contact-table .sccp-contact-entry').forEach(function(row){
-            var show=row.getAttribute('data-search').indexOf(query)!==-1;
-            row.style.display=show?'':'none';
-            if(!show && row.nextElementSibling)row.nextElementSibling.style.display='none';
+(function () {
+    'use strict';
+    var root = document.getElementById('pc-directory-manager');
+    if (!root) return;
+    var search = root.querySelector('#pc-directory-search');
+    var rows = Array.prototype.slice.call(root.querySelectorAll('.pc-directory-entry'));
+    var filters = Array.prototype.slice.call(root.querySelectorAll('.pc-directory-filter'));
+    var savedButton = root.querySelector('#pc-directory-save');
+    var count = root.querySelector('#pc-directory-visible-count');
+    var active = 'all';
+
+    function updateDirectory() {
+        var q = search.value.trim().toLowerCase(), visible = 0;
+        var totals = {all: rows.length, favorite: 0, hidden: 0};
+        rows.forEach(function (row) {
+            var state = row.getAttribute('data-visibility');
+            if (state === 'favorite') totals.favorite++;
+            if (state === 'hidden') totals.hidden++;
+            var show = (active === 'all' || active === state) &&
+                row.getAttribute('data-search').indexOf(q) !== -1;
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
         });
-    });}
-    var extFilter=document.getElementById('sccp-extension-filter');
-    if(extFilter){extFilter.addEventListener('input',function(){
-        var query=this.value.trim().toLowerCase();
-        document.querySelectorAll('#sccp-extension-table .sccp-extension-entry').forEach(function(row){
-            row.style.display=row.getAttribute('data-search').indexOf(query)!==-1?'':'none';
+        ['all', 'favorite', 'hidden'].forEach(function (key) {
+            root.querySelector('#pc-count-' + key).textContent = totals[key];
         });
-    });}
-    document.querySelectorAll('#sccp-contact-table .sccp-contact-edit').forEach(function(button){
-        button.addEventListener('click',function(){
-            var row=button.closest('tr').nextElementSibling;
-            row.style.display=row.style.display==='none'?'':'none';
+        count.textContent = visible + ' of ' + rows.length + ' contacts';
+    }
+
+    search.addEventListener('input', updateDirectory);
+    filters.forEach(function (button) {
+        button.addEventListener('click', function () {
+            active = button.getAttribute('data-filter');
+            filters.forEach(function (filter) {
+                var selected = filter === button;
+                filter.classList.toggle('active', selected);
+                filter.setAttribute('aria-pressed', selected ? 'true' : 'false');
+            });
+            updateDirectory();
         });
     });
-    document.querySelectorAll('#sccp-contact-table .sccp-contact-cancel').forEach(function(button){
-        button.addEventListener('click',function(){button.closest('tr').style.display='none';});
+    root.querySelectorAll('.pc-visibility').forEach(function (select) {
+        select.addEventListener('change', function () {
+            select.closest('tr').setAttribute('data-visibility', select.value);
+            savedButton.disabled = false;
+            updateDirectory();
+        });
     });
+
+    var editor = root.querySelector('#pc-contact-editor');
+    var editorTitle = root.querySelector('#pc-editor-title');
+    var editorId = root.querySelector('#pc-editor-id');
+    var editorName = root.querySelector('#pc-editor-name');
+    var editorNumber = root.querySelector('#pc-editor-number');
+    function openEditor(id, name, number) {
+        editorId.value = id || '';
+        editorName.value = name || '';
+        editorNumber.value = number || '';
+        editorTitle.textContent = id ? 'Edit contact' : 'Add contact';
+        editor.style.display = '';
+        editorName.focus();
+    }
+    root.querySelector('#pc-add-contact').addEventListener('click', function () {
+        openEditor('', '', '');
+    });
+    root.querySelector('#pc-editor-cancel').addEventListener('click', function () {
+        editor.style.display = 'none';
+    });
+    root.querySelectorAll('.pc-edit-contact').forEach(function (button) {
+        button.addEventListener('click', function () {
+            openEditor(button.getAttribute('data-id'),
+                button.getAttribute('data-name'), button.getAttribute('data-number'));
+        });
+    });
+    root.querySelectorAll('.pc-delete-contact').forEach(function (button) {
+        button.addEventListener('click', function () {
+            if (!confirm('Delete "' + button.getAttribute('data-name') + '" from the shared directory?')) return;
+            root.querySelector('#pc-delete-id').value = button.getAttribute('data-id');
+            root.querySelector('#pc-contact-delete-form').submit();
+        });
+    });
+    updateDirectory();
 })();
 </script>
