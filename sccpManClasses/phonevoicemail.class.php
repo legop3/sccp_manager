@@ -183,6 +183,7 @@ class phonevoicemail
     {
         $records = array();
         $one = array();
+        $completed = false;
         $deadline = microtime(true) + 4;
         while (microtime(true) < $deadline && !feof($stream)) {
             $line = fgets($stream, 65536);
@@ -194,13 +195,17 @@ class phonevoicemail
                 if (!$list) break;
                 $last = end($records);
                 if (strtolower($last['EventList'] ?? '') === 'complete' ||
-                    in_array($last['Event'] ?? '', array('CoreShowChannelsComplete','DeviceStateListComplete'),true)) break;
+                    in_array($last['Event'] ?? '', array('CoreShowChannelsComplete','DeviceStateListComplete'),true)) {
+                    $completed = true;
+                    break;
+                }
                 continue;
             }
             $colon = strpos($line, ':');
             if ($colon !== false) $one[substr($line,0,$colon)] = ltrim(substr($line,$colon+1));
         }
         if (!$records) throw new \RuntimeException('Asterisk Manager did not respond.');
+        if ($list && !$completed) throw new \RuntimeException('Cannot confirm phone is idle; refused to interrupt a possible call.');
         $first = $records[0];
         if ($list) $first['__events'] = array_slice($records,1);
         return $first;
@@ -217,9 +222,12 @@ class phonevoicemail
         }
     }
 
-    public function playback($line, array $message)
+    public static function originateFields($line, array $message)
     {
-        $this->assertNotOnCall($line);
+        if (!preg_match('/^[0-9]{1,16}$/D', $line) ||
+            !preg_match('/^[A-Za-z0-9_.-]{1,120}$/D', $message['id'] ?? '')) {
+            throw new \InvalidArgumentException('Invalid voicemail playback target.');
+        }
         // Caller ID comes from the actual voicemail, not the mailbox owner.
         $display = $message['name'] !== '' ? $message['name'] :
             ($message['number'] !== '' ? $message['number'] : 'Voicemail');
@@ -227,7 +235,7 @@ class phonevoicemail
         if ($cidName === '') $cidName = 'Voicemail';
         $cidNum = preg_replace('/[^0-9]/', '', $message['number']);
         if ($cidNum === '') $cidNum = $line;
-        $this->ami(array(
+        return array(
             'Action'=>'Originate',
             'Channel'=>'SCCP/' . $line . '/aa=1w',
             'Application'=>'VoiceMailPlayMsg',
@@ -235,7 +243,13 @@ class phonevoicemail
             'CallerID'=>'"' . $cidName . '" <' . $cidNum . '>',
             'Timeout'=>'10000',
             'Async'=>'true'
-        ));
+        );
+    }
+
+    public function playback($line, array $message)
+    {
+        $this->assertNotOnCall($line);
+        $this->ami(self::originateFields($line, $message));
     }
 
     private function xml($title, $prompt, array $entries = array())
@@ -262,7 +276,7 @@ class phonevoicemail
             list($device, $line, $token) = $this->authenticate($get);
             $base = $this->serviceUrl($device);
             $op = (string)($get['op'] ?? 'list');
-            if (!in_array($op, array('list','detail','play'), true)) throw new \InvalidArgumentException('Unknown voicemail operation.');
+            if (!in_array($op, array('list','detail','play','mark','delete','confirm-delete'), true)) throw new \InvalidArgumentException('Unknown voicemail operation.');
             $messages = $this->listMessages($line);
             if ($op === 'list') {
                 $links = array();
@@ -280,6 +294,26 @@ class phonevoicemail
             $folder = (string)($get['folder'] ?? '');
             $msg = $this->messageById($line, $id, $folder);
             $from = $msg['name'] ?: ($msg['number'] ?: 'Unknown Caller');
+            if ($op === 'mark') {
+                if ($folder !== 'INBOX') throw new \InvalidArgumentException('Message is already marked heard.');
+                $this->ami(array('Action'=>'VoicemailMove','Context'=>'default','Mailbox'=>$line,
+                    'Folder'=>'INBOX','ID'=>$id,'ToFolder'=>'Old'));
+                $this->xml('Marked Heard', 'Message moved to Old.', array(array('Back to messages', $base)));
+                return;
+            }
+            if ($op === 'delete') {
+                $this->xml('Delete Message?', 'Delete voicemail from ' . substr($from = ($msg['name'] ?: ($msg['number'] ?: 'Unknown')),0,38) . '?', array(
+                    array('YES - Delete', $base . '&op=confirm-delete&id=' . rawurlencode($id) . '&folder=' . $folder),
+                    array('Cancel', $base . '&op=detail&id=' . rawurlencode($id) . '&folder=' . $folder)
+                ));
+                return;
+            }
+            if ($op === 'confirm-delete') {
+                $this->ami(array('Action'=>'VoicemailRemove','Context'=>'default','Mailbox'=>$line,
+                    'Folder'=>$folder,'ID'=>$id));
+                $this->xml('Message Deleted','Voicemail deleted.',array(array('Back to messages',$base)));
+                return;
+            }
             if ($op === 'play') {
                 $this->playback($line, $msg);
                 $this->xml('Playing Voicemail', 'The recording will play on your phone.', array(
@@ -289,6 +323,8 @@ class phonevoicemail
             }
             $this->xml(substr($from,0,55), 'Select an action', array(
                 array('Play (' . $msg['duration'] . ' sec)', $base . '&op=play&id=' . rawurlencode($id) . '&folder=' . $folder),
+                ...($folder === 'INBOX' ? array(array('Mark as Heard', $base . '&op=mark&id=' . rawurlencode($id) . '&folder=' . $folder)) : array()),
+                array('Delete Message', $base . '&op=delete&id=' . rawurlencode($id) . '&folder=' . $folder),
                 array('Back to messages', $base)
             ));
         } catch (\Throwable $e) {
