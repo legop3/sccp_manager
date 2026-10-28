@@ -36,7 +36,10 @@ jobs:
           sudo apt-get install -y ocserv
           python3 tests/test_ocserv_setup.py
       - name: VPN provisioning tests
-        run: php tests/vpn-provisioning.php
+        run: |
+          php tests/vpn-provisioning.php
+          php tests/vpn-firewall.php
+          php tests/vpn-ui.php
           php tests/regression-sccp.php
       - name: Real certutils integration test
         run: |
