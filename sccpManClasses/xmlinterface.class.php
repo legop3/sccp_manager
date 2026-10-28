@@ -448,6 +448,23 @@ class xmlinterface
         // the exact opposite of what the change set out to do.
         $this->addAddOnModules($xml_work, $dev_config);
 
+        // Cisco 7945/7965 firmware expects backgroundImageAccess inside
+        // commonProfile. The legacy 79df XML template does not define that
+        // element, so the commonprofile switch above never ran. Insert it in
+        // Cisco's expected order (before vendorConfig), including for older
+        // templates already installed on an existing FreePBX system.
+        if (!isset($xml_work->commonProfile)) {
+            $root = dom_import_simplexml($xml_work);
+            $doc = $root->ownerDocument;
+            $common = $doc->createElement('commonProfile');
+            $common->appendChild($doc->createElement('phonePassword'));
+            $common->appendChild($doc->createElement('backgroundImageAccess',
+                in_array(strtolower((string) ($data_values['backgroundImageAccess'] ?? 'off')),
+                    array('on', 'true', '1'), true) ? 'true' : 'false'));
+            $vendor = $root->getElementsByTagName('vendorConfig')->item(0);
+            $root->insertBefore($common, $vendor);
+        }
+
         // Optional Cisco SSL VPN provisioning. Absent configuration is a no-op,
         // and existing non-VPN phones continue to use their normal templates.
         $vpn = new vpnprovisioning($this->paren_class);
