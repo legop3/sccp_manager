@@ -175,8 +175,9 @@ class phonemenus
     {
         switch ($item['type']) {
             case 'phonebook':
-                return $base . '/phone.php?doc=' .
-                    (count($this->parent->phonecontent->contacts()) <= 30 ? 'contacts-1' : 'phonebook');
+                // The shared address book now has Favorites and All Extensions.
+                // Always open the index, never bypass it for small lists.
+                return $base . '/phone.php?doc=phonebook';
             case 'missed': return 'Application:Cisco/MissedCalls';
             case 'received': return 'Application:Cisco/ReceivedCalls';
             case 'placed': return 'Application:Cisco/PlacedCalls';
