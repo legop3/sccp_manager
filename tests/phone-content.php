@@ -39,6 +39,8 @@ try {
     $content = new phonecontent($parent, $base . '/tftp', $base . '/web');
     check($content->baseUrl() === 'http://192.168.0.25/sccp-manager', 'PBX URL');
     $content->publishDirectory();
+    check(is_file($base . '/web/phone.php'), 'PHP XML service endpoint must exist');
+    check(strpos(file_get_contents($base . '/web/phone.php'), 'Content-Type: text/xml') !== false, 'Cisco XML MIME type');
     check(strpos(file_get_contents($base . '/web/directory.xml'), 'CiscoIPPhoneMenu') !== false,
         'Empty directory');
     $content->saveContact('', 'Alice & Bob', '150');
@@ -48,7 +50,7 @@ try {
     $menu = simplexml_load_file($base . '/web/directory.xml');
     check((string) $menu->MenuItem[0]->URL === 'Application:Cisco/MissedCalls',
         'Missed-call menu retained');
-    check((string) $menu->MenuItem[3]->URL === 'http://192.168.0.25/sccp-manager/contacts-1.xml',
+    check((string) $menu->MenuItem[3]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1',
         'Directory menu links to contacts');
 
     check((string) $xml->DirectoryEntry[0]->Name === 'Alice & Bob', 'XML escaping');
@@ -70,12 +72,12 @@ try {
     $changed = $content->syncUrls();
     check(count($changed) === 2, 'Autofill both phone URLs');
     check($parent->sccpvalues['dev_directoryURL']['data'] ===
-        'http://192.168.0.25/sccp-manager/directory.xml', 'Directory URL');
+        'http://192.168.0.25/sccp-manager/phone.php?doc=directory', 'Directory URL');
     $parent->sccpvalues['dev_servicesURL']['data'] = 'http://my-service.example/xml';
     check(count($content->syncUrls()) === 0, 'Never overwrite custom service URL');
     check(count($content->syncUrls(true)) === 1, 'Explicit activation should replace custom service URL');
     check($parent->sccpvalues['dev_servicesURL']['data'] ===
-        'http://192.168.0.25/sccp-manager/services.xml', 'Managed service URL is active');
+        'http://192.168.0.25/sccp-manager/phone.php?doc=services', 'Managed service URL is active');
     check(count($content->restoreUrls()) === 2, 'Restore original URL settings');
     check($parent->sccpvalues['dev_servicesURL']['data'] === 'http://my-service.example/xml',
         'Prior manually configured URL recovered');
