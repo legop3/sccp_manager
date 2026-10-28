@@ -9,7 +9,7 @@ final class notificationConfig {
         $defaults=[
             'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>'You have {count} new voicemail(s)','sound'=>'','duration'=>8],
             'missed'=>['enabled'=>false,'style'=>'text','title'=>'Missed Call','message'=>'Missed call from {caller}','sound'=>'','duration'=>8],
-            'scheduled'=>['enabled'=>false,'style'=>'text','title'=>'Hello','message'=>'A message for everyone','sound'=>'','duration'=>8,'interval'=>60,'time'=>'','title_url'=>'','message_url'=>'','image_url'=>'']
+            'scheduled'=>['enabled'=>false,'style'=>'text','title'=>'Hello','message'=>'A message for everyone','sound'=>'','duration'=>8,'interval'=>60,'time'=>'','title_url'=>'','message_url'=>'','image_url'=>'','source'=>'custom']
         ];
         $saved=$this->module->getConfig('phonecontent_notifications');
         if (is_array($saved)) foreach ($defaults as $kind=>$data)
@@ -40,6 +40,9 @@ final class notificationConfig {
                 $values[$kind][$key]=$v;
             }
             if ($kind==='scheduled') {
+                $source=(string)($post['source']??'custom');
+                if (!in_array($source,['custom','dog','xkcd'],true)) throw new \InvalidArgumentException('Unknown scheduled source');
+                $values[$kind]['source']=$source;
                 $values[$kind]['interval']=max(1,min(10080,(int)($post['interval']??60)));
                 $t=(string)($post['time']??'');
                 if ($t!=='' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/D',$t)) throw new \InvalidArgumentException('Invalid time');
