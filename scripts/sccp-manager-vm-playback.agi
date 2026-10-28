@@ -1,0 +1,50 @@
+#!/usr/bin/env php
+<?php
+/**
+ * SCCP visual voicemail playback.
+ *
+ * AGI is invoked only through Asterisk's AMI Originated phone channel; this
+ * script is not an HTTP endpoint. Wait after SCCP auto-answer before starting
+ * the recorded audio, so the handset's RTP receive path is established.
+ */
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+
+$mailbox = $argv[1] ?? '';
+$messageId = $argv[2] ?? '';
+if (!preg_match('/^[0-9]{1,16}$/D', $mailbox) ||
+    !preg_match('/^[A-Za-z0-9_.-]{1,120}$/D', $messageId)) {
+    fwrite(STDERR, "sccp visual voicemail AGI: invalid playback arguments\n");
+    exit(1);
+}
+
+// Consume the Asterisk AGI environment block, then issue one command at a
+// time and wait for its reply before sending the next command.
+while (($line = fgets(STDIN)) !== false) {
+    if (trim($line) === '') break;
+}
+if ($line === false) {
+    fwrite(STDERR, "sccp visual voicemail AGI: missing AGI environment\n");
+    exit(1);
+}
+
+function vmAgiExec($app, $argument)
+{
+    fwrite(STDOUT, "EXEC " . $app . " " . $argument . "\n");
+    fflush(STDOUT);
+    $reply = fgets(STDIN);
+    if (!is_string($reply) || !preg_match('/^200 result=(-?[0-9]+)/', $reply, $match)) {
+        fwrite(STDERR, "sccp visual voicemail AGI: invalid AGI response to " . $app . "\n");
+        return false;
+    }
+    if ((int) $match[1] < 0) {
+        fwrite(STDERR, "sccp visual voicemail AGI: " . $app . " returned " . $match[1] . "\n");
+        return false;
+    }
+    return true;
+}
+
+// The pause occurs after answer, not before answer and not in the web request.
+if (!vmAgiExec('Wait', '2')) exit(1);
+if (!vmAgiExec('VoiceMailPlayMsg', $mailbox . '@default,' . $messageId)) exit(1);
+exit(0);
