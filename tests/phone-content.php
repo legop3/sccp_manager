@@ -15,14 +15,21 @@ class FakeContentDb {
         $this->writes[] = array($table, $data, $mode);
     }
 }
+class FakeCoreExtensions {
+    public $users = array();
+    public function getAllUsers() { return $this->users; }
+}
 class FakeContentParent {
     private $config = array();
     public $sccpvalues = array();
     public $dbinterface;
     public $phonecontent;
     public $phonemenus;
+    public $FreePBX;
     public function __construct() {
         $this->dbinterface = new FakeContentDb();
+        $this->FreePBX = new \stdClass();
+        $this->FreePBX->Core = new FakeCoreExtensions();
     }
     public function getConfig($key) { return $this->config[$key] ?? null; }
     public function setConfig($key, $value) { $this->config[$key] = $value; }
@@ -69,8 +76,8 @@ try {
     $menu = simplexml_load_file($base . '/web/directory.xml');
     check(count($menu->MenuItem) === 1, 'Built-in call history must not be duplicated');
     check((string) $menu->MenuItem[0]->Name === 'Phone Book', 'Phone book menu first');
-    check((string) $menu->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1',
-        'Directory menu links to contacts');
+    check((string) $menu->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=phonebook',
+        'Directory menu opens Favorites/All Extensions');
 
     check((string) $xml->DirectoryEntry[0]->Name === 'Alice & Bob', 'XML escaping');
     $id = $content->contacts()[0]['id'];
@@ -89,9 +96,45 @@ try {
     check(file_exists($base . '/web/contacts-2.xml'), 'Second contact page');
     check(count($menu->MenuItem) === 1, 'Top-level menu is independent from contact pagination');
     $book = simplexml_load_file($base . '/web/phonebook.xml');
-    check(count($book->MenuItem) === 2, 'Expanded phone book indexes both pages');
+    check(count($book->MenuItem) === 2, 'Favorites and All Extensions as separate items');
+    check(count(simplexml_load_file($base . '/web/favorites-pages.xml')->MenuItem) === 2,
+        'Large Favorites list has separate page index');
     check((string) $menu->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=phonebook',
         'Phone Book entry must not point back to directory itself');
+
+    // Connectivity -> Extensions is the authoritative source, including SCCP.
+    $parent->FreePBX->Core->users = array(
+        '111'=>array('extension'=>'111','name'=>'Desk Phone'),
+        '150'=>array('extension'=>'150','name'=>'Upstairs Phone'),
+        '170'=>array('extension'=>'170','name'=>'Front Room')
+    );
+    $content->publishDirectory();
+    $extensions = simplexml_load_file($base . '/web/extensions-1.xml');
+    check(count($extensions->DirectoryEntry) === 3, 'FreePBX extensions appear exactly once');
+    check((string)$extensions->DirectoryEntry[0]->Name === 'Desk Phone (111)',
+        'FreePBX extension display names are used');
+    $content->saveExtensionChoices(array('111'=>'favorite','150'=>'hidden','170'=>'directory'));
+    check($content->extensionChoices() === array('111'=>'favorite','150'=>'hidden'),
+        'Shared favorite and hidden settings are persisted');
+    $extensions = simplexml_load_file($base . '/web/extensions-1.xml');
+    check(count($extensions->DirectoryEntry) === 2, 'Hidden extensions do not appear in All Extensions');
+    check(strpos($extensions->asXML(), '150') === false, 'Hidden extension excluded from XML');
+    $favoritePages = file_get_contents($base . '/web/contacts-1.xml') .
+        file_get_contents($base . '/web/contacts-2.xml');
+    check(strpos($favoritePages, 'Desk Phone') !== false,
+        'Favorite extension appears with existing manually added contacts');
+    check(strpos($favoritePages, 'Upstairs Phone') === false,
+        'Hidden extension does not appear in Favorites');
+    try {
+        $content->saveExtensionChoices(array('999'=>'hidden'));
+        throw new RuntimeException('Unknown extension accepted');
+    } catch (InvalidArgumentException $ok) {}
+    check($content->extensionChoices() === array('111'=>'favorite','150'=>'hidden'),
+        'Rejected extension settings leave saved choices unchanged');
+    $parent->FreePBX->Core->users['180'] = array('extension'=>'180','name'=>'New Extension');
+    $content->publishDirectory();
+    check(strpos(file_get_contents($base . '/web/extensions-1.xml'), 'New Extension') !== false,
+        'New FreePBX extension appears after directory republishing');
 
     // Every visible Cisco XML Title/Prompt/Name must be configurable. The
     // settings update must republish immediately without changing phone URLs
@@ -104,6 +147,10 @@ try {
         'menu_entry' => 'People & Teams',
         'contacts_title' => 'Family & Friends',
         'contacts_prompt' => 'Pick <one>',
+        'favorites_entry' => 'Starred People',
+        'extensions_entry' => 'Everybody',
+        'extensions_title' => 'Everyone on PBX',
+        'extensions_prompt' => 'Choose who to call',
         'services_title' => 'Tools',
         'services_prompt' => 'Choose an action',
         'services_entry' => 'Call contacts'
@@ -118,8 +165,12 @@ try {
     check((string) $menu->MenuItem[0]->Name === 'People & Teams',
         'Custom menu entry label persisted');
     $book = simplexml_load_file($base . '/web/phonebook.xml');
-    check((string) $book->MenuItem[0]->Name === 'People & Teams 1-30',
-        'Custom entry label used for paginated phone book');
+    check((string) $book->MenuItem[0]->Name === 'Starred People',
+        'Favorites label is configurable');
+    check((string) $book->MenuItem[1]->Name === 'Everybody',
+        'All Extensions label is configurable');
+    check((string) simplexml_load_file($base . '/web/favorites-pages.xml')->MenuItem[0]->Name === 'Starred People 1-30',
+        'Favorites paging label is configurable');
     $page = simplexml_load_file($base . '/web/contacts-1.xml');
     check((string) $page->Title === 'Family & Friends', 'Custom contact title');
     check((string) $page->Prompt === 'Pick <one>', 'Escaped custom prompt');
