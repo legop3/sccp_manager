@@ -43,6 +43,8 @@ jobs:
           php -l views/content.wallpapers.php
           php -l views/content.ringtones.php
           php tests/phone-content.php
+          php tests/phone-content-7945.php
+          php -l views/content.status.php
           php tests/vpn-provisioning.php
           php tests/vpn-firewall.php
           php tests/vpn-ui.php
@@ -112,11 +114,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view vpn-preview-17.1.15 >/dev/null 2>&1; then
-            gh release create vpn-preview-17.1.15 \
-              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.15 VPN + Phone Content preview" \
+          if ! gh release view vpn-preview-17.1.16 >/dev/null 2>&1; then
+            gh release create vpn-preview-17.1.16 \
+              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.16 VPN + Phone Content preview" \
               --notes "Development build from feature/vpn-provisioning. Not upstream. Test on a backed-up FreePBX installation." \
               --prerelease --latest=false sccp_manager.tar.gz
           else
-            gh release upload vpn-preview-17.1.15 sccp_manager.tar.gz --clobber
+            gh release upload vpn-preview-17.1.16 sccp_manager.tar.gz --clobber
           fi
