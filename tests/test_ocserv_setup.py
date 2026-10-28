@@ -33,6 +33,7 @@ assert settings["tcp"] == 4443
 assert settings["subnet"] == ipaddress.IPv4Network("10.254.77.0/24")
 output = engine.render(settings)
 assert "cisco-client-compat = true" in output
+assert "cisco-svc-client-compat = true" in output
 assert "route = 192.168.0.25/255.255.255.255" in output
 assert "max-same-clients = 0" in output
 assert "udp-port = 443" in output
