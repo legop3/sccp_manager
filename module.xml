@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.16</version>
+	<version>17.1.17</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.17 * - Restore FreePBX-native Phone Content UI; remove duplicate directory entries; automatically publish signed phone config on contact setup and wallpaper upload; report TFTP root mismatches
 		 * Version 17.1.16 * - Fix static directory hosting outside AMPWEBROOT, 7945G missing wallpaper commonProfile, and stale Directory URLs; add Phone Content diagnostics and improved UI
 		 * Version 17.1.15 * - Add Phone Content tabs (directory, wallpaper, ringtone) with managed Cisco XML, automatic service URLs and upload conversion
 		 * Version 17.1.14 * - Fix SCCP phone XML regeneration signing stale TFTP-root XML instead of new settings XML; preserve ITL and show actionable errors
