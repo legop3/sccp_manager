@@ -13,3 +13,15 @@ if (!empty(\FreePBX::create()->Sccp_manager->phoneContentMessage)) {
         htmlspecialchars(\FreePBX::create()->Sccp_manager->phoneContentMessage, ENT_QUOTES, 'UTF-8') . '</div>';
 }
 include('page.html.php');
+
+<script>
+(function () {
+    // After a normal multipart form POST, keep the tab the user was editing.
+    var tab = window.location.hash.slice(1);
+    if (['general', 'wallpapers', 'ringtones'].indexOf(tab) !== -1) {
+        $(function () {
+            $('.change-tab a[href="#' + tab + '"]').tab('show');
+        });
+    }
+})();
+</script>
