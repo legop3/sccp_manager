@@ -183,7 +183,7 @@ $samples=[
    values.set('content_action','notifications_preview');values.set('kind',kind);
    panel.querySelectorAll('[name]').forEach(el=>{
     if(el.type==='checkbox'&&!el.checked)return;
-    const match=el.name.match(/^notifications\\[(voicemail|missed)\\]\\[(.+)$/);
+    const match=el.name.match(/^notifications\[(voicemail|missed)\]\[(.+)$/);
     if(match && match[1]===kind)values.append('appearance['+match[2],el.value);
    });
    try{
