@@ -94,6 +94,70 @@ class phonecontent
         }
     }
 
+
+    /** Existing manually added contacts stay Favorites unless explicitly hidden. */
+    public function contactVisibility()
+    {
+        $saved = $this->parent->getConfig('phonecontent_contact_visibility');
+        if (!is_array($saved)) return array();
+        $visibility = array();
+        foreach ($saved as $id=>$choice) {
+            if (preg_match('/^[a-f0-9]{16}$/D', (string)$id) && $choice === 'hidden') {
+                $visibility[(string)$id] = 'hidden';
+            }
+        }
+        return $visibility;
+    }
+
+    /**
+     * Save one unified directory table, not separate extension and custom
+     * contact settings. Validate everything before mutating either config.
+     */
+    public function saveDirectoryChoices($extensionSubmitted, $contactSubmitted)
+    {
+        if (!is_array($extensionSubmitted) || !is_array($contactSubmitted)) {
+            throw new \InvalidArgumentException('Invalid directory selections.');
+        }
+        $knownExtensions = $this->extensions();
+        $knownContacts = array();
+        foreach ($this->contacts() as $contact) {
+            if (isset($contact['id'])) $knownContacts[(string)$contact['id']] = true;
+        }
+        $extensions = array();
+        foreach ($extensionSubmitted as $number=>$choice) {
+            $number = (string)$number;
+            if (!preg_match('/^[0-9]{1,16}$/D', $number) ||
+                !array_key_exists($number, $knownExtensions) ||
+                !is_string($choice) ||
+                !in_array($choice, array('directory', 'favorite', 'hidden'), true)) {
+                throw new \InvalidArgumentException('Invalid extension visibility.');
+            }
+            if ($choice !== 'directory') $extensions[$number] = $choice;
+        }
+        $contacts = array();
+        foreach ($contactSubmitted as $id=>$choice) {
+            $id = (string)$id;
+            if (!isset($knownContacts[$id]) ||
+                !is_string($choice) ||
+                !in_array($choice, array('favorite', 'hidden'), true)) {
+                throw new \InvalidArgumentException('Invalid custom contact visibility.');
+            }
+            if ($choice === 'hidden') $contacts[$id] = 'hidden';
+        }
+
+        $oldExtensions = $this->parent->getConfig('phonecontent_extension_choices');
+        $oldContacts = $this->parent->getConfig('phonecontent_contact_visibility');
+        $this->parent->setConfig('phonecontent_extension_choices', $extensions);
+        $this->parent->setConfig('phonecontent_contact_visibility', $contacts);
+        try {
+            $this->publishDirectory();
+        } catch (\Throwable $e) {
+            $this->parent->setConfig('phonecontent_extension_choices', $oldExtensions);
+            $this->parent->setConfig('phonecontent_contact_visibility', $oldContacts);
+            throw $e;
+        }
+    }
+
     public function wallpapers() { return $this->items('phonecontent_wallpapers'); }
     public function ringtones() { return $this->items('phonecontent_ringtones'); }
     public function publicPath() { return $this->public; }
@@ -378,9 +442,11 @@ PHP;
         // a hidden extension. Avoid duplicate favorites by dialable number.
         $favorites = array();
         $favoriteNumbers = array();
+        $customVisibility = $this->contactVisibility();
         foreach ($this->contacts() as $contact) {
             $number = (string)($contact['number'] ?? '');
-            if (($choices[$number] ?? '') === 'hidden') continue;
+            if (($customVisibility[$contact['id'] ?? ''] ?? '') === 'hidden' ||
+                ($choices[$number] ?? '') === 'hidden') continue;
             $favorites[] = $contact;
             $favoriteNumbers[$number] = true;
         }
@@ -918,6 +984,9 @@ PHP;
             case 'contact': $this->saveContact((string) ($post['id'] ?? ''),
                 $post['contact_name'] ?? '', $post['contact_number'] ?? ''); return 'Contact saved.';
             case 'delete_contact': $this->removeContact((string) ($post['id'] ?? '')); return 'Contact removed.';
+            case 'directory_choices':
+                $this->saveDirectoryChoices($post['extension_choice'] ?? array(), $post['contact_choice'] ?? array());
+                return 'Shared directory updated.';
             case 'extension_choices': $this->saveExtensionChoices($post['extension_choice'] ?? array());
                 return 'Shared Favorites and hidden extension settings saved.';
             case 'wallpaper': $this->addWallpaper($files['media'] ?? null, $post['label'] ?? ''); return 'Wallpaper published.';
