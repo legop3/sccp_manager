@@ -30,6 +30,7 @@ jobs:
         run: |
           python3 -m py_compile scripts/sccp-manager-vpn-helper scripts/sccp-manager-ocserv-setup
           bash -n scripts/install-vpn-helper.sh
+          python3 -m py_compile scripts/sccp-manager-vpn-helper
       - name: First-run ocserv configuration test
         run: |
           sudo apt-get update -qq
@@ -40,6 +41,7 @@ jobs:
           php tests/vpn-provisioning.php
           php tests/vpn-firewall.php
           php tests/vpn-ui.php
+          python3 tests/test_vpn_accounts.py
           php tests/regression-sccp.php
       - name: Real certutils integration test
         run: |
