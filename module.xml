@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.27</version>
+	<version>17.1.28</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.28 * - Fix visual voicemail deletion and mark-heard by validating Asterisk AMI Message success, verifying mailbox changes and correcting menu updates
 		 * Version 17.1.27 * - Keep visual voicemail detail screen open after playback and prevent repeated Back/Exit history via expired XML responses and explicit Cisco softkeys
 		 * Version 17.1.26 * - Remove unsupported fixed voicemail playback and originate delays; restore native VoiceMailPlayMsg while preserving XML and stale-link fixes
 		 * Version 17.1.25 * - Fix visual voicemail replay after message moves to Old, avoid XML parser race and delay audio after auto-answer to prevent cutoff
