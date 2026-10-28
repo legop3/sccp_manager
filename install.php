@@ -69,6 +69,22 @@ if (!function_exists('sccp_manager_content_install')) {
         @chgrp($dir, 'asterisk');
         @chmod($dir, 0755);
         outn('<li>Phone Content: static Cisco directory/preview path ready.</li>');
+        // Install media converters once on Debian, without touching FreePBX's
+        // existing configuration. A failure is non-fatal and explained in the UI.
+        $missing = array();
+        if (!function_exists('imagecreatefromstring')) $missing[] = 'php-gd';
+        if (!is_executable('/usr/bin/ffmpeg') && !is_executable('/usr/local/bin/ffmpeg')) $missing[] = 'ffmpeg';
+        if ($missing && is_executable('/usr/bin/apt-get')) {
+            $output = array();
+            $status = 0;
+            exec('DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get install -y --no-install-recommends ' .
+                implode(' ', $missing) . ' 2>&1', $output, $status);
+            if ($status !== 0) {
+                outn('<li>Phone Content: converter setup unavailable; install ' .
+                    htmlspecialchars(implode(' ', $missing), ENT_QUOTES) .
+                    ' manually when needed.</li>');
+            }
+        }
         if (!function_exists('imagecreatefromstring')) {
             outn('<li>Phone Content: PHP GD is required for wallpaper conversion (apt install php-gd).</li>');
         }
