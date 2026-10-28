@@ -30,6 +30,7 @@ jobs:
         run: |
           python3 -m py_compile scripts/sccp-manager-vpn-helper scripts/sccp-manager-ocserv-setup
           bash -n scripts/install-vpn-helper.sh
+          bash -n scripts/ensure-cisco-ocserv.sh
           python3 -m py_compile scripts/sccp-manager-vpn-helper
       - name: First-run ocserv configuration test
         run: |
