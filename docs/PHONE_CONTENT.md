@@ -78,3 +78,5 @@ Check TFTP delivery using: tftp 192.168.0.25 -m binary -c get Desktops/320x212x1
 - Contact edits republish the directory on save. Initial contact setup configures phone XML automatically if needed.
 - Wallpaper upload publishes List.xml and PNG thumbnails, enables background access, and regenerates the signed phone configuration automatically. It does not interrupt live calls by forcing a reset.
 - The Wallpapers tab checks whether tftpd-hpa's configured TFTP_DIRECTORY matches the SCCP Manager publishing root. If Selections Unavailable persists, watch real TFTP requests while opening Background Images: sudo tcpdump -ni any -s0 -A 'udp port 69'. This is the remaining reliable way to distinguish a missing request from a TFTP-server error on the actual VPN path.
+
+- Existing installations of 17.1.16 are automatically migrated on the first Phone Content page load: the old directory.xml is republished without duplicate call histories, and any existing wallpaper library triggers one signed configuration regeneration. This does not forcibly restart live phones.
