@@ -50,10 +50,10 @@ jobs:
             apt-get update -qq
             apt-get install -y --no-install-recommends ocserv
             /usr/sbin/ocserv --version 2>&1 | grep -q 1.1.6
-            /src/scripts/ensure-cisco-ocserv.sh > /tmp/ocserv-path
+            bash /src/scripts/ensure-cisco-ocserv.sh > /tmp/ocserv-path
             test "$(cat /tmp/ocserv-path)" = "/usr/local/sbin/ocserv"
             /usr/local/sbin/ocserv --version 2>&1 | grep -q 1.3.0
-            /src/scripts/ensure-cisco-ocserv.sh > /tmp/ocserv-again
+            bash /src/scripts/ensure-cisco-ocserv.sh > /tmp/ocserv-again
             cmp /tmp/ocserv-path /tmp/ocserv-again
           '
       - name: Start managed ocserv from a clean install (integration smoke test)
