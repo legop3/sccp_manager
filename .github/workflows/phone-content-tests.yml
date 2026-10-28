@@ -22,6 +22,7 @@ jobs:
         run: |
           find sccpManClasses sccpManTraits views tests -name '*.php' -print0 | xargs -0 -n1 php -l
           php -l Sccp_manager.class.php
+          php -l scripts/sccp-manager-vm-playback.agi
           php -l page.sccp_content.php
       - name: Phone Content regressions
         run: |
