@@ -32,6 +32,61 @@ class phonecontent
         return is_array($value) ? array_values(array_filter($value, 'is_array')) : array();
     }
 
+    /**
+     * Text displayed by the Cisco XML directories and Services menus.
+     * Keeping the default strings here preserves existing phone behavior.
+     */
+    public static function defaultDirectoryLabels()
+    {
+        return array(
+            'menu_title' => 'Directories',
+            'menu_prompt' => 'Select a directory',
+            'menu_entry' => 'Phone Book',
+            'contacts_title' => 'Phone Book',
+            'contacts_prompt' => 'Select a contact to call',
+            'services_title' => 'Phone Services',
+            'services_prompt' => 'Choose a service',
+            'services_entry' => 'Address Book'
+        );
+    }
+
+    public function directoryLabels()
+    {
+        $defaults = self::defaultDirectoryLabels();
+        $saved = $this->parent->getConfig('phonecontent_directory_labels');
+        return is_array($saved) ? array_replace(
+            $defaults, array_intersect_key($saved, $defaults)
+        ) : $defaults;
+    }
+
+    public function saveDirectoryLabels($submitted)
+    {
+        if (!is_array($submitted)) {
+            throw new \InvalidArgumentException('Missing directory display text.');
+        }
+        $validated = array();
+        foreach (self::defaultDirectoryLabels() as $key => $default) {
+            if (!isset($submitted[$key]) || !is_string($submitted[$key])) {
+                throw new \InvalidArgumentException('Missing directory field: ' . $key);
+            }
+            $value = trim($submitted[$key]);
+            // The 7945G has a small LCD. Limit lengths without limiting the
+            // user's choice of language; DOMDocument escapes XML characters.
+            $limit = strpos($key, 'prompt') !== false ? 80 : 60;
+            if ($value === '' || strlen($value) > $limit ||
+                !preg_match('//u', $value) ||
+                preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $value)) {
+                throw new \InvalidArgumentException(
+                    'Invalid text for ' . $key . ' (1–' . $limit . ' UTF-8 bytes).');
+            }
+            $validated[$key] = $value;
+        }
+        $this->parent->setConfig('phonecontent_directory_labels', $validated);
+        // URLs and signed SEP phone provisioning are unchanged. The next
+        // Directories/Services request gets the updated static XML.
+        $this->publishDirectory();
+    }
+
     public function baseUrl()
     {
         $vpn = method_exists($this->parent, 'vpnSettings') ? $this->parent->vpnSettings() : array();
@@ -131,6 +186,7 @@ PHP;
             throw new \RuntimeException('Set the PBX address in Phone Content before publishing the directory.');
         }
         $this->publishPhoneEndpoint();
+        $labels = $this->directoryLabels();
         $contacts = $this->contacts();
         usort($contacts, function ($a, $b) { return strcasecmp($a['name'], $b['name']); });
         // Directory screens handle only a limited number of items per request.
@@ -142,8 +198,8 @@ PHP;
         // CiscoIPPhoneDirectory documents containing up to 32 entries.
         foreach ($chunks as $i => $chunk) {
             list($doc, $root) = $this->xml('CiscoIPPhoneDirectory');
-            $this->element($doc, $root, 'Title', 'Phone Book');
-            $this->element($doc, $root, 'Prompt', 'Select a contact to call');
+            $this->element($doc, $root, 'Title', $labels['contacts_title']);
+            $this->element($doc, $root, 'Prompt', $labels['contacts_prompt']);
             foreach ($chunk as $entry) {
                 $row = $root->appendChild($doc->createElement('DirectoryEntry'));
                 $this->element($doc, $row, 'Name', $entry['name']);
@@ -153,15 +209,15 @@ PHP;
         }
 
         list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
-        $this->element($doc, $root, 'Title', 'Directories');
-        $this->element($doc, $root, 'Prompt', 'Select a directory');
+        $this->element($doc, $root, 'Title', $labels['menu_title']);
+        $this->element($doc, $root, 'Prompt', $labels['menu_prompt']);
         // The Cisco handset renders its own Missed/Received/Placed Calls.
         // Do not echo them into the remote XML menu: that creates duplicates.
         // The phone book is the first (and normally only) custom item.
         foreach ($chunks as $i => $chunk) {
             $item = $root->appendChild($doc->createElement('MenuItem'));
-            $label = count($chunks) === 1 ? 'Phone Book' :
-                'Phone Book ' . ($i * 30 + 1) . '-' . ($i * 30 + count($chunk));
+            $label = count($chunks) === 1 ? $labels['menu_entry'] :
+                $labels['menu_entry'] . ' ' . ($i * 30 + 1) . '-' . ($i * 30 + count($chunk));
             $this->element($doc, $item, 'Name', $label);
             $this->element($doc, $item, 'URL', $base . '/phone.php?doc=contacts-' . ($i + 1));
         }
@@ -177,10 +233,10 @@ PHP;
         }
         // Optional Services button integration, without needing a separate server.
         list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
-        $this->element($doc, $root, 'Title', 'Phone Services');
-        $this->element($doc, $root, 'Prompt', 'Choose a service');
+        $this->element($doc, $root, 'Title', $labels['services_title']);
+        $this->element($doc, $root, 'Prompt', $labels['services_prompt']);
         $item = $root->appendChild($doc->createElement('MenuItem'));
-        $this->element($doc, $item, 'Name', 'Address Book');
+        $this->element($doc, $item, 'Name', $labels['services_entry']);
         $this->element($doc, $item, 'URL', $base . '/phone.php?doc=directory');
         $this->publishFile($this->public . '/services.xml', $doc->saveXML());
     }
@@ -664,6 +720,8 @@ PHP;
         $action = (string) ($post['content_action'] ?? '');
         switch ($action) {
             case 'address': $this->setAddress($post['pbx_address'] ?? ''); return 'Directory URL updated.';
+            case 'directory_text': $this->saveDirectoryLabels($post['directory_text'] ?? null);
+                return 'Directory display text saved.';
             case 'contact': $this->saveContact((string) ($post['id'] ?? ''),
                 $post['contact_name'] ?? '', $post['contact_number'] ?? ''); return 'Contact saved.';
             case 'delete_contact': $this->removeContact((string) ($post['id'] ?? '')); return 'Contact removed.';
