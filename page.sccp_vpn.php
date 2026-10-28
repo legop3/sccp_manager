@@ -60,6 +60,15 @@ $stateLabel = $statusError ? _('Unavailable') :
     <?php if ($module->vpnPageError): ?>
         <div class="alert alert-danger"><?php echo $escape($module->vpnPageError); ?></div>
     <?php endif; ?>
+    <?php if (!empty($status['ocserv_version'])): ?>
+        <p class="text-muted"><?php echo _('VPN server version'); ?>:
+            <strong><?php echo $escape($status['ocserv_version']); ?></strong>
+        </p>
+    <?php endif; ?>
+    <?php if ($serviceRunning && array_key_exists('cisco_svc_supported', $status) &&
+              !$status['cisco_svc_supported']): ?>
+        <div class="alert alert-danger"><?php echo _('Running ocserv is too old for Cisco phone VPN login (requires 1.2.0 or newer). Upgrade SCCP Manager from root-level fwconsole.'); ?></div>
+    <?php endif; ?>
     <?php if ($statusError): ?>
         <div class="alert alert-warning"><?php echo $escape($statusError); ?></div>
     <?php elseif (!$signingReady && $configured): ?>
