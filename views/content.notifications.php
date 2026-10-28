@@ -18,7 +18,7 @@ $rings=$this->phonecontent->ringtones();
 </div>
 <div class="row">
 <div class="col-sm-4 form-group"><label>Display</label><select class="form-control" name="notifications[<?php echo $kind;?>][style]">
-<?php foreach (['text'=>'Full-screen text','status'=>'Small status popup','sound'=>'Sound only'] as $value=>$label): ?>
+<?php foreach (['text'=>'Full-screen text','status'=>'Small status popup','image'=>'Image with text (scheduled)','sound'=>'Sound only'] as $value=>$label): ?>
 <option value="<?php echo $value;?>" <?php echo $settings['style']===$value?'selected':''; ?>><?php echo $esc($label);?></option>
 <?php endforeach; ?></select></div>
 <div class="col-sm-4 form-group"><label>Sound</label><select class="form-control" name="notifications[<?php echo $kind;?>][sound]">
@@ -38,7 +38,7 @@ $rings=$this->phonecontent->ringtones();
 <?php endif;?>
 </fieldset>
 <?php endforeach;?>
-<p class="help-block">For call alerts, {caller} is the caller identifier. Voicemail text supports {count} and {extension}. Sounds reuse uploaded ringtones.</p>
+<p class="help-block">Image display is intended for scheduled notifications with an Image URL. Text is rendered beneath the image. </p><p class="help-block">For call alerts, {caller} is the caller identifier. Voicemail text supports {count} and {extension}. Sounds reuse uploaded ringtones.</p>
 <button type="submit" class="btn btn-primary">Save notification settings</button>
 </form>
 </div>
