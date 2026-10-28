@@ -14,10 +14,8 @@ verify(phonevoicemail::parseMessage($raw, 'INBOX', '../foo') === null, 'Invalid 
 
 $orig = phonevoicemail::originateFields('111', $m);
 verify($orig['Channel'] === 'SCCP/111/aa=1w', 'Muted auto-answer');
-verify($orig['Data'] === 'sccp-manager-vm-playback.agi,111,1782735000-00000123', 'Playback selects stable Asterisk message ID');
-verify($orig['Application'] === 'AGI', 'Asterisk invokes post-answer playback AGI');
-verify($orig['Data'] === 'sccp-manager-vm-playback.agi,111,1782735000-00000123',
-    'AGI selects voicemail by stable ID and adds post-answer delay');
+verify($orig['Data'] === '111@default,1782735000-00000123', 'Native playback selects stable Asterisk message ID');
+verify($orig['Application'] === 'VoiceMailPlayMsg', 'Asterisk plays voicemail directly with no extra wait');
 verify($orig['CallerID'] === '"Alicia Q" <15005550124>', 'Dynamic caller ID preserved');
 verify($orig['Async'] === 'true', 'Async originate');
 $m['name'] = "Evil\r\nAction: Hangup";
@@ -39,10 +37,4 @@ try {
     verify(strpos($expected->getMessage(),'Message no longer exists') !== false,
         'Missing voicemail is reported safely');
 }
-$agiScript = file_get_contents(__DIR__ . '/../scripts/sccp-manager-vm-playback.agi');
-verify(strpos($agiScript,"vmAgiExec('Wait', '2')") !== false,
-    'Playback AGI waits for SCCP RTP after auto-answer');
-verify(strpos($agiScript,"vmAgiExec('VoiceMailPlayMsg'") !== false,
-    'Playback AGI invokes Asterisk voicemail playback');
-
 echo "Visual voicemail tests passed.\n";
