@@ -7,14 +7,20 @@ final class notificationConfig {
     public function __construct($module) { $this->module=$module; }
     public function all() {
         $defaults=[
-            'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>'You have {count} new voicemail(s)','sound'=>'','duration'=>8],
-            'missed'=>['enabled'=>false,'style'=>'text','title'=>'Missed Call','message'=>'Missed call from {caller}','sound'=>'','duration'=>8],
+            'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8],
+            'missed'=>['enabled'=>false,'style'=>'text','title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>'','duration'=>8],
             'scheduled'=>['enabled'=>false,'style'=>'text','title'=>'Hello','message'=>'A message for everyone','sound'=>'','duration'=>8,'interval'=>60,'time'=>'','title_url'=>'','message_url'=>'','image_url'=>'','source'=>'custom']
         ];
         $saved=$this->module->getConfig('phonecontent_notifications');
         if (is_array($saved)) foreach ($defaults as $kind=>$data)
             if (isset($saved[$kind]) && is_array($saved[$kind]))
                 $defaults[$kind]=array_merge($data,array_intersect_key($saved[$kind],$data));
+        // Migrate only the original shipped one-line messages. Never replace
+        // a user's custom template.
+        if ($defaults['voicemail']['message']==='You have {count} new voicemail(s)')
+            $defaults['voicemail']['message']="From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}";
+        if ($defaults['missed']['message']==='Missed call from {caller}')
+            $defaults['missed']['message']="From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}";
         return $defaults;
     }
     public function save($submitted) {
