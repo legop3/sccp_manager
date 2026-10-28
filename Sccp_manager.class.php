@@ -554,6 +554,12 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                     $this->phonecontent->publishDirectory();
                     $this->setConfig('phonecontent_vmnav_1727', true);
                 }
+                if (!$this->getConfig('phonecontent_vmdelete_1729')) {
+                    // Republish modified delete-confirmation handler; leave
+                    // SEP XML, ITL, VPN and all devices untouched.
+                    $this->phonecontent->publishDirectory();
+                    $this->setConfig('phonecontent_vmdelete_1729', true);
+                }
                 $this->phonecontent->syncUrls();
             }
             // Existing wallpaper uploads predate ITL-aware media signing.
