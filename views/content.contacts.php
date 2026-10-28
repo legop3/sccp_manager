@@ -2,6 +2,8 @@
 $pc = $this->phonecontent;
 $esc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
 $contacts = $pc->contacts();
+$extensions = $pc->extensions();
+$extensionChoices = $pc->extensionChoices();
 $base = $pc->baseUrl();
 ?>
 <div class="fpbx-container container-fluid">
@@ -64,7 +66,48 @@ $base = $pc->baseUrl();
                 </tbody>
             </table>
         </div>
-        <p class="text-muted"><?php echo count($contacts); ?> <?php echo _('contacts'); ?>. <?php echo _('Changes appear on the phone the next time the directory is opened.'); ?></p>
+        <p class="text-muted"><?php echo count($contacts); ?> <?php echo _('manually managed contacts. These remain shared Favorites. Changes appear the next time a phone opens the directory.'); ?></p>
+
+        <h4><?php echo _('FreePBX Extensions'); ?></h4>
+        <p class="help-block"><?php echo _('Loaded from Connectivity → Extensions, including SCCP phones. Favorites appear first for everybody. Directory extensions appear only under All Extensions. Hidden extensions appear in neither list. These settings are shared across phones.'); ?></p>
+        <form method="post" action="config.php?display=sccp_content#general">
+            <input type="hidden" name="content_action" value="extension_choices">
+            <div class="row" style="margin-bottom:12px">
+                <div class="col-sm-6">
+                    <input type="search" class="form-control" id="sccp-extension-filter" placeholder="<?php echo _('Filter extensions'); ?>" aria-label="<?php echo _('Filter extensions'); ?>">
+                </div>
+                <div class="col-sm-6 text-right">
+                    <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> <?php echo _('Save Extension Directory'); ?></button>
+                </div>
+            </div>
+            <div class="table-responsive" style="max-height:450px; overflow:auto">
+                <table class="table table-striped table-hover" id="sccp-extension-table">
+                    <thead>
+                        <tr><th><?php echo _('Name'); ?></th><th><?php echo _('Extension'); ?></th><th><?php echo _('Display in directory'); ?></th></tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($extensions as $ext): $extNumber = (string) $ext['number']; $extChoice = $extensionChoices[$extNumber] ?? 'directory'; ?>
+                        <tr class="sccp-extension-entry" data-search="<?php echo $esc(strtolower($ext['name'] . ' ' . $extNumber)); ?>">
+                            <td><?php echo $esc($ext['name']); ?></td>
+                            <td><?php echo $esc($extNumber); ?></td>
+                            <td>
+                                <select class="form-control input-sm" name="extension_choice[<?php echo $esc($extNumber); ?>]" aria-label="<?php echo $esc('Directory setting for ' . $extNumber); ?>">
+                                    <option value="directory" <?php echo $extChoice === 'directory' ? 'selected' : ''; ?>><?php echo _('All Extensions'); ?></option>
+                                    <option value="favorite" <?php echo $extChoice === 'favorite' ? 'selected' : ''; ?>><?php echo _('Favorite + All Extensions'); ?></option>
+                                    <option value="hidden" <?php echo $extChoice === 'hidden' ? 'selected' : ''; ?>><?php echo _('Hidden'); ?></option>
+                                </select>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                        <?php if (!$extensions): ?>
+                        <tr><td colspan="3" class="text-center text-muted"><?php echo _('No extensions found in FreePBX.'); ?></td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+            <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> <?php echo _('Save Extension Directory'); ?></button>
+            <p class="help-block"><?php echo _('No phone reboot is necessary. These choices affect every Cisco phone using the shared Phone Book.'); ?></p>
+        </form>
         <details style="margin-top:18px">
             <summary><?php echo _('Phone display text'); ?></summary>
             <form method="post" action="config.php?display=sccp_content#general" style="margin-top:14px">
@@ -79,7 +122,11 @@ $base = $pc->baseUrl();
                     ),
                     _('Contact list') => array(
                         'contacts_title' => _('Screen title'),
-                        'contacts_prompt' => _('Bottom prompt')
+                        'contacts_prompt' => _('Bottom prompt'),
+                        'favorites_entry' => _('Favorites entry'),
+                        'extensions_entry' => _('All Extensions entry'),
+                        'extensions_title' => _('All Extensions title'),
+                        'extensions_prompt' => _('All Extensions prompt')
                     ),
                     _('Services menu') => array(
                         'services_title' => _('Screen title'),
@@ -139,6 +186,13 @@ $base = $pc->baseUrl();
             var show=row.getAttribute('data-search').indexOf(query)!==-1;
             row.style.display=show?'':'none';
             if(!show && row.nextElementSibling)row.nextElementSibling.style.display='none';
+        });
+    });}
+    var extFilter=document.getElementById('sccp-extension-filter');
+    if(extFilter){extFilter.addEventListener('input',function(){
+        var query=this.value.trim().toLowerCase();
+        document.querySelectorAll('#sccp-extension-table .sccp-extension-entry').forEach(function(row){
+            row.style.display=row.getAttribute('data-search').indexOf(query)!==-1?'':'none';
         });
     });}
     document.querySelectorAll('#sccp-contact-table .sccp-contact-edit').forEach(function(button){
