@@ -540,6 +540,13 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                     $this->phonecontent->publishDirectory();
                     $this->setConfig('phonecontent_vmbootstrap_1724', true);
                 }
+                // Publish repaired voicemail XML endpoint once on upgrade.
+                // This is HTTP-only: do not regenerate ITL, signed phone XML,
+                // or reset remote phones during an active call.
+                if (!$this->getConfig('phonecontent_vmplayback_1725')) {
+                    $this->phonecontent->publishDirectory();
+                    $this->setConfig('phonecontent_vmplayback_1725', true);
+                }
                 $this->phonecontent->syncUrls();
             }
             // Existing wallpaper uploads predate ITL-aware media signing.
