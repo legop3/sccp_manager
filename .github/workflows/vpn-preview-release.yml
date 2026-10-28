@@ -29,9 +29,11 @@ jobs:
           php -r 'simplexml_load_file("module.xml") ?: exit(1);'
           python3 -m py_compile scripts/sccp-manager-vpn-helper scripts/sccp-manager-ocserv-setup
           bash -n scripts/install-vpn-helper.sh
+          python3 -m py_compile scripts/sccp-manager-vpn-helper
           php tests/vpn-provisioning.php
           php tests/vpn-firewall.php
           php tests/vpn-ui.php
+          python3 tests/test_vpn_accounts.py
           sudo apt-get update -qq
           sudo apt-get install -y ocserv
           python3 tests/test_ocserv_setup.py
