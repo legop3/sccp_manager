@@ -9,6 +9,7 @@ namespace FreePBX\modules\Sccp_manager;
 class phonevoicemail
 {
     private $parent;
+    private $serviceContext = false;
     public function __construct($parent = null) { $this->parent = $parent; }
 
     public static function validDevice($id) {
@@ -368,7 +369,7 @@ class phonevoicemail
         }
         // Init:Messages closes the Messages application instead of walking
         // the firmware's page history like SoftKey:Exit does.
-        $softkeys[] = array('Exit', 'Init:Messages', 4);
+        $softkeys[] = array('Exit', $this->serviceContext ? 'SoftKey:Exit' : 'Init:Messages', 4);
         foreach ($softkeys as $softkey) {
             $item = $root->appendChild($doc->createElement('SoftKeyItem'));
             $item->appendChild($doc->createElement('Name'))->appendChild($doc->createTextNode($softkey[0]));
@@ -494,6 +495,8 @@ class phonevoicemail
         try {
             list($device, $line, $token) = $this->authenticate($get);
             $base = $this->serviceUrl($device);
+            $this->serviceContext = (string)($get['service'] ?? '') === '1';
+            if ($this->serviceContext) $base .= '&service=1';
             $op = (string)($get['op'] ?? 'list');
             if (!in_array($op, array('list','detail','play','notification','notification-play','mark','delete','confirm-delete','call-menu'), true)) throw new \InvalidArgumentException('Unknown voicemail operation.');
             if ($op === 'call-menu') {
