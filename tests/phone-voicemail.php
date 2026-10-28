@@ -42,4 +42,52 @@ try {
     verify(strpos($expected->getMessage(),'Message no longer exists') !== false,
         'Missing voicemail is reported safely');
 }
+
+$vm = new phonevoicemail();
+$baseUrl = 'http://192.0.2.10/sccp-manager/voicemail.php?phone=SEP00AABBCCDDEE&key=abc';
+$detail = new ReflectionMethod(phonevoicemail::class, 'showMessageDetail');
+$listing = new ReflectionMethod(phonevoicemail::class, 'showMessageList');
+
+ob_start();
+$detail->invoke($vm, $baseUrl, $relocated, false);
+$xml = simplexml_load_string(ob_get_clean());
+verify($xml !== false, 'Voicemail detail must contain valid XML');
+verify((string)$xml->MenuItem[0]->Name === 'Play (47 sec)', 'Detail retains Play action');
+verify((string)$xml->SoftKeyItem[0]->URL === 'SoftKey:Select',
+    'Custom softkeys preserve menu Select');
+$softkeys = array();
+foreach ($xml->SoftKeyItem as $softkey) {
+    $softkeys[(string)$softkey->Name] = array((string)$softkey->URL, (int)$softkey->Position);
+}
+verify(($softkeys['Back'] ?? null) === array($baseUrl, 3),
+    'Back returns directly to list without relying on phone history');
+verify(($softkeys['Exit'] ?? null) === array('Init:Messages', 4),
+    'Exit closes Messages rather than traversing handset history');
+verify(strpos($xml->asXML(), 'SoftKey:Exit') === false,
+    'Never use native history-walking Exit');
+
+ob_start();
+$detail->invoke($vm, $baseUrl, $m, true);
+$xml = simplexml_load_string(ob_get_clean());
+verify((string)$xml->MenuItem[0]->Name === 'Play Again (47 sec)',
+    'After playback, remain on selected message details');
+verify((string)$xml->MenuItem[0]->URL === $baseUrl . '&op=play&id=1782735000-00000123',
+    'Replay points to same stable voicemail ID');
+$names = array();
+foreach ($xml->MenuItem as $item) $names[] = (string)$item->Name;
+verify(!in_array('Mark as Heard', $names, true),
+    'Do not present a stale Mark Heard action after playback moves the voicemail');
+
+ob_start();
+$listing->invoke($vm, '111', $baseUrl, array($m));
+$xml = simplexml_load_string(ob_get_clean());
+verify((string)$xml->SoftKeyItem[1]->URL === 'Init:Messages',
+    'List Exit closes application in one action');
+verify(strpos((string)$xml->MenuItem[0]->URL, '&folder=') === false,
+    'Listing links use stable message ID only');
+
+$phoneContentSource = file_get_contents(__DIR__ . '/../sccpManClasses/phonecontent.class.php');
+verify(strpos($phoneContentSource, 'Expires: Thu, 01 Jan 1970 00:00:01 GMT') !== false,
+    'Voicemail HTTP endpoint explicitly prevents Cisco URL history stacking');
+
 echo "Visual voicemail tests passed.\n";
