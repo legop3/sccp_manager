@@ -200,6 +200,26 @@ class xmlinterface
         }
     }
 
+    /**
+     * The 7945's legacy 79df template lacks commonProfile entirely, so merely
+     * updating backgroundImageAccess in the template walk does nothing.
+     * Insert the missing element before vendorConfig (required XML order).
+     */
+    public static function ensureBackgroundProfile(\SimpleXMLElement $xml, $enabled)
+    {
+        if (isset($xml->commonProfile)) {
+            $xml->commonProfile->backgroundImageAccess = $enabled ? 'true' : 'false';
+            return;
+        }
+        $root = dom_import_simplexml($xml);
+        $doc = $root->ownerDocument;
+        $common = $doc->createElement('commonProfile');
+        $common->appendChild($doc->createElement('phonePassword'));
+        $common->appendChild($doc->createElement('backgroundImageAccess', $enabled ? 'true' : 'false'));
+        $vendor = $root->getElementsByTagName('vendorConfig')->item(0);
+        $root->insertBefore($common, $vendor);
+    }
+
     function create_SEP_XML($store_path, $data_values, $dev_config, $dev_id, $lang_info = array())
     {
         // TODO: $data_values are system wide defaults, $dev_config are specific device values.
@@ -448,22 +468,9 @@ class xmlinterface
         // the exact opposite of what the change set out to do.
         $this->addAddOnModules($xml_work, $dev_config);
 
-        // Cisco 7945/7965 firmware expects backgroundImageAccess inside
-        // commonProfile. The legacy 79df XML template does not define that
-        // element, so the commonprofile switch above never ran. Insert it in
-        // Cisco's expected order (before vendorConfig), including for older
-        // templates already installed on an existing FreePBX system.
-        if (!isset($xml_work->commonProfile)) {
-            $root = dom_import_simplexml($xml_work);
-            $doc = $root->ownerDocument;
-            $common = $doc->createElement('commonProfile');
-            $common->appendChild($doc->createElement('phonePassword'));
-            $common->appendChild($doc->createElement('backgroundImageAccess',
-                in_array(strtolower((string) ($data_values['backgroundImageAccess'] ?? 'off')),
-                    array('on', 'true', '1'), true) ? 'true' : 'false'));
-            $vendor = $root->getElementsByTagName('vendorConfig')->item(0);
-            $root->insertBefore($common, $vendor);
-        }
+        self::ensureBackgroundProfile($xml_work,
+            in_array(strtolower((string) ($data_values['backgroundImageAccess'] ?? 'off')),
+                array('on', 'true', '1'), true));
 
         // Optional Cisco SSL VPN provisioning. Absent configuration is a no-op,
         // and existing non-VPN phones continue to use their normal templates.
