@@ -13,6 +13,21 @@ trait bmoFunctions {
 */
 
     public function doConfigPageInit($page) {
+        if ($page === 'sccp_content') {
+            if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' &&
+                isset($_POST['content_action'])) {
+                try {
+                    if ($_POST['content_action'] === 'regenerate') {
+                        $this->phoneContentMessage = $this->phoneContentRegenerate();
+                    } else {
+                        $this->phoneContentMessage = $this->phonecontent->handle($_POST, $_FILES);
+                    }
+                } catch (\Throwable $e) {
+                    $this->phoneContentError = $e->getMessage();
+                }
+            }
+            return;
+        }
         if ($page === 'sccp_vpn' || ($page === 'sccpsettings' &&
             (isset($_POST['save_vpn']) || isset($_POST['vpn_action'])))) {
             if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' &&
