@@ -446,7 +446,9 @@ PHP;
         }
         $this->publishFile($dir . '/PC-' . $id . '.png', $large);
         $this->publishFile($dir . '/TN-PC-' . $id . '.png', $thumb);
-        $this->publishFile($this->public . '/wallpaper-' . $id . '.png', $thumb);
+        // The web UI shows the real 320x212 artwork. The phone still uses the
+        // small 80x53 thumbnail in its TFTP selection screen.
+        $this->publishFile($this->public . '/wallpaper-' . $id . '.png', $large);
         $rows[] = array('id' => $id, 'name' => $label);
         $this->parent->setConfig('phonecontent_wallpapers', $rows);
         $this->publishWallpapers();
