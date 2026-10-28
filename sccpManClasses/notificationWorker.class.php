@@ -17,8 +17,10 @@ final class notificationWorker {
         $state=$this->module->getConfig('phonecontent_notification_state');
         if (!is_array($state)) $state=[];
         $now=time();
+        $vm=new phonevoicemail($this->module);
+        $inbox=$this->voicemailInbox($vm);
         if (!isset($state['initialized'])) {
-            $state=['initialized'=>$now, 'vm'=>$this->voicemailCounts(), 'seen'=>[], 'scheduled_at'=>$now];
+            $state=['initialized'=>$now, 'vm_ids'=>$this->inboxIds($inbox), 'seen'=>[], 'scheduled_at'=>$now];
             $this->module->setConfig('phonecontent_notification_state',$state);
             return;
         }
@@ -36,25 +38,22 @@ final class notificationWorker {
                 $dirty=true;
             }
         }
-        if ($settings['voicemail']['enabled']) {
-            $counts=$this->voicemailCounts();
-            foreach ($counts as $extension=>$count) {
-                $previous=(int)($state['vm'][$extension]??$count);
-                if ($count>$previous) {
-                    $details=$this->latestVoicemail($extension);
-                    $this->delivery->send('voicemail',[
-                        'count'=>$count, 'extension'=>$extension,
-                        'caller'=>$details['caller'], 'number'=>$details['number'],
-                        'date'=>$details['date'], 'time'=>$details['time'],
-                        'length'=>$details['length'],
-                        'received'=>$details['received']
-                    ],[$extension]);
+        // Upgrade count-only state safely: never replay existing messages.
+        if (!isset($state['vm_ids']) || !is_array($state['vm_ids'])) {
+            $state['vm_ids']=$this->inboxIds($inbox);
+            unset($state['vm']);
+            $dirty=true;
+        } else {
+            $previous=$state['vm_ids'];
+            foreach ($inbox as $extension=>$messages) {
+                $seen=array_fill_keys((array)($previous[$extension]??[]),true);
+                foreach (array_reverse($messages) as $msg) {
+                    if (isset($seen[$msg['id']])) continue;
+                    if ($settings['voicemail']['enabled'])
+                        $this->delivery->send('voicemail',$vm->notificationFields($extension,$msg,count($messages)),[$extension]);
                 }
             }
-            $state['vm']=$counts;
-            $dirty=true;
-        } else if (!empty($state['vm'])) {
-            $state['vm']=$this->voicemailCounts();
+            $state['vm_ids']=$this->inboxIds($inbox);
             $dirty=true;
         }
         if ($settings['missed']['enabled']) {
@@ -83,42 +82,20 @@ final class notificationWorker {
         if ($dirty) $this->module->setConfig('phonecontent_notification_state',$state);
     }
 
-    /** Extract the latest message metadata; never read voicemail audio. */
-    private function latestVoicemail($extension) {
-        $result=['caller'=>'Unknown caller','number'=>'Unknown',
-            'date'=>'Unknown','time'=>'Unknown','length'=>'Unknown','received'=>'Unknown'];
-        $latest=null; $latestTime=0; $latestData=[];
-        foreach (glob('/var/spool/asterisk/voicemail/*/'.$extension.'/INBOX/msg*.txt')?:[] as $file) {
-            if (!is_file($file) || is_link($file)) continue;
-            $lines=@file($file,FILE_IGNORE_NEW_LINES);
-            if (!is_array($lines)) continue;
-            $data=[];
-            foreach ($lines as $line) {
-                if (preg_match('/^([a-z_]+)=(.*)$/i',$line,$m)) {
-                    $data[strtolower($m[1])]=trim($m[2]);
-                }
-            }
-            $stamp=isset($data['origtime']) && ctype_digit((string)$data['origtime'])
-                ? (int)$data['origtime'] : (int)@filemtime($file);
-            if ($latest===null || $stamp>$latestTime) {
-                $latest=$file; $latestTime=$stamp; $latestData=$data;
-            }
-        }
-        if ($latest===null) return $result;
-        $number=trim((string)($latestData['callerid']??''));
-        $result['caller']=$this->formatCaller($number,'Unknown');
-        if (preg_match('/<([^>]+)>/',$number,$m)) $number=trim($m[1]);
-        $result['number']=$number!==''?$number:'Unknown';
-        if ($latestTime>0) {
-            $result['date']=date('M j, Y',$latestTime);
-            $result['time']=date('g:i A',$latestTime);
-            $result['received']=$result['date'].' at '.$result['time'];
-        }
-        if (isset($latestData['duration']) && ctype_digit((string)$latestData['duration'])) {
-            $seconds=(int)$latestData['duration'];
-            $result['length']=sprintf('%d:%02d',intdiv($seconds,60),$seconds%60);
+    private function voicemailInbox(phonevoicemail $vm) {
+        $result=[];
+        foreach (glob('/var/spool/asterisk/voicemail/default/*/INBOX',GLOB_ONLYDIR)?:[] as $dir) {
+            $mailbox=basename(dirname($dir));
+            if (!preg_match('/^[0-9]{1,16}$/D',$mailbox)) continue;
+            $result[$mailbox]=$vm->inboxMessages($mailbox);
         }
         return $result;
+    }
+
+    private function inboxIds(array $inbox) {
+        $ids=[];
+        foreach ($inbox as $mailbox=>$messages) $ids[$mailbox]=array_column($messages,'id');
+        return $ids;
     }
 
     private function formatCaller($callerId,$fallback) {
@@ -128,16 +105,6 @@ final class notificationWorker {
         if (preg_match('/^([^<]+)\\s*<[^>]*>$/',$callerId,$m) && trim($m[1])!=='')
             return trim($m[1]);
         return $fallback!==''?$fallback:'Unknown caller';
-    }
-
-    private function voicemailCounts() {
-        $counts=[];
-        foreach (glob('/var/spool/asterisk/voicemail/*/*/INBOX',GLOB_ONLYDIR)?:[] as $dir) {
-            $ext=basename(dirname($dir));
-            if (!preg_match('/^[0-9]{1,16}$/D',$ext)) continue;
-            $counts[$ext]=count(glob($dir.'/msg*.txt')?:[]);
-        }
-        return $counts;
     }
 
     private function missedCalls($now) {
