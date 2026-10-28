@@ -7,7 +7,7 @@ final class notificationConfig {
     public function __construct($module) { $this->module=$module; }
     public function all() {
         $defaults=[
-            'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8,'theme'=>'ocean','show_number'=>true,'show_details'=>true],
+            'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8,'theme'=>'ocean','show_number'=>true,'show_details'=>true,'gradient'=>'off','gradient_end'=>'#345D79'],
             'missed'=>['enabled'=>false,'style'=>'text','title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>'','duration'=>8,'theme'=>'ocean','show_number'=>true,'show_details'=>true],
             'scheduled'=>['enabled'=>false,'style'=>'text','title'=>'Hello','message'=>'A message for everyone','sound'=>'','duration'=>8,'interval'=>60,'time'=>'','title_url'=>'','message_url'=>'','image_url'=>'','source'=>'custom']
         ];
@@ -44,6 +44,12 @@ final class notificationConfig {
                 $values[$kind]['theme']=$theme;
                 $values[$kind]['show_number']=!empty($post['show_number']);
                 $values[$kind]['show_details']=!empty($post['show_details']);
+                $gradient=(string)($post['gradient']??'off');
+                if (!in_array($gradient,['off','vertical','horizontal'],true)) throw new \InvalidArgumentException('Invalid gradient direction');
+                $values[$kind]['gradient']=$gradient;
+                $gradientEnd=(string)($post['gradient_end']??'#345D79');
+                if (!preg_match('/^#[0-9a-fA-F]{6}$/D',$gradientEnd)) throw new \InvalidArgumentException('Invalid gradient color');
+                $values[$kind]['gradient_end']=$gradientEnd;
                 foreach (['background','header','header_text','name_text','secondary_text','details_background','details_label','details_text','accent'] as $key) {
                     $value=(string)($post['colors'][$key]??$settings['colors'][$key]??'');
                     if ($value!=='' && !preg_match('/^#[0-9a-fA-F]{6}$/D',$value)) throw new \InvalidArgumentException('Invalid notification color');
