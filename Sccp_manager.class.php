@@ -435,7 +435,9 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                 continue;
             }
             $effective = $this->vpnprovisioning->resolvedSettings($id);
-            $itl = $this->sccppath['tftp_store_path'] . '/ITL' . $id . '.tlv';
+            $itl = ($this->vpnSettings()['managed_signer'] ?? true)
+                ? '/tftpboot/ITL' . $id . '.tlv'
+                : $this->sccppath['tftp_store_path'] . '/ITL' . $id . '.tlv';
             if (!$effective['vpn'] && $effective['sign'] !== 'on' && !is_file($itl)) {
                 continue;
             }
