@@ -145,7 +145,7 @@ def sign_content(kind):
         limit = 2500000
     elif kind == "ringtones":
         directory = TFTP
-        index = "RingList.xml"
+        index = "ringlist.xml"
         expression = re.compile(r"PC-[0-9a-f]{16}\.raw\Z")
         limit = 300000
     else:
