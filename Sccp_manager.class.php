@@ -517,10 +517,25 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
     public function phoneContentShowPage() {
         try {
             $base = $this->phonecontent->baseUrl();
-            if ($base && !is_file($this->phonecontent->publicPath() . '/directory.xml')) {
-                $this->phonecontent->publishDirectory();
+            if ($base) {
+                // Republish the new single-item Phone Book menu on upgrade.
+                // The old generated directory.xml contained three duplicate
+                // call-history entries and persisted until a contact changed.
+                if (!$this->getConfig('phonecontent_migrated_1717')) {
+                    $this->phonecontent->publishDirectory();
+                    if ($this->phonecontent->wallpapers()) {
+                        // Existing 17.1.16 uploads predate automatic signed
+                        // configuration publishing. Migrate them once; never
+                        // reset a phone during an active call from page load.
+                        $this->phonecontent->enableWallpapers();
+                        $this->phoneContentRegenerate(false);
+                    }
+                    $this->setConfig('phonecontent_migrated_1717', true);
+                } elseif (!is_file($this->phonecontent->publicPath() . '/directory.xml')) {
+                    $this->phonecontent->publishDirectory();
+                }
+                $this->phonecontent->syncUrls();
             }
-            if ($base) $this->phonecontent->syncUrls();
         } catch (\Throwable $e) {
             $this->phoneContentError = $e->getMessage();
         }
