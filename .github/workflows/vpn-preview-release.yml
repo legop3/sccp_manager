@@ -38,12 +38,15 @@ jobs:
           bash -n scripts/ensure-cisco-ocserv.sh
           python3 -m py_compile scripts/sccp-manager-vpn-helper
           php -l sccpManClasses/phonecontent.class.php
+          php -l sccpManClasses/phonemenus.class.php
           php -l page.sccp_content.php
           php -l views/content.contacts.php
+          php -l views/content.menus.php
           php -l views/content.wallpapers.php
           php -l views/content.ringtones.php
           php tests/phone-content.php
           php tests/phone-content-7945.php
+          php tests/phone-menus.php
           php -l views/content.status.php
           php tests/vpn-provisioning.php
           php tests/vpn-firewall.php
@@ -114,9 +117,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view vpn-preview-17.1.21 >/dev/null 2>&1; then
+          if ! gh release view vpn-preview-17.1.22 >/dev/null 2>&1; then
             gh release create vpn-preview-17.1.21 \
-              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.21 VPN + Phone Content preview" \
+              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.22 VPN + Phone Content preview" \
               --notes "Development build from feature/vpn-provisioning. Not upstream. Test on a backed-up FreePBX installation." \
               --prerelease --latest=false sccp_manager.tar.gz
           else
