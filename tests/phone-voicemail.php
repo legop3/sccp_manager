@@ -16,6 +16,11 @@ $orig = phonevoicemail::originateFields('111', $m);
 verify($orig['Channel'] === 'SCCP/111/aa=1w', 'Muted auto-answer');
 verify($orig['Data'] === '111@default,1782735000-00000123', 'Native playback selects stable Asterisk message ID');
 verify($orig['Application'] === 'VoiceMailPlayMsg', 'Asterisk plays voicemail directly with no extra wait');
+$source = file_get_contents(__DIR__ . '/../sccpManClasses/phonevoicemail.class.php');
+verify(strpos($source, 'usleep(') === false && strpos($source, 'sleep(') === false,
+    'Voicemail playback scheduling has no artificial timer');
+verify(strpos($source, 'register_shutdown_function') !== false,
+    'Playback still follows HTTP XML response completion');
 verify($orig['CallerID'] === '"Alicia Q" <15005550124>', 'Dynamic caller ID preserved');
 verify($orig['Async'] === 'true', 'Async originate');
 $m['name'] = "Evil\r\nAction: Hangup";
