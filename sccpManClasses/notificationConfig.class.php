@@ -26,7 +26,7 @@ final class notificationConfig {
             $post=isset($submitted[$kind])&&is_array($submitted[$kind])?$submitted[$kind]:[];
             $values[$kind]['enabled']=!empty($post['enabled']);
             $style=(string)($post['style']??'text');
-            if (!in_array($style,['text','status','sound'],true)) throw new \InvalidArgumentException('Invalid display style');
+            if (!in_array($style,['text','status','image','sound'],true)) throw new \InvalidArgumentException('Invalid display style');
             $values[$kind]['style']=$style;
             $sound=(string)($post['sound']??'');
             if (!in_array($sound,$sounds,true)) throw new \InvalidArgumentException('Unknown ringtone');
@@ -47,5 +47,33 @@ final class notificationConfig {
             }
         }
         $this->module->setConfig('phonecontent_notifications',$values);
+        if (!$this->module->getConfig('phonecontent_push_secret')) {
+            $this->module->setConfig('phonecontent_push_secret', bin2hex(random_bytes(24)));
+        }
+        $this->publishAuthentication();
+        $this->module->phoneContentRegenerate(false);
+    }
+    private function publishAuthentication() {
+        $path=$this->module->phonecontent->publicPath().'/notification-auth.php';
+        $script=<<<'PHP'
+<?php
+ini_set('display_errors','0');
+header('Content-Type: text/plain; charset=UTF-8');
+header('Cache-Control: no-store');
+try {
+    $bootstrap_settings['freepbx_auth']=false;
+    require_once '/etc/freepbx.conf';
+    $module=\FreePBX::create()->Sccp_manager;
+    $secret=(string)$module->getConfig('phonecontent_push_secret');
+    $user=(string)($_REQUEST['UserID']??'');
+    $password=(string)($_REQUEST['Password']??'');
+    echo $secret!=='' && $user==='sccpnotify' && hash_equals($secret,$password)
+        ? 'AUTHORIZED' : 'UN-AUTHORIZED';
+} catch (\Throwable $e) { echo 'UN-AUTHORIZED'; }
+PHP;
+        if (!is_dir(dirname($path)) || is_link(dirname($path)) ||
+            file_put_contents($path,$script."\n",LOCK_EX)===false)
+            throw new \RuntimeException('Cannot publish Cisco push authentication endpoint.');
+        chmod($path,0644);
     }
 }
