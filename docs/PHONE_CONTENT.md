@@ -183,3 +183,13 @@ sudo asterisk -rx 'dialplan show s@sccp-manager-voicemail-play'
 ```
 
 The end-to-end Cisco display behavior requires a real phone test; CI verifies the generated AMI and dialplan syntax paths, not the live SCCP display.
+
+## 17.1.31 — Traditional voicemail from list softkey
+
+The main visual voicemail list now has four softkey positions: **Select** (1), **VM Menu** (2), empty (3), and **Exit** (4). The recordings list stays unchanged. The shortcut does not appear on individual message details.
+
+The VM Menu softkey requests an authenticated phone service response with a CiscoIPPhoneExecute containing `Init:Messages` to close the XML interface and `Dial:*9900<extension>` to start a **normal call from the handset**. The Cisco platform permits two Execute URIs but does not guarantee execution order; both operations are independent. The phone's normal call UI takes focus; it should not need to return to the XML app on hangup.
+
+The dedicated `_*9900.` pattern in `from-internal-custom` identifies the mailbox explicitly from the dialed suffix and runs `Answer()` then `VoiceMailMain(<mailbox>@default)`. This bypasses the broken `*97` path and does **not** skip the voicemail PIN. The installer refreshes the managed include file; run `fwconsole reload` after upgrading. The special code may conflict with locally defined extensions and should be checked with `asterisk -rx 'dialplan show *9900150@from-internal'` for a phone with extension 150.
+
+Open Phone Content once after upgrading so the public voicemail.php is republished. There is no signed SEP configuration change or phone reset required. Cisco 7945G call UI and audio behavior still require on-device testing.
