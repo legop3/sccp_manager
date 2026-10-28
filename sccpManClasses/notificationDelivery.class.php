@@ -110,13 +110,16 @@ final class notificationDelivery {
                 try {
                     $vm=new phonevoicemail($this->module);
                     if ($vm->mailboxForDevice($device)===(string)($fields['extension']??'')) {
-                        $base=$vm->serviceUrl($device);
+                        $base=$vm->serviceUrl($device).'&service=1';
                         $items=$vm->listMessages((string)$fields['extension']);
                         $newest=null;
                         foreach ($items as $item) {
                             if ($item['folder']==='INBOX' && ($newest===null || $item['time']>$newest['time'])) $newest=$item;
                         }
-                        if ($newest!==null) $actions['Listen']=$base.'&op=play&id='.rawurlencode($newest['id']);
+                        if ($newest!==null) {
+                            $actions['Listen']=$base.'&op=notification-play&id='.rawurlencode($newest['id']);
+                            $actions['Details']=$base.'&op=notification&id='.rawurlencode($newest['id']);
+                        }
                         $actions['Messages']=$base;
                     }
                 } catch (\Throwable $e) {
