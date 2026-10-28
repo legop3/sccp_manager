@@ -53,6 +53,12 @@ try {
         'Standalone voicemail endpoint loads the BMO module class from the known local path');
     check(strpos($vmEndpoint, "phonevoicemail->handle(\$_GET)") !== false,
         'Voicemail handler still validates the per-phone bearer token');
+    check(strpos($vmEndpoint, "header('Content-Length: ' . strlen(\$response));") !== false,
+        'HTTP endpoint declares full XML body length before delayed call');
+    check(strpos($vmEndpoint, "@\$parsed->loadXML(\$response, LIBXML_NONET)") !== false,
+        'Phone-facing output must be validated as XML');
+    check(strpos($vmEndpoint, "header('Connection: close');") !== false,
+        'Phone can complete XML response before playback starts');
     check(strpos(file_get_contents($base . '/web/phone.php'), 'Content-Type: text/xml') !== false, 'Cisco XML MIME type');
     check(strpos(file_get_contents($base . '/web/directory.xml'), 'CiscoIPPhoneMenu') !== false,
         'Empty directory');
