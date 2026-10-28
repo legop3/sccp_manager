@@ -1,14 +1,14 @@
 # Cisco Phone Content (SCCP Manager 17.1.17)
 
-Open **SCCP Connectivity → Phone Content** in FreePBX. The page has three
-tabs: Address Book, Wallpapers and Ringtones.
+Open **SCCP Connectivity → Phone Content** in FreePBX. The page has four
+tabs: Address Book, Menus, Wallpapers and Ringtones.
 
 ## Address Book
 
 - Add, edit or delete contacts in FreePBX. The module generates static Cisco
   XML at \`/var/www/html/sccp-manager/directory.xml\` (the actual path is
   derived from FreePBX's AMPWEBROOT). Each edit republishes the directory.
-- A static Services menu is also generated as \`services.xml\`, pointing to
+- An editable Services menu is also generated as \`services.xml\`, pointing to
   the address book. No separately installed PHP web service is needed.
 - Up to 30 entries per directory document; longer books are automatically
   split into pages behind a CiscoIPPhoneMenu. Maximum 300 entries.
@@ -23,6 +23,27 @@ tabs: Address Book, Wallpapers and Ringtones.
 - The XML endpoints are public **static files** under the configured web root.
   Restrict web access on your network as appropriate if contacts are sensitive.
 
+## Menus (17.1.22)
+
+- Manage the shared Directories, Services and Messages button entries under Phone Content > Menus.
+- Entries can be renamed, reordered or removed. Available actions: managed Address Book,
+  native Missed/Received/Placed Calls, Cisco XML URL, dial action, static text page,
+  and one level of submenus (which can be created, renamed, or deleted).
+- Custom phone-button menus are OFF by default, preserving installed phones.
+  When disabled, firmware adds its own native call histories to the Directories
+  button; edited Directory/Services XML still updates live over HTTP.
+- Enabling uses internal service provisioning (phoneServices / provisioning=0)
+  with type 1 for Directories, 0 for Services, 2 for Messages in signed SEP XML.
+  Messages supports one service, defaulting to the native Voicemail function.
+- Saving publishes new XML immediately and regenerates signed phone configs
+  through the existing VPN/ITL signing pipeline. It does not reboot phones.
+  Reset one test phone to verify firmware behavior before resetting other phones.
+- Contact pagination uses a separate phonebook.xml to avoid recursive menus.
+- This is NOT a visual voicemail application. The native voicemail function
+  is preserved until a compatible voicemail browser is separately implemented.
+- URLs refer to Cisco-compatible XML services reachable by the phones over VPN.
+
+Regression checks: php tests/phone-content.php ; php tests/phone-menus.php
 ## Wallpapers
 
 The 7945/7965 SCCP firmware looks for:
