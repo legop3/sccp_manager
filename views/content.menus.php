@@ -62,7 +62,7 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
     var descriptions = {
         directories:'These entries appear under the Directories button when custom button menus are enabled.',
         services:'These entries appear under the Services button. In legacy mode they are still published as the Services XML page.',
-        messages:'For now the Messages button supports exactly one service: native Voicemail or a Cisco XML URL.'
+        messages:'The Messages button supports one service: native Voicemail, Visual Voicemail, or a Cisco XML URL.'
     };
 
     function submenu() {
@@ -81,11 +81,11 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
             .prop('disabled',!!disabled).on('click',handler);
     }
     function optionsFor(type) {
-        if (section === 'messages') return ['voicemail','url'];
+        if (section === 'messages') return ['voicemail','visualvoicemail','url'];
         if (section.indexOf('sub:') === 0) return Object.keys(types).filter(function (k) {
-            return k !== 'voicemail' && k !== 'submenu';
+            return k !== 'voicemail' && k !== 'visualvoicemail' && k !== 'submenu';
         });
-        return Object.keys(types).filter(function (k) { return k !== 'voicemail'; });
+        return Object.keys(types).filter(function (k) { return k !== 'voicemail' && k !== 'visualvoicemail'; });
     }
     function rebuildSelector() {
         var selector = $('#pc-menu-section').empty();
