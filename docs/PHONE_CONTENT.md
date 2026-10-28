@@ -217,3 +217,27 @@ configuration or VPN changes are required.** Cisco pages contain at most 30
 entries with a separate range index for larger directories. Existing manual
 contacts and existing configurable display text are preserved.
 
+
+## 17.1.33 — Unified Address Book management
+
+The FreePBX **Phone Content → Address Book** page is now one directory
+manager rather than separate manual-contact and FreePBX extension tables.
+It provides a single name/number search, All/Favorites/Hidden filters,
+a source label per entry, and one Save Directory action. Custom contacts
+can be added or edited in an inline panel and deleted from their table row.
+FreePBX-managed extension names are read-only here and continue to be
+managed in Connectivity → Extensions.
+
+Existing manually created entries remain Favorites without migrating or
+resetting their data. Both manual and imported entries support Hidden:
+hidden custom contacts are retained in FreePBX's module settings rather
+than deleted, and can later be restored to Favorites. Imported extensions
+can be All Extensions (default), Favorites, or Hidden. Both sets of
+visibility choices are validated and saved together; failed publishing
+reverts both settings.
+
+The phone-facing **Favorites → All Extensions** XML menus, their URLs,
+paging, and voicemail are unchanged. Updating a directory entry
+republishes XML for the next phone request, without resetting phones or
+touching VPN or signed SEP provisioning.
+
