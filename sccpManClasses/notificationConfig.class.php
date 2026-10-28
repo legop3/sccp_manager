@@ -8,7 +8,7 @@ final class notificationConfig {
     public function all() {
         $defaults=[
             'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8,'theme'=>'ocean','show_number'=>true,'show_details'=>true],
-            'missed'=>['enabled'=>false,'style'=>'text','title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>'','duration'=>8],
+            'missed'=>['enabled'=>false,'style'=>'text','title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>'','duration'=>8,'theme'=>'ocean','show_number'=>true,'show_details'=>true],
             'scheduled'=>['enabled'=>false,'style'=>'text','title'=>'Hello','message'=>'A message for everyone','sound'=>'','duration'=>8,'interval'=>60,'time'=>'','title_url'=>'','message_url'=>'','image_url'=>'','source'=>'custom']
         ];
         $saved=$this->module->getConfig('phonecontent_notifications');
@@ -40,10 +40,23 @@ final class notificationConfig {
             $values[$kind]['duration']=max(2,min(60,(int)($post['duration']??8)));
             if ($kind!=='scheduled') {
                 $theme=(string)($post['theme']??$settings['theme']);
-                if (!in_array($theme,['ocean','charcoal','plum','forest'],true)) throw new \InvalidArgumentException('Invalid notification theme');
+                if (!in_array($theme,['ocean','charcoal','plum','forest','custom'],true)) throw new \InvalidArgumentException('Invalid notification theme');
                 $values[$kind]['theme']=$theme;
                 $values[$kind]['show_number']=!empty($post['show_number']);
                 $values[$kind]['show_details']=!empty($post['show_details']);
+                foreach (['background','header','header_text','name_text','secondary_text','details_background','details_label','details_text','accent'] as $key) {
+                    $value=(string)($post['colors'][$key]??$settings['colors'][$key]??'');
+                    if ($value!=='' && !preg_match('/^#[0-9a-fA-F]{6}$/D',$value)) throw new \InvalidArgumentException('Invalid notification color');
+                    $values[$kind]['colors'][$key]=$value;
+                }
+                $stripes=(array)($post['stripes']??[]);
+                $values[$kind]['stripe_position']=in_array(($post['stripe_position']??'off'),['off','header','top','bottom','background'],true)?$post['stripe_position']:'off';
+                $values[$kind]['stripes']=[];
+                foreach (array_slice($stripes,0,10) as $color) {
+                    if ($color==='' || $color===null) continue;
+                    if (!is_string($color)||!preg_match('/^#[0-9a-fA-F]{6}$/D',$color)) throw new \InvalidArgumentException('Invalid stripe color');
+                    $values[$kind]['stripes'][]=$color;
+                }
             }
             foreach (['title','message','title_url','message_url','image_url'] as $key) {
                 if (!array_key_exists($key,$settings)) continue;
