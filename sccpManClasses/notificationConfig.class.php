@@ -7,7 +7,7 @@ final class notificationConfig {
     public function __construct($module) { $this->module=$module; }
     public function all() {
         $defaults=[
-            'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8],
+            'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8,'theme'=>'ocean','show_number'=>true,'show_details'=>true],
             'missed'=>['enabled'=>false,'style'=>'text','title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>'','duration'=>8],
             'scheduled'=>['enabled'=>false,'style'=>'text','title'=>'Hello','message'=>'A message for everyone','sound'=>'','duration'=>8,'interval'=>60,'time'=>'','title_url'=>'','message_url'=>'','image_url'=>'','source'=>'custom']
         ];
@@ -38,6 +38,13 @@ final class notificationConfig {
             if (!in_array($sound,$sounds,true)) throw new \InvalidArgumentException('Unknown ringtone');
             $values[$kind]['sound']=$sound;
             $values[$kind]['duration']=max(2,min(60,(int)($post['duration']??8)));
+            if ($kind!=='scheduled') {
+                $theme=(string)($post['theme']??$settings['theme']);
+                if (!in_array($theme,['ocean','charcoal','plum','forest'],true)) throw new \InvalidArgumentException('Invalid notification theme');
+                $values[$kind]['theme']=$theme;
+                $values[$kind]['show_number']=!empty($post['show_number']);
+                $values[$kind]['show_details']=!empty($post['show_details']);
+            }
             foreach (['title','message','title_url','message_url','image_url'] as $key) {
                 if (!array_key_exists($key,$settings)) continue;
                 $v=trim((string)($post[$key]??''));
