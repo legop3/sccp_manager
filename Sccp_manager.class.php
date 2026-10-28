@@ -141,6 +141,9 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             $this->sccpvalues = $this->dbinterface->get_db_SccpSetting(); //Initialise core settings
             $this->dbsccpvalues = $this->sccpvalues; //Copy settings from DB for future reference
             $this->initializeSccpPath();  //Set required Paths
+            // Auto-loaded classes are constructed before TFTP settings are loaded.
+            // Rebind Phone Content after path initialization for non-default TFTP roots.
+            $this->phonecontent = new \FreePBX\modules\Sccp_manager\phonecontent($this);
             $this->updateTimeZone();   // Get timezone from FreePBX
             //$this->findInstLangs();
             $this->saveSccpSettings();
