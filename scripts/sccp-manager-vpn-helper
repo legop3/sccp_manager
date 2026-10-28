@@ -25,6 +25,8 @@ KEY_DIR = Path("/etc/cisco-signing")
 VPN_CERT = Path("/etc/ocserv/server-cert.pem")
 BIN_DIR = Path("/usr/local/libexec/sccp-manager-vpn")
 SYSTEMD_SERVICE = "sccp-ocserv.service"
+ACCOUNT_PATH = Path("/etc/ocserv/ocpasswd")
+OCCTL_SOCKET = "/run/sccp-ocserv-socket"
 DEVICE = re.compile(r"SEP[0-9A-F]{12}\Z")
 
 
@@ -116,6 +118,67 @@ def sign(device):
     print("Signed", device)
 
 
+def read_accounts():
+    """Return account metadata without returning password hashes."""
+    if ACCOUNT_PATH.is_symlink():
+        raise RuntimeError("Unsafe VPN password file")
+    if not ACCOUNT_PATH.is_file():
+        return []
+    accounts = []
+    for line in ACCOUNT_PATH.read_text(encoding="utf-8").splitlines():
+        if not line or line.startswith("#"):
+            continue
+        fields = line.split(":", 2)
+        if len(fields) != 3:
+            raise RuntimeError("Invalid VPN password file entry")
+        username, group, encoded = fields
+        if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", username):
+            raise RuntimeError("Invalid VPN account name in password file")
+        accounts.append({
+            "username": username,
+            "group": group,
+            "enabled": bool(encoded and not encoded.startswith(("!", "*"))),
+            "password_set": bool(encoded and not encoded.startswith(("!", "*")))
+        })
+    return accounts
+
+
+def connected_sessions():
+    """Read only the SCCP Manager instance via its own control socket."""
+    occtl = shutil.which("occtl")
+    if not occtl:
+        return None
+    try:
+        result = subprocess.run([occtl, "-s", OCCTL_SOCKET, "--json", "show", "users"],
+                                capture_output=True, text=True, timeout=4, check=True)
+        users = json.loads(result.stdout)
+        if not isinstance(users, list):
+            return None
+        return [{
+            "username": str(entry.get("Username", ""))[:64],
+            "remote_ip": str(entry.get("Remote IP", ""))[:128],
+            "vpn_ip": str(entry.get("IPv4", ""))[:128],
+            "connected_at": str(entry.get("_Connected at", ""))[:100]
+        } for entry in users if isinstance(entry, dict)][:100]
+    except (OSError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return None
+
+
+def recent_connection_events():
+    """Show recent VPN connection and authentication events in the web UI."""
+    try:
+        result = subprocess.run(
+            ["journalctl", "-u", SYSTEMD_SERVICE, "--since", "2 hours ago",
+             "-n", "80", "--no-pager", "-o", "short-iso"],
+            capture_output=True, text=True, timeout=4, check=True)
+        markers = ("auth", "login", "connect", "session", "cisco",
+                   "fail", "error", "denied", "cookie", "worker")
+        return [line[:400] for line in result.stdout.splitlines()
+                if any(word in line.lower() for word in markers)][-25:]
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return []
+
+
 def status():
     try:
         result = subprocess.run(["systemctl", "is-active", SYSTEMD_SERVICE],
@@ -136,6 +199,13 @@ def status():
         "signing_tools_installed": all((BIN_DIR / f).is_file() for f in ("sgnfile", "tlvfile")),
         "server_setup_installed": Path(MANAGED_SETUP).is_file()
     }
+    try:
+        payload["accounts"] = read_accounts()
+    except (OSError, ValueError, RuntimeError) as exc:
+        payload["accounts"] = []
+        payload["accounts_error"] = str(exc)
+    payload["sessions"] = connected_sessions() if service == "active" else []
+    payload["recent_events"] = recent_connection_events()
     print(json.dumps(payload))
 
 
@@ -162,7 +232,7 @@ def set_account(username):
     encoded = result.stdout.decode("ascii").strip()
     if not encoded.startswith("$6$"):
         raise RuntimeError("OpenSSL returned an unexpected password hash")
-    target = Path("/etc/ocserv/ocpasswd")
+    target = ACCOUNT_PATH
     if target.is_symlink():
         raise RuntimeError("Refusing to replace a symlinked password file")
     entries = target.read_text().splitlines() if target.is_file() else []
@@ -200,6 +270,43 @@ def set_account(username):
     print("VPN login updated:", username)
 
 
+def delete_account(username):
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", username):
+        raise ValueError("Invalid VPN username")
+    if ACCOUNT_PATH.is_symlink() or not ACCOUNT_PATH.is_file():
+        raise RuntimeError("VPN password file is missing or unsafe")
+    entries = ACCOUNT_PATH.read_text(encoding="utf-8").splitlines()
+    kept = []
+    found = False
+    for line in entries:
+        if not line or line.startswith("#"):
+            kept.append(line)
+            continue
+        fields = line.split(":", 2)
+        if len(fields) != 3:
+            raise RuntimeError("Unrecognized ocpasswd entry")
+        if fields[0] == username:
+            found = True
+        else:
+            kept.append(line)
+    if not found:
+        raise ValueError("VPN account not found")
+    with tempfile.NamedTemporaryFile(prefix=".sccp-ocpasswd-",
+                                     dir=str(ACCOUNT_PATH.parent), mode="w",
+                                     encoding="utf-8", delete=False) as tmp:
+        filename = tmp.name
+        tmp.write("\n".join(kept) + ("\n" if kept else ""))
+    try:
+        original = ACCOUNT_PATH.stat()
+        os.chown(filename, original.st_uid, original.st_gid)
+        os.chmod(filename, stat.S_IMODE(original.st_mode) & 0o600)
+        os.replace(filename, ACCOUNT_PATH)
+    finally:
+        if os.path.exists(filename):
+            os.unlink(filename)
+    print("VPN account deleted:", username)
+
+
 def configure_server():
     request = sys.stdin.buffer.read(4097)
     if len(request) > 4096:
@@ -224,8 +331,10 @@ def main():
         sign(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] == "set-account":
         set_account(sys.argv[2])
+    elif len(sys.argv) == 3 and sys.argv[1] == "delete-account":
+        delete_account(sys.argv[2])
     else:
-        raise ValueError("Usage: helper hash|status|start|configure|sign DEVICE|set-account USER")
+        raise ValueError("Usage: helper hash|status|start|configure|sign DEVICE|set-account USER|delete-account USER")
 
 
 if __name__ == "__main__":
