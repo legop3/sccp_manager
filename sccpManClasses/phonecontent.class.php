@@ -186,7 +186,21 @@ PHP;
 // This public route does not require FreePBX administrator login.
 // Every request must carry a per-device 256-bit bearer token provisioned in signed SEP XML.
 try {
+    // This is a phone-facing service, not an administrator session.
+    // The per-device 256-bit bearer token is checked in phonevoicemail::handle().
+    // FreePBX 17 defaults to interactive auth for standalone web bootstraps.
+    $bootstrap_settings['freepbx_auth'] = false;
     require_once '/etc/freepbx.conf';
+
+    // Standalone HTTP requests do not always populate BMO's active-module
+    // autoloader. Load the installed class explicitly before requesting it.
+    // Never use a path or class name supplied by the HTTP request.
+    $moduleFile = rtrim((string) $amp_conf['AMPWEBROOT'], '/') .
+        '/admin/modules/sccp_manager/Sccp_manager.class.php';
+    if (!is_file($moduleFile)) {
+        throw new \RuntimeException('SCCP Manager module class is missing.');
+    }
+    require_once $moduleFile;
     $module = \FreePBX::create()->Sccp_manager;
     $module->phonevoicemail->handle($_GET);
 } catch (\Throwable $e) {
