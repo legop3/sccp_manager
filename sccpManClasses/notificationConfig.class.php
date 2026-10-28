@@ -66,12 +66,14 @@ try {
     $module=\FreePBX::create()->Sccp_manager;
     $secret=(string)$module->getConfig('phonecontent_push_secret');
     $user=(string)($_REQUEST['UserID']??'');
-    $password=(string)($_REQUEST['Password']??'');
-    // Cisco 79xx may omit Password when calling its authenticationURL.
-    // Never accept the public username with an empty password: the
-    // Basic identity instead carries a secret derived from the server key.
-    $expected='sccpnotify-'.substr(hash_hmac('sha256','cisco-push-user',$secret),0,32);
-    echo $secret!=='' && hash_equals($expected,$user) && $password==='' 
+    // The 7945G sends an empty Password even when the Basic request used
+    // a password. Authorize only a signed device-bound provisioning URL.
+    $device=strtoupper((string)($_REQUEST['devicename']??''));
+    $token=(string)($_GET['token']??'');
+    $validDevice=(bool)preg_match('/^SEP[0-9A-F]{12}$/D',$device);
+    $expected=$validDevice ? hash_hmac('sha256',$device,$secret) : '';
+    echo $secret!=='' && $user==='sccpnotify' && $validDevice &&
+        hash_equals($expected,$token)
         ? 'AUTHORIZED' : 'UN-AUTHORIZED';
 } catch (\Throwable $e) { echo 'UN-AUTHORIZED'; }
 PHP;
