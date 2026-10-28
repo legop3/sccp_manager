@@ -547,6 +547,13 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                     $this->phonecontent->publishDirectory();
                     $this->setConfig('phonecontent_vmplayback_1725', true);
                 }
+                // Upgrade the standalone voicemail HTTP endpoint with the
+                // explicit cache-expiry header for Cisco navigation history.
+                // No phone provisioning changes or reset required.
+                if (!$this->getConfig('phonecontent_vmnav_1727')) {
+                    $this->phonecontent->publishDirectory();
+                    $this->setConfig('phonecontent_vmnav_1727', true);
+                }
                 $this->phonecontent->syncUrls();
             }
             // Existing wallpaper uploads predate ITL-aware media signing.
