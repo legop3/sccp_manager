@@ -145,6 +145,21 @@ $samples=[
   root.querySelectorAll('[data-ne-panel]').forEach(p=>p.classList.toggle('active',p.dataset.nePanel===button.dataset.neTab));
  }));
  const palettes=<?php echo json_encode($palettes,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);?>;
+ const themes={
+  ocean:['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],
+  charcoal:['#181B20','#30343C','#FFFFFF','#BFC6D0','#FFD084'],
+  plum:['#301C3F','#513162','#FFFFFF','#DFC6EC','#FF9BC8'],
+  forest:['#123C31','#245C48','#F5FFF8','#C1E9D2','#91E7B1']
+ };
+ root.querySelectorAll('.ne-theme').forEach(select=>select.addEventListener('change',()=>{
+  const t=themes[select.value];if(!t)return;
+  const panel=select.closest('.ne-panel');
+  const values={background:t[0],header:t[1],header_text:t[4],name_text:t[2],
+   secondary_text:t[3],details_background:t[0],details_label:t[3],
+   details_text:t[2],accent:t[4]};
+  Object.keys(values).forEach(key=>{const input=panel.querySelector('[name$="[colors]['+key+']"]');if(input)input.value=values[key];});
+ }));
+
  root.querySelectorAll('.ne-stripe-row').forEach(row=>{
   const color=row.querySelector('[data-stripe-color]'),active=row.querySelector('[data-stripe-active]'),hidden=row.querySelector('input[type=hidden]');
   const update=()=>{hidden.value=active.checked?color.value:'';};color.addEventListener('input',()=>{active.checked=true;update();});active.addEventListener('change',update);
