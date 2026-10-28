@@ -46,6 +46,13 @@ try {
     check($content->baseUrl() === 'http://192.168.0.25/sccp-manager', 'PBX URL');
     $content->publishDirectory();
     check(is_file($base . '/web/phone.php'), 'PHP XML service endpoint must exist');
+    $vmEndpoint = file_get_contents($base . '/web/voicemail.php');
+    check(strpos($vmEndpoint, "\$bootstrap_settings['freepbx_auth'] = false;") !== false,
+        'Standalone voicemail endpoint explicitly disables FreePBX admin authentication');
+    check(strpos($vmEndpoint, "'/admin/modules/sccp_manager/Sccp_manager.class.php'") !== false,
+        'Standalone voicemail endpoint loads the BMO module class from the known local path');
+    check(strpos($vmEndpoint, "phonevoicemail->handle(\$_GET)") !== false,
+        'Voicemail handler still validates the per-phone bearer token');
     check(strpos(file_get_contents($base . '/web/phone.php'), 'Content-Type: text/xml') !== false, 'Cisco XML MIME type');
     check(strpos(file_get_contents($base . '/web/directory.xml'), 'CiscoIPPhoneMenu') !== false,
         'Empty directory');
