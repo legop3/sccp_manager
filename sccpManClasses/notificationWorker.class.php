@@ -148,12 +148,35 @@ final class notificationWorker {
                         $targets[$ext]['candidate']=$row;
                 }
             }
+            // Preserve the original caller from the linked call, not an
+            // internal Dial/VoiceMail leg that may have an empty src.
+            $origin='';
+            foreach ($group as $entry) {
+                $from=(string)($entry['channel']??'');
+                if (preg_match('~^SCCP/([0-9]{1,16})(?=[^0-9]|$)~i',$from,$m)) {
+                    $origin=$m[1];
+                    break;
+                }
+            }
+            if ($origin==='') {
+                foreach ($group as $entry) {
+                    $source=(string)($entry['src']??'');
+                    if (preg_match('/^[+0-9*#]{1,32}$/D',$source)) {
+                        $origin=$source;
+                        break;
+                    }
+                }
+            }
             // Wait until all CDR legs have finished. This avoids declaring
             // a call missed while a phone is still ringing or in voicemail.
             if ($lastEnd===0 || $lastEnd>$now-15 || $lastEnd<$now-240) continue;
             foreach ($targets as $ext=>$state) {
                 if ($state['answered'] || !$state['candidate']) continue;
                 $row=$state['candidate'];
+                if ($origin!=='' && $origin!==$ext) {
+                    $row['src']=$origin;
+                    if (trim((string)($row['clid']??''))==='') $row['clid']=$origin;
+                }
                 $row['dst']=$ext;
                 $row['uniqueid']=$linked;
                 $row['disposition']='NO ANSWER';
