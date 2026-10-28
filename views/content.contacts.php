@@ -28,8 +28,8 @@ $health = $pc->status();
         <?php if ($base): ?>
         <div class="sccp-content-url">
             <span>Built-in directory URL</span>
-            <code><?php echo $esc($base . '/directory.xml'); ?></code>
-            <a class="btn btn-default btn-sm" target="_blank" rel="noopener" href="<?php echo $esc($base . '/directory.xml'); ?>">Test URL</a>
+            <code><?php echo $esc($base . '/phone.php?doc=directory'); ?></code>
+            <a class="btn btn-default btn-sm" target="_blank" rel="noopener" href="<?php echo $esc($base . '/phone.php?doc=directory'); ?>">Test URL</a>
         </div>
         <div class="sccp-content-actions">
             <form method="post" action="config.php?display=sccp_content#general">
