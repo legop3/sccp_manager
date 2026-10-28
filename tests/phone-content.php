@@ -69,6 +69,54 @@ try {
     check($menu->getName() === 'CiscoIPPhoneMenu', 'Directory pagination');
     check(file_exists($base . '/web/contacts-2.xml'), 'Second contact page');
     check(count($menu->MenuItem) === 2, 'Only contact pages should be in expanded directory menu');
+
+    // Every visible Cisco XML Title/Prompt/Name must be configurable. The
+    // settings update must republish immediately without changing phone URLs
+    // or regenerating signed SEP provisioning.
+    $labels = $content->directoryLabels();
+    check($labels['menu_entry'] === 'Phone Book', 'Existing directory label default');
+    $custom = array(
+        'menu_title' => 'My directories',
+        'menu_prompt' => 'Choose a list',
+        'menu_entry' => 'People & Teams',
+        'contacts_title' => 'Family & Friends',
+        'contacts_prompt' => 'Pick <one>',
+        'services_title' => 'Tools',
+        'services_prompt' => 'Choose an action',
+        'services_entry' => 'Call contacts'
+    );
+    $contactCount = count($content->contacts());
+    $content->saveDirectoryLabels($custom);
+    check($content->directoryLabels() === $custom, 'Custom directory labels persisted');
+    check(count($content->contacts()) === $contactCount, 'Customizing text did not modify contacts');
+    $menu = simplexml_load_file($base . '/web/directory.xml');
+    check((string) $menu->Title === 'My directories', 'Custom menu title');
+    check((string) $menu->Prompt === 'Choose a list', 'Custom menu prompt');
+    check((string) $menu->MenuItem[0]->Name === 'People & Teams 1-30',
+        'Custom entry label used for paginated directories');
+    $page = simplexml_load_file($base . '/web/contacts-1.xml');
+    check((string) $page->Title === 'Family & Friends', 'Custom contact title');
+    check((string) $page->Prompt === 'Pick <one>', 'Escaped custom prompt');
+    $services = simplexml_load_file($base . '/web/services.xml');
+    check((string) $services->Title === 'Tools', 'Custom services title');
+    check((string) $services->Prompt === 'Choose an action', 'Custom services prompt');
+    check((string) $services->MenuItem[0]->Name === 'Call contacts', 'Custom services entry');
+    check(strpos(file_get_contents($base . '/web/directory.xml'), 'People &amp; Teams') !== false,
+        'Special characters safely escaped in Cisco XML');
+    try {
+        $bad = $custom;
+        $bad['menu_entry'] = str_repeat('x', 61);
+        $content->saveDirectoryLabels($bad);
+        throw new RuntimeException('Overlong menu label accepted');
+    } catch (InvalidArgumentException $ok) {}
+    check($content->directoryLabels() === $custom, 'Invalid update changed saved text');
+    try {
+        $bad = $custom;
+        $bad['contacts_title'] = "Foo\nBar";
+        $content->saveDirectoryLabels($bad);
+        throw new RuntimeException('Control character accepted');
+    } catch (InvalidArgumentException $ok) {}
+    check($content->directoryLabels() === $custom, 'Invalid control character changed saved text');
     check(count($parent->dbinterface->writes) === 0, 'No implicit DB mutations');
     $changed = $content->syncUrls();
     check(count($changed) === 2, 'Autofill both phone URLs');
