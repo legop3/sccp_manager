@@ -110,34 +110,47 @@ class phonecontent
         // Single-page directory for <= 30 contacts; otherwise link to paged XML.
         $chunks = array_chunk($contacts, 30);
         if (!$chunks) $chunks = array(array());
+        // Cisco's Directories URL must always return CiscoIPPhoneMenu, not a
+        // directory object directly. A menu can then link to one or more
+        // CiscoIPPhoneDirectory documents containing up to 32 entries.
         foreach ($chunks as $i => $chunk) {
             list($doc, $root) = $this->xml('CiscoIPPhoneDirectory');
-            $this->element($doc, $root, 'Title', 'Phone Directory');
+            $this->element($doc, $root, 'Title', 'Phone Book');
             $this->element($doc, $root, 'Prompt', 'Select a contact to call');
             foreach ($chunk as $entry) {
                 $row = $root->appendChild($doc->createElement('DirectoryEntry'));
                 $this->element($doc, $row, 'Name', $entry['name']);
                 $this->element($doc, $row, 'Telephone', $entry['number']);
             }
-            $file = count($chunks) === 1 ? 'directory.xml' : 'contacts-' . ($i + 1) . '.xml';
-            $this->publishFile($this->public . '/' . $file, $doc->saveXML());
+            $this->publishFile($this->public . '/contacts-' . ($i + 1) . '.xml', $doc->saveXML());
         }
-        if (count($chunks) > 1) {
-            list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
-            $this->element($doc, $root, 'Title', 'Phone Directory');
-            $this->element($doc, $root, 'Prompt', 'Choose a contacts page');
-            foreach ($chunks as $i => $chunk) {
-                $item = $root->appendChild($doc->createElement('MenuItem'));
-                $this->element($doc, $item, 'Name', 'Contacts ' . ($i * 30 + 1) . '-' . ($i * 30 + count($chunk)));
-                $this->element($doc, $item, 'URL', $base . '/contacts-' . ($i + 1) . '.xml');
-            }
-            $this->publishFile($this->public . '/directory.xml', $doc->saveXML());
+
+        list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
+        $this->element($doc, $root, 'Title', 'Directories');
+        $this->element($doc, $root, 'Prompt', 'Select a directory');
+        foreach (array(
+            'Missed Calls' => 'Application:Cisco/MissedCalls',
+            'Received Calls' => 'Application:Cisco/ReceivedCalls',
+            'Placed Calls' => 'Application:Cisco/PlacedCalls'
+        ) as $label => $url) {
+            $item = $root->appendChild($doc->createElement('MenuItem'));
+            $this->element($doc, $item, 'Name', $label);
+            $this->element($doc, $item, 'URL', $url);
         }
-        // Retire old static pages after contacts are removed or the book shrinks.
-        // Otherwise deleted contacts would remain readable at stale page URLs.
+        foreach ($chunks as $i => $chunk) {
+            $item = $root->appendChild($doc->createElement('MenuItem'));
+            $label = count($chunks) === 1 ? 'Phone Book' :
+                'Phone Book ' . ($i * 30 + 1) . '-' . ($i * 30 + count($chunk));
+            $this->element($doc, $item, 'Name', $label);
+            $this->element($doc, $item, 'URL', $base . '/contacts-' . ($i + 1) . '.xml');
+        }
+        $this->publishFile($this->public . '/directory.xml', $doc->saveXML());
+
+        // Retire old pages when the directory shrinks. Otherwise deleted
+        // contacts remain available at old static URLs.
         foreach (glob($this->public . '/contacts-*.xml') ?: array() as $oldPage) {
-            if (!preg_match('/^contacts-([0-9]+)\\.xml$/D', basename($oldPage), $match)) continue;
-            if (count($chunks) <= 1 || (int) $match[1] > count($chunks)) {
+            if (!preg_match('/^contacts-([0-9]+)\.xml$/D', basename($oldPage), $match)) continue;
+            if ((int) $match[1] > count($chunks)) {
                 if (is_file($oldPage) && !is_link($oldPage)) @unlink($oldPage);
             }
         }
