@@ -410,6 +410,46 @@ class phonevoicemail
             $confirmDelete ? $base . '&op=detail&id=' . rawurlencode($id) : $base);
     }
 
+    /**
+     * Notification-launched voicemail is an XML service, not the Messages app.
+     * Keep it on one message and close with SoftKey:Exit (never Init:Messages).
+     * Reuse the existing authenticated message ID and AMI playback path.
+     */
+    private function showNotificationMessage($base, array $msg, $afterPlayback = false)
+    {
+        $id = rawurlencode($msg['id']);
+        $from = $msg['name'] ?: ($msg['number'] ?: 'Unknown Caller');
+        $doc = new \DOMDocument('1.0', 'UTF-8');
+        $root = $doc->appendChild($doc->createElement('CiscoIPPhoneMenu'));
+        $root->appendChild($doc->createElement('Title'))
+            ->appendChild($doc->createTextNode(substr($from, 0, 55)));
+        $prompt = 'Voicemail ' . $msg['duration'] . ' sec';
+        $root->appendChild($doc->createElement('Prompt'))
+            ->appendChild($doc->createTextNode($prompt));
+        $entries = array(
+            array($afterPlayback ? 'Play Again' : 'Play Message', $base . '&op=notification-play&id=' . $id)
+        );
+        foreach ($entries as $entry) {
+            $item = $root->appendChild($doc->createElement('MenuItem'));
+            $item->appendChild($doc->createElement('Name'))->appendChild($doc->createTextNode($entry[0]));
+            $item->appendChild($doc->createElement('URL'))->appendChild($doc->createTextNode($entry[1]));
+        }
+        $keys = array(
+            array('Play', $base . '&op=notification-play&id=' . $id, 1),
+            array('Messages', $base, 2),
+            array('Exit', 'SoftKey:Exit', 4)
+        );
+        foreach ($keys as $key) {
+            $item = $root->appendChild($doc->createElement('SoftKeyItem'));
+            $item->appendChild($doc->createElement('Name'))->appendChild($doc->createTextNode($key[0]));
+            $item->appendChild($doc->createElement('URL'))->appendChild($doc->createTextNode($key[1]));
+            $item->appendChild($doc->createElement('Position'))->appendChild($doc->createTextNode((string)$key[2]));
+        }
+        header('Content-Type: text/xml; charset=UTF-8');
+        header('Cache-Control: no-store');
+        echo $doc->saveXML();
+    }
+
     private function showMessageList($line, $base, array $messages)
     {
         $links = array();
@@ -455,7 +495,7 @@ class phonevoicemail
             list($device, $line, $token) = $this->authenticate($get);
             $base = $this->serviceUrl($device);
             $op = (string)($get['op'] ?? 'list');
-            if (!in_array($op, array('list','detail','play','mark','delete','confirm-delete','call-menu'), true)) throw new \InvalidArgumentException('Unknown voicemail operation.');
+            if (!in_array($op, array('list','detail','play','notification','notification-play','mark','delete','confirm-delete','call-menu'), true)) throw new \InvalidArgumentException('Unknown voicemail operation.');
             if ($op === 'call-menu') {
                 $this->traditionalVoicemailCall($line);
                 return;
@@ -471,6 +511,11 @@ class phonevoicemail
             $msg = $this->messageById($line, $id);
             $folder = $msg['folder'];
             $from = $msg['name'] ?: ($msg['number'] ?: 'Unknown Caller');
+            if ($op === 'notification' || $op === 'notification-play') {
+                if ($op === 'notification-play') $this->queuePlayback($line, $msg);
+                $this->showNotificationMessage($base, $msg, $op === 'notification-play');
+                return;
+            }
             if ($op === 'mark') {
                 if ($folder !== 'INBOX') throw new \InvalidArgumentException('Message is already marked heard.');
                 $reply = $this->ami(array('Action'=>'VoicemailMove','Context'=>'default','Mailbox'=>$line,
