@@ -177,7 +177,7 @@ class phonemenus
         switch ($item['type']) {
             case 'phonebook':
                 // Services may link to the same canonical Directories screen.
-                return $base . '/phone.php?doc=directory';
+                return $base . '/phone.php?doc=contacts-1';
             case 'missed': return 'Application:Cisco/MissedCalls';
             case 'received': return 'Application:Cisco/ReceivedCalls';
             case 'placed': return 'Application:Cisco/PlacedCalls';
@@ -269,13 +269,13 @@ class phonemenus
         $services = $root->appendChild($doc->createElement('phoneServices'));
         $this->child($doc, $services, 'provisioning', '0');
         // Exactly one direct entry for the physical Directories button.
-        // The 7945G should not navigate through a second Phone Book menu.
+        // The 7945G receives a CiscoIPPhoneDirectory directly, with an All softkey.
         $directory = $services->appendChild($doc->createElement('phoneService'));
         $directory->setAttribute('type', '1');
         $directory->setAttribute('category', '0');
         $labels = $this->parent->phonecontent->directoryLabels();
-        $this->child($doc, $directory, 'name', $labels['menu_title']);
-        $this->child($doc, $directory, 'url', $base . '/phone.php?doc=directory');
+        $this->child($doc, $directory, 'name', $labels['contacts_title']);
+        $this->child($doc, $directory, 'url', $base . '/phone.php?doc=contacts-1');
         $this->child($doc, $directory, 'vendor', '');
         $this->child($doc, $directory, 'version', '');
         foreach (array('services' => '0', 'messages' => '2') as $section => $type) {
