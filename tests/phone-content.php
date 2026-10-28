@@ -103,10 +103,10 @@ try {
     $parent->setConfig('phonecontent_ringtones', array(
         array('id' => 'abcdef0123456789', 'name' => 'Doorbell', 'ext' => 'wav')));
     $content->publishRingtones();
-    $rings = simplexml_load_file($base . '/tftp/RingList.xml');
+    $rings = simplexml_load_file($base . '/tftp/ringlist.xml');
     check((string) $rings->Ring[0]->FileName === 'PC-abcdef0123456789.raw', 'RingList index');
     // Preserve existing manually-managed catalogs rather than deleting them.
-    file_put_contents($base . '/tftp/RingList.xml', '<CiscoIPPhoneRingList/>');
+    file_put_contents($base . '/tftp/ringlist.xml', '<CiscoIPPhoneRingList/>');
     try {
         $content->publishRingtones();
         throw new RuntimeException('Unmanaged RingList was overwritten');
