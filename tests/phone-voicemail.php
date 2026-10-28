@@ -154,6 +154,16 @@ verify(strpos($dialplan, 'VoiceMailPlayMsg(${SCCP_VM_MAILBOX}@default,${SCCP_VM_
     'Voicemail still plays directly on SCCP audio channel without an intermediary');
 verify(strpos($dialplan, 'Wait(') === false && strpos($dialplan, 'Sleep(') === false,
     'SCCP dialplan has no artificial delays');
+verify(strpos($dialplan, 'same => n,Return()') !== false,
+    'Predial subroutine returns before phone call is placed');
+$installer = file_get_contents(__DIR__ . '/../install.php');
+verify(strpos($installer, '#include sccp-manager-voicemail.conf') !== false &&
+    strpos($installer, "conf/voicemail-dialplan.conf") !== false,
+    'Module installer deploys and includes managed voicemail contexts on FreePBX');
+verify(strpos($source, "'PreDialGoSub'=>'sccp-manager-voicemail-predial") !== false,
+    'Caller ID is populated by native chan_sccp predial hook');
+verify(strpos($source, "stream_set_timeout(\$stream, \$replyTimeout)") !== false,
+    'Synchronous origination tolerates the configured answer timeout');
 $unsafe = $m;
 $unsafe['name'] = "Weird (test), \r\nName";
 $fields = phonevoicemail::originateFields('111', $unsafe);
