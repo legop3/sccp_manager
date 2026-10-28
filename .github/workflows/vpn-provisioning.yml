@@ -45,6 +45,8 @@ jobs:
           php -l views/content.wallpapers.php
           php -l views/content.ringtones.php
           php tests/phone-content.php
+          php tests/phone-content-7945.php
+          php -l views/content.status.php
           php tests/vpn-provisioning.php
           php tests/vpn-firewall.php
           php tests/vpn-ui.php
