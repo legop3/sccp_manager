@@ -1422,6 +1422,16 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             }
         }
 
+        // When notification pushes are configured, provision their Cisco XML
+        // authentication endpoint. Preserve an explicitly configured URL.
+        if ($sccp_native && $this->getConfig('phonecontent_push_secret') &&
+            $this->phonecontent->baseUrl() !== '' &&
+            empty($dev_config['dev_authenticationURL']) &&
+            empty($data_value['dev_authenticationURL'])) {
+            $dev_config['dev_authenticationURL'] =
+                $this->phonecontent->baseUrl() . '/notification-auth.php';
+        }
+
         $lang_data = $this->extconfigs->getExtConfig('sccp_lang');
         if (!$sccp_native) {
             return $this->xmlinterface->create_SEP_SIP_XML($this->sccppath["tftp_store_path"], $data_value, $dev_config, $dev_id, $lang_data);
