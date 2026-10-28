@@ -104,7 +104,7 @@ verify((string)$deleteXml->SoftKeyItem[0]->URL === 'SoftKey:Select',
 verify(strpos($deleteXml->asXML(), 'Delete Message?') === false,
     'Avoid the failing standalone Delete Message confirmation XML page');
 
-$softkeysDetail = array_map('strval', iterator_to_array($xml->xpath('//SoftKeyItem/Name')));
+$softkeysDetail = array_map('strval', $xml->xpath('//SoftKeyItem/Name'));
 verify(!in_array('VM Menu', $softkeysDetail, true),
     'VM Menu shortcut does not appear in individual message details');
 $names = array();
