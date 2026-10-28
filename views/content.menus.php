@@ -31,6 +31,7 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
                 </div>
                 <div class="col-sm-5" style="padding-top:24px">
                     <button type="button" class="btn btn-default" id="pc-add-submenu"><i class="fa fa-plus"></i> <?php echo _('Create submenu'); ?></button>
+                    <button type="button" class="btn btn-default" id="pc-rename-submenu" style="display:none"><i class="fa fa-pencil"></i> <?php echo _('Rename submenu'); ?></button>
                     <button type="button" class="btn btn-default" id="pc-delete-submenu" style="display:none"><i class="fa fa-trash"></i> <?php echo _('Delete submenu'); ?></button>
                 </div>
             </div>
@@ -99,6 +100,7 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
     function render() {
         rebuildSelector();
         $('#pc-delete-submenu').toggle(!!submenu());
+        $('#pc-rename-submenu').toggle(!!submenu());
         $('#pc-menu-description').text(submenu() ?
             'Submenus open as a new Cisco XML menu. One level of nesting is supported.' :
             descriptions[section]);
@@ -180,6 +182,12 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
         var id = 's' + Math.random().toString(36).slice(2,12);
         menus.submenus.push({id:id,name:name.trim(),items:[]});
         section='sub:'+id;render();
+    });
+    $('#pc-rename-submenu').on('click',function () {
+        var sub = submenu();
+        if (!sub) return;
+        var name = prompt('Submenu name', sub.name);
+        if (name && name.trim()) { sub.name=name.trim();render(); }
     });
     $('#pc-delete-submenu').on('click',function () {
         var sub=submenu();
