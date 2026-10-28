@@ -28,3 +28,4 @@ jobs:
           php tests/phone-content.php
           php tests/phone-content-7945.php
           php tests/phone-menus.php
+          php tests/phone-voicemail.php
