@@ -54,6 +54,57 @@ final class phoneNotifications
         return $xml.'</CiscoIPPhoneText>';
     }
 
+    /** Render a compact graphical notification for the 7945G screen. */
+    public static function graphic($module, $kind, $fields, array $actions)
+    {
+        if (!function_exists('imagecreatetruecolor')) return null;
+        $dir=$module->phonecontent->publicPath();
+        $base=$module->phonecontent->baseUrl();
+        if (!is_dir($dir) || is_link($dir) || $base==='') return null;
+        $im=imagecreatetruecolor(296,156);
+        $bg=imagecolorallocate($im,19,41,61);
+        $panel=imagecolorallocate($im,30,66,91);
+        $white=imagecolorallocate($im,250,252,255);
+        $muted=imagecolorallocate($im,168,206,229);
+        $accent=imagecolorallocate($im,$kind==='voicemail'?90:255,$kind==='voicemail'?196:174,$kind==='voicemail'?245:137);
+        imagefilledrectangle($im,0,0,295,155,$bg);
+        imagefilledrectangle($im,0,0,295,28,$panel);
+        $heading=$kind==='voicemail'?'NEW VOICEMAIL':'MISSED CALL';
+        imagestring($im,4,10,6,$heading,$accent);
+        $name=(string)($fields['caller']??'Unknown caller');
+        $name=preg_replace('/[^\\x20-\\x7E]/','',$name);
+        imagestring($im,5,10,38,substr($name,0,28),$white);
+        imagestring($im,3,10,62,substr((string)($fields['number']??''),0,39),$muted);
+        imageline($im,10,87,285,87,$panel);
+        if ($kind==='voicemail') {
+            imagestring($im,3,10,98,'RECEIVED', $muted);
+            imagestring($im,3,10,116,substr((string)($fields['time']??''),0,22),$white);
+            imagestring($im,3,169,98,'LENGTH', $muted);
+            imagestring($im,3,169,116,substr((string)($fields['length']??''),0,12),$white);
+        } else {
+            imagestring($im,3,10,98,'LAST CALL', $muted);
+            imagestring($im,3,10,116,substr((string)($fields['when']??''),0,38),$white);
+        }
+        $id=bin2hex(random_bytes(12));
+        $filename='notification-'.$id.'.png';
+        $ok=imagepng($im,$dir.'/'.$filename);
+        imagedestroy($im);
+        if (!$ok) return null;
+        chmod($dir.'/'.$filename,0644);
+        $xml='<?xml version="1.0" encoding="UTF-8"?>'
+            .'<CiscoIPPhoneImageFile><Title>'.self::xml($heading).'</Title>'
+            .'<LocationX>0</LocationX><LocationY>0</LocationY><URL>'
+            .self::xml($base.'/'.$filename).'</URL>';
+        $position=1;
+        foreach ($actions as $label=>$url) {
+            if ($position>4) break;
+            $xml.='<SoftKeyItem><Name>'.self::xml(self::limit($label,12))
+                .'</Name><URL>'.self::xml($url).'</URL><Position>'.$position.'</Position></SoftKeyItem>';
+            $position++;
+        }
+        return $xml.'</CiscoIPPhoneImageFile>';
+    }
+
     public static function status($message, $timer = 0)
     {
         $message = self::xml(self::limit($message, 80));
