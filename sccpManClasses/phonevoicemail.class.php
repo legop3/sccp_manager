@@ -273,23 +273,42 @@ class phonevoicemail
         // Caller ID comes from the actual voicemail, not the mailbox owner.
         $display = $message['name'] !== '' ? $message['name'] :
             ($message['number'] !== '' ? $message['number'] : 'Voicemail');
-        $cidName = substr(preg_replace('/[^A-Za-z0-9 ._()+-]/', '', $display), 0, 48);
+        // Delimiters like (, ) and , must never occur in the Gosub args.
+        // Keep CallerID a phone-display-safe name, without compromising
+        // its dynamic voicemail metadata origin.
+        $cidName = substr(preg_replace('/[^A-Za-z0-9 ._+-]/', '', $display), 0, 48);
         if ($cidName === '') $cidName = 'Voicemail';
         $cidNum = preg_replace('/[^0-9]/', '', $message['number']);
         if ($cidNum === '') $cidNum = $line;
         return array(
             'Action'=>'Originate',
             'Channel'=>'SCCP/' . $line . '/aa=1w',
-            'Application'=>'VoiceMailPlayMsg',
-            'Data'=>$line . '@default,' . $message['id'],
+            // AMI Application-based originate has no pre-dial hook. SCCP
+            // keeps its *own* callingParty fields, so Asterisk's CallerID
+            // alone does not reach the Cisco 7945G display.
+            //
+            // In Asterisk 22.6, PreDialGoSub works for synchronous Exten
+            // originates. Pass caller name/number as explicit Gosub args
+            // because channel Variable headers are applied AFTER predial.
+            'Context'=>'sccp-manager-voicemail-play',
+            'Exten'=>'s',
+            'Priority'=>'1',
+            'PreDialGoSub'=>'sccp-manager-voicemail-predial,s,1(' . $cidName . ',' . $cidNum . ')',
+            'Variable'=>'SCCP_VM_MAILBOX=' . $line . ',SCCP_VM_ID=' . $message['id'],
             'CallerID'=>'"' . $cidName . '" <' . $cidNum . '>',
             'Timeout'=>'10000',
-            'Async'=>'true'
+            'Async'=>'false'
         );
     }
 
     public function playback($line, array $message)
     {
+        // These contexts must be installed and loaded before originating.
+        // Refuse silent caller-ID regressions if installation was incomplete.
+        $dialplan = '/etc/asterisk/sccp-manager-voicemail.conf';
+        if (!is_file($dialplan)) {
+            throw new \RuntimeException('SCCP voicemail dialplan is missing; reinstall SCCP Manager as root.');
+        }
         $this->assertNotOnCall($line);
         $this->ami(self::originateFields($line, $message));
     }
