@@ -71,6 +71,56 @@ with tempfile.TemporaryDirectory(prefix="sccp-vpn-integration-") as tmp:
         except ValueError:
             pass
 
+    # Real 7945G on VPN requests Desktops/.../List.xml.sgn, and then
+    # signed PNG resources. Confirm the helper signs binary and XML files
+    # with the SAME signer without changing any phone's existing ITL.
+    desktop = module.TFTP / "Desktops" / "320x212x16"
+    desktop.mkdir(parents=True)
+    image = desktop / "PC-0123456789abcdef.png"
+    thumb = desktop / "TN-PC-0123456789abcdef.png"
+    catalog = desktop / "List.xml"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n" + bytes(range(64)))
+    thumb.write_bytes(b"\x89PNG\r\n\x1a\n" + bytes(range(32)))
+    catalog.write_text('<CiscoIPPhoneImageList><ImageItem '
+                       'Image="TFTP:Desktops/320x212x16/TN-PC-0123456789abcdef.png" '
+                       'URL="TFTP:Desktops/320x212x16/PC-0123456789abcdef.png"/>'
+                       '</CiscoIPPhoneImageList>')
+    module.sign_content("wallpapers")
+    for source in (catalog, image, thumb):
+        signed_content = Path(str(source) + ".sgn")
+        assert signed_content.is_file() and signed_content.stat().st_size > 0
+        parsed = subprocess.run(
+            [str(module.BIN_DIR / "sgnfile"), "--parse", str(signed_content),
+             "--tftp", str(module.KEY_DIR / "tftp.pem")],
+            check=True, capture_output=True, text=True)
+        assert "Valid signature" in parsed.stdout
+    assert trust.read_bytes() == old_trust, "Signing content changed the phone ITL"
+
+    ringlist = module.TFTP / "RingList.xml"
+    ringtone = module.TFTP / "PC-abcdef0123456789.raw"
+    ringlist.write_text("<CiscoIPPhoneRingList><Ring><DisplayName>Chime</DisplayName>"
+                        "<FileName>PC-abcdef0123456789.raw</FileName></Ring></CiscoIPPhoneRingList>")
+    ringtone.write_bytes(bytes(range(240)))
+    module.sign_content("ringtones")
+    assert (module.TFTP / "RingList.xml.sgn").is_file()
+    assert (module.TFTP / "PC-abcdef0123456789.raw.sgn").is_file()
+    assert trust.read_bytes() == old_trust, "Signing ring content changed phone ITL"
+
+    for bad_kind in ("../../etc", "root", "wallpapers/../etc"):
+        try:
+            module.sign_content(bad_kind)
+            raise AssertionError("Unsafe content type accepted")
+        except ValueError:
+            pass
+    rogue = desktop / "PC-aaaaaaaaaaaaaaaa.png"
+    rogue.symlink_to("/etc/passwd")
+    try:
+        module.sign_content("wallpapers")
+        raise AssertionError("Symlinked media file accepted")
+    except RuntimeError as error:
+        assert "Unsafe Cisco media file" in str(error), str(error)
+    rogue.unlink()
+
     make_cert(module.KEY_DIR / "tftp.pem", "Different-TFTP")
     try:
         module.sign(device)
