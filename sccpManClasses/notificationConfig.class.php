@@ -65,11 +65,15 @@ try {
     require_once '/etc/freepbx.conf';
     $module=\FreePBX::create()->Sccp_manager;
     $secret=(string)$module->getConfig('phonecontent_push_secret');
-    $user=(string)($_REQUEST['UserID']??'');
-    // The 7945G sends an empty Password even when the Basic request used
-    // a password. Authorize only a signed device-bound provisioning URL.
+    // Cisco 7945G appends ?UserID=... even if authenticationURL
+    // already has ?token=..., producing token=HEX?UserID=...
+    // Read that exact firmware format without accepting arbitrary tokens.
+    $rawQuery=(string)($_SERVER['QUERY_STRING']??'');
+    $embedded=[];
+    $hasEmbeddedUser=(bool)preg_match('/^token=([0-9a-f]{64})\\?UserID=([^&]*)(&|$)/D', $rawQuery, $embedded);
+    $user=$hasEmbeddedUser ? rawurldecode($embedded[2]) : (string)($_REQUEST['UserID']??'');
     $device=strtoupper((string)($_REQUEST['devicename']??''));
-    $token=(string)($_GET['token']??'');
+    $token=$hasEmbeddedUser ? $embedded[1] : (string)($_GET['token']??'');
     $validDevice=(bool)preg_match('/^SEP[0-9A-F]{12}$/D',$device);
     $expected=$validDevice ? hash_hmac('sha256',$device,$secret) : '';
     echo $secret!=='' && $user==='sccpnotify' && $validDevice &&
