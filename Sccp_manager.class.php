@@ -567,6 +567,11 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                     $this->phonecontent->publishDirectory();
                     $this->setConfig('phonecontent_vmmenu_1731', true);
                 }
+                // FreePBX's Connectivity -> Extensions is the only source
+                // for automatic contacts (including SCCP). Refresh the
+                // generated XML on each admin visit so new/renamed extensions
+                // are picked up without changing signed SEP provisioning.
+                $this->phonecontent->publishDirectory();
                 $this->phonecontent->syncUrls();
             }
             // Existing wallpaper uploads predate ITL-aware media signing.
