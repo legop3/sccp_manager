@@ -183,18 +183,23 @@ PHP;
     {
         $script = <<<'PHP'
 <?php
-// This public route does not require FreePBX administrator login.
-// Every request must carry a per-device 256-bit bearer token provisioned in signed SEP XML.
+// Cisco phones must receive *only* one complete XML object, never PHP
+// warnings, FreePBX bootstrap output, or half a response interrupted by a
+// new auto-answer call. Keep all HTTP parsing behind a per-device token.
+ini_set('display_errors', '0');
+$initialLevel = ob_get_level();
+ob_start();
+$responseCode = 200;
 try {
-    // This is a phone-facing service, not an administrator session.
-    // The per-device 256-bit bearer token is checked in phonevoicemail::handle().
-    // FreePBX 17 defaults to interactive auth for standalone web bootstraps.
     $bootstrap_settings['freepbx_auth'] = false;
     require_once '/etc/freepbx.conf';
+    // A FreePBX bootstrap can write non-XML notices. None belong on the phone.
+    while (ob_get_level() > $initialLevel + 1) ob_end_flush();
+    if (ob_get_length()) {
+        error_log('sccp_manager visual voicemail: discarded unexpected FreePBX bootstrap output');
+        ob_clean();
+    }
 
-    // Standalone HTTP requests do not always populate BMO's active-module
-    // autoloader. Load the installed class explicitly before requesting it.
-    // Never use a path or class name supplied by the HTTP request.
     $moduleFile = rtrim((string) $amp_conf['AMPWEBROOT'], '/') .
         '/admin/modules/sccp_manager/Sccp_manager.class.php';
     if (!is_file($moduleFile)) {
@@ -205,10 +210,34 @@ try {
     $module->phonevoicemail->handle($_GET);
 } catch (\Throwable $e) {
     error_log('sccp_manager visual voicemail bootstrap: ' . $e->getMessage());
-    http_response_code(503);
-    header('Content-Type: text/xml; charset=UTF-8');
-    echo '<?xml version="1.0"?><CiscoIPPhoneText><Title>Voicemail</Title><Text>Service unavailable</Text></CiscoIPPhoneText>';
+    $responseCode = 503;
+    while (ob_get_level() > $initialLevel + 1) ob_end_flush();
+    ob_clean();
+    echo '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneText><Title>Voicemail</Title><Text>Service unavailable</Text></CiscoIPPhoneText>';
 }
+
+while (ob_get_level() > $initialLevel + 1) ob_end_flush();
+$response = ob_get_clean();
+// Refuse to forward malformed PHP/bootstrap output to the phone. Cisco's
+// XML Error 4 is difficult to diagnose, so log it and respond with valid XML.
+$parsed = new \DOMDocument();
+if (!is_string($response) || !@$parsed->loadXML($response, LIBXML_NONET) ||
+    !in_array($parsed->documentElement->tagName, array('CiscoIPPhoneMenu','CiscoIPPhoneText'), true)) {
+    error_log('sccp_manager visual voicemail: invalid generated XML response');
+    $response = '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneText><Title>Voicemail</Title><Text>Unable to display voicemail menu</Text></CiscoIPPhoneText>';
+    $responseCode = 200;
+}
+http_response_code($responseCode);
+header('Content-Type: text/xml; charset=UTF-8');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('X-Content-Type-Options: nosniff');
+header('Content-Length: ' . strlen($response));
+header('Connection: close');
+echo $response;
+// With a complete Content-Length response the phone can finish parsing before
+// register_shutdown_function begins an auto-answer playback call.
+flush();
+
 PHP;
         $this->publishFile($this->public . '/voicemail.php', $script . "\n");
     }
