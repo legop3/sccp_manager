@@ -14,15 +14,20 @@ verify(phonevoicemail::parseMessage($raw, 'INBOX', '../foo') === null, 'Invalid 
 
 $orig = phonevoicemail::originateFields('111', $m);
 verify($orig['Channel'] === 'SCCP/111/aa=1w', 'Muted auto-answer');
-verify($orig['Data'] === '111@default,1782735000-00000123', 'Native playback selects stable Asterisk message ID');
-verify($orig['Application'] === 'VoiceMailPlayMsg', 'Asterisk plays voicemail directly with no extra wait');
+verify(!isset($orig['Application']) && !isset($orig['Data']), 'No application-mode originate: SCCP calling party predial requires extension mode');
+verify($orig['Context'] === 'sccp-manager-voicemail-play' && $orig['Exten'] === 's' &&
+       $orig['Priority'] === '1', 'Playback uses isolated direct SCCP channel dialplan');
+verify($orig['PreDialGoSub'] === 'sccp-manager-voicemail-predial,s,1(Alicia Q,15005550124)',
+    'Dynamic name and number are passed to SCCP predial before call setup');
+verify($orig['Variable'] === 'SCCP_VM_MAILBOX=111,SCCP_VM_ID=1782735000-00000123',
+    'Native playback selects the correct mailbox and stable message ID');
 $source = file_get_contents(__DIR__ . '/../sccpManClasses/phonevoicemail.class.php');
 verify(strpos($source, 'usleep(') === false && strpos($source, 'sleep(') === false,
     'Voicemail playback scheduling has no artificial timer');
 verify(strpos($source, 'register_shutdown_function') !== false,
     'Playback still follows HTTP XML response completion');
 verify($orig['CallerID'] === '"Alicia Q" <15005550124>', 'Dynamic caller ID preserved');
-verify($orig['Async'] === 'true', 'Async originate');
+verify($orig['Async'] === 'false', 'Synchronous extension originate is required for Asterisk 22.6 PreDialGoSub');
 $m['name'] = "Evil\r\nAction: Hangup";
 verify(strpos(phonevoicemail::originateFields('111',$m)['CallerID'],"\n")===false, 'No AMI field injection');
 try {
@@ -140,5 +145,21 @@ try {
     phonevoicemail::requireMutationSuccess('Originate', array('Response'=>'Success'));
     throw new LogicException('Unsupported voicemail mutation was accepted');
 } catch (InvalidArgumentException $expected) { }
+
+$dialplan = file_get_contents(__DIR__ . '/../conf/voicemail-dialplan.conf');
+verify(strpos($dialplan, '[sccp-manager-voicemail-predial]') !== false &&
+       strpos($dialplan, 'Set(CHANNEL(CallingParty)="${ARG1}" <${ARG2}>)') !== false,
+    'SCCP-specific Caller Party is set in predial, before phone receives call setup');
+verify(strpos($dialplan, 'VoiceMailPlayMsg(${SCCP_VM_MAILBOX}@default,${SCCP_VM_ID})') !== false,
+    'Voicemail still plays directly on SCCP audio channel without an intermediary');
+verify(strpos($dialplan, 'Wait(') === false && strpos($dialplan, 'Sleep(') === false,
+    'SCCP dialplan has no artificial delays');
+$unsafe = $m;
+$unsafe['name'] = 'Weird (test), \r\nName';
+$fields = phonevoicemail::originateFields('111', $unsafe);
+verify(strpos($fields['PreDialGoSub'], '(Weird test Name,') !== false,
+    'Gosub name cannot inject comma or parentheses into Asterisk argument delimiters');
+verify(!str_contains($fields['PreDialGoSub'], "\r") && !str_contains($fields['PreDialGoSub'], "\n"),
+    'No AMI predial header injection');
 
 echo "Visual voicemail tests passed.\n";
