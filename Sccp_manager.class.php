@@ -407,7 +407,7 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         $username = trim((string) ($post['vpn_username'] ?? ''));
         $password = (string) ($post['vpn_password'] ?? '');
         $this->vpnprovisioning->setVpnAccount($username, $password);
-        $this->vpnPageMessage = _('VPN login updated. This module does not store its password.');
+        $this->vpnPageMessage = _('VPN login saved.');
     }
 
     public function vpnStartService() {
