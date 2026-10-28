@@ -352,23 +352,33 @@ class phonevoicemail
         echo $doc->saveXML();
     }
 
-    private function showMessageDetail($base, array $msg, $afterPlayback = false)
+    private function showMessageDetail($base, array $msg, $afterPlayback = false, $confirmDelete = false)
     {
         $id = $msg['id'];
         $folder = $msg['folder'];
         $from = $msg['name'] ?: ($msg['number'] ?: 'Unknown Caller');
-        $entries = array(
-            array(($afterPlayback ? 'Play Again' : 'Play') . ' (' . $msg['duration'] . ' sec)',
-                $base . '&op=play&id=' . rawurlencode($id))
-        );
-        // Playback may automatically move the message from INBOX to Old.
-        // Re-query current folder on each action; do not show stale Mark Heard
-        // on the screen returned to after listening.
-        if ($folder === 'INBOX' && !$afterPlayback) {
-            $entries[] = array('Mark as Heard', $base . '&op=mark&id=' . rawurlencode($id));
+        if ($confirmDelete) {
+            // The separate 'Delete Message?' Cisco XML page produced Error 4
+            // on the user's 7945G, although the regular detail page works.
+            // Keep the proven detail-screen XML structure and change only
+            // the action links. Deletion still requires a second press.
+            $entries = array(
+                array('CONFIRM DELETE', $base . '&op=confirm-delete&id=' . rawurlencode($id)),
+                array('Cancel', $base . '&op=detail&id=' . rawurlencode($id))
+            );
+        } else {
+            $entries = array(
+                array(($afterPlayback ? 'Play Again' : 'Play') . ' (' . $msg['duration'] . ' sec)',
+                    $base . '&op=play&id=' . rawurlencode($id))
+            );
+            // Playback may automatically move a new message to Old.
+            if ($folder === 'INBOX' && !$afterPlayback) {
+                $entries[] = array('Mark as Heard', $base . '&op=mark&id=' . rawurlencode($id));
+            }
+            $entries[] = array('Delete Message', $base . '&op=delete&id=' . rawurlencode($id));
         }
-        $entries[] = array('Delete Message', $base . '&op=delete&id=' . rawurlencode($id));
-        $this->xml(substr($from, 0, 55), 'Select an action', $entries, $base);
+        $this->xml(substr($from, 0, 55), 'Select an action', $entries,
+            $confirmDelete ? $base . '&op=detail&id=' . rawurlencode($id) : $base);
     }
 
     private function showMessageList($line, $base, array $messages)
@@ -416,10 +426,9 @@ class phonevoicemail
                 return;
             }
             if ($op === 'delete') {
-                $this->xml('Delete Message?', 'Delete voicemail from ' . substr($from, 0, 38) . '?', array(
-                    array('YES - Delete', $base . '&op=confirm-delete&id=' . rawurlencode($id)),
-                    array('Cancel', $base . '&op=detail&id=' . rawurlencode($id))
-                ), $base . '&op=detail&id=' . rawurlencode($id));
+                // Do not display the separate confirmation XML that failed
+                // on CP-7945G. Reuse the working message-detail renderer.
+                $this->showMessageDetail($base, $msg, false, true);
                 return;
             }
             if ($op === 'confirm-delete') {
