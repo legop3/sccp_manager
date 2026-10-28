@@ -9,7 +9,7 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
 <div class="fpbx-container container-fluid">
     <div class="display no-border">
         <h3><?php echo _('Phone Menus'); ?></h3>
-        <p><?php echo _('Configure the Directories, Services and Messages buttons for all SCCP phones. These menus share the existing Address Book.'); ?></p>
+        <p><?php echo _('The physical Directories button always opens the shared Favorites / All Extensions menu. Customize Services and Messages below.'); ?></p>
         <form id="pc-menu-form" method="post" action="config.php?display=sccp_content#menus">
             <input type="hidden" name="content_action" value="save_menus">
             <input type="hidden" name="menu_config" id="pc-menu-config" value="">
@@ -19,8 +19,8 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
                     <?php echo _('Use custom phone-button menus (internal service provisioning)'); ?>
                 </label>
                 <p class="help-block" style="margin-bottom:0">
-                    <?php echo _('Off (default): preserve the phone firmware’s built-in call history and normal voicemail button. The managed Directory and Services XML menus still update.'); ?>
-                    <?php echo _('On: generate phoneServices provisioning=0 with the entries below. Saving signs updated SEP files, but phones must be reset to pick up the new button layout. Test with one 7945G before deploying widely.'); ?>
+                    <?php echo _('Off: use the phone firmware's built-in buttons. On: Directories opens Favorites / All Extensions directly; Services and Messages use the settings below.'); ?>
+                    <?php echo _('Changes to the phone-button URLs require publishing signed phone configurations and resetting the phone once.'); ?>
                 </p>
             </div>
 
@@ -42,21 +42,19 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
             <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> <?php echo _('Save Menus'); ?></button>
         </form>
         <details style="margin-top:20px">
-            <summary style="font-weight:600"><?php echo _('Directories and Services button screen text'); ?></summary>
+            <summary style="font-weight:600"><?php echo _('Services button screen text'); ?></summary>
             <p class="help-block" style="margin-top:12px">
-                <?php echo _('These settings affect the top-level Directories and Services screens opened from the physical phone buttons. They are not the Phone Book, Favorites, or All Extensions screens; edit those labels under Address Book. Individual menu item names are edited above.'); ?>
+                <?php echo _('These labels appear under the physical Services button. The Directories screen and contact-list labels are edited under Address Book.'); ?>
             </p>
             <?php $pcRootText = $this->phonecontent->directoryLabels(); ?>
             <form method="post" action="config.php?display=sccp_content#menus">
                 <input type="hidden" name="content_action" value="directory_text">
                 <div class="row">
                     <?php foreach (array(
-                        array('title'=>_('Directories button — first screen'),
-                              'keys'=>array('menu_title'=>_('Title at top of Directories'), 'menu_prompt'=>_('Prompt below Directories entries'))),
                         array('title'=>_('Services button — first screen'),
                               'keys'=>array('services_title'=>_('Title at top of Services'), 'services_prompt'=>_('Prompt below Services entries')))
                     ) as $group): ?>
-                    <div class="col-md-6">
+                    <div class="col-md-12">
                         <div class="panel panel-default">
                             <div class="panel-heading"><strong><?php echo $pcEsc($group['title']); ?></strong></div>
                             <div class="panel-body">
@@ -95,10 +93,9 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
     // JSON_HEX_* prevents literal HTML/script delimiters from saved labels.
     var menus = <?php echo json_encode($pcMenus, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
     var types = <?php echo json_encode($pcTypes, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-    var section = 'directories';
-    var rootNames = {directories:'Directories', services:'Services', messages:'Messages'};
+    var section = 'services';
+    var rootNames = {services:'Services', messages:'Messages'};
     var descriptions = {
-        directories:'These entries appear under the Directories button when custom button menus are enabled.',
         services:'These entries appear under the Services button. In legacy mode they are still published as the Services XML page.',
         messages:'The Messages button supports one service: native Voicemail, Visual Voicemail, or a Cisco XML URL.'
     };
@@ -231,10 +228,10 @@ $pcEsc = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8
         var sub=submenu();
         if (!sub || !confirm('Delete submenu "'+sub.name+'"?')) return;
         menus.submenus=menus.submenus.filter(function(s){return s.id!==sub.id;});
-        ['directories','services','messages'].forEach(function(k){
+        ['services','messages'].forEach(function(k){
             menus[k]=menus[k].filter(function(item){return item.type!=='submenu'||item.value!==sub.id;});
         });
-        section='directories';render();
+        section='services';render();
     });
     $('#pc-menu-form').on('submit',function () {
         menus.enabled=$('#pc-menu-enable').prop('checked');
