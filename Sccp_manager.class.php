@@ -410,6 +410,12 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         $this->vpnPageMessage = _('VPN login saved.');
     }
 
+    public function vpnDeleteAccount(array $post) {
+        $username = trim((string) ($post['vpn_username'] ?? ''));
+        $this->vpnprovisioning->deleteVpnAccount($username);
+        $this->vpnPageMessage = sprintf(_('VPN account %s deleted.'), $username);
+    }
+
     public function vpnStartService() {
         $this->vpnprovisioning->startManagedService();
         $this->vpnPageMessage = _('VPN server started.');
