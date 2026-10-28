@@ -85,7 +85,7 @@ class phonemenus
             if ($section === 'messages' && !in_array($type, array('voicemail', 'visualvoicemail', 'url'), true)) {
                 throw new \InvalidArgumentException('Messages supports the native voicemail application, Visual Voicemail, or an XML service URL.');
             }
-            if ($section !== 'messages' && $type === 'voicemail') {
+            if ($section !== 'messages' && in_array($type, array('voicemail','visualvoicemail'), true)) {
                 throw new \InvalidArgumentException('Native Voicemail belongs under Messages.');
             }
             if ($section === 'submenu' && $type === 'submenu') {
