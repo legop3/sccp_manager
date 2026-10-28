@@ -29,8 +29,9 @@ try {
     $menus = $parent->phonemenus;
     ensure($menus->config()['enabled'] === false, 'Must not change existing phones on upgrade');
     $parent->phonecontent->publishDirectory();
-    ensure(is_file($tmp . '/directory.xml'), 'Canonical Directories XML must exist');
-    ensure(!is_file($tmp . '/phonebook.xml'), 'Do not create extra Phone Book page');
+    ensure(is_file($tmp . '/contacts-1.xml'), 'Direct Favorites directory exists');
+    ensure(!is_file($tmp . '/directory.xml') && !is_file($tmp . '/phonebook.xml'),
+        'Neither old Directories chooser nor Phone Book intermediary is generated');
     ensure(is_file($tmp . '/services.xml'), 'Legacy Services XML');
     ensure(strpos(file_get_contents($tmp . '/phone.php'), 'doc=') === false,
         'Endpoint should be generic rather than hardcoded to a single contact page');
@@ -53,11 +54,15 @@ try {
     ensure($menus->config()['enabled'] === true, 'Enabled saved');
     ensure(is_file($tmp . '/pc-sub-friends.xml'), 'Submenu generated');
     ensure(is_file($tmp . '/pc-text-services-0.xml'), 'Text page generated');
-    $dir = simplexml_load_file($tmp . '/directory.xml');
-    ensure(count($dir->MenuItem) === 2, 'Direct directory must contain Favorites and All Extensions');
-    ensure((string)$dir->MenuItem[0]->Name === 'Favorites' &&
-        (string)$dir->MenuItem[1]->Name === 'All Extensions',
-        'Physical Directories button screen must never open a Phone Book intermediary');
+    $dir = simplexml_load_file($tmp . '/contacts-1.xml');
+    ensure($dir->getName() === 'CiscoIPPhoneDirectory' && !isset($dir->MenuItem),
+        'Physical Directories button receives Favorites directly, not a menu');
+    ensure((string)$dir->SoftKeyItem[0]->URL === 'SoftKey:Dial' &&
+        (string)$dir->SoftKeyItem[1]->URL === 'SoftKey:EditDial' &&
+        (string)$dir->SoftKeyItem[2]->Name === 'All' &&
+        (string)$dir->SoftKeyItem[2]->URL ===
+            'http://192.168.0.25/sccp-manager/phone.php?doc=extensions-1',
+        'All softkey is next to Cisco native dialing functions');
     $text = simplexml_load_file($tmp . '/pc-text-services-0.xml');
     ensure((string) $text->Text === 'Hello <friends> & everyone', 'Text page escaping');
     $sub = simplexml_load_file($tmp . '/pc-sub-friends.xml');
@@ -72,8 +77,8 @@ try {
     ensure((string) $phone->phoneServices->phoneService[3]->url === 'Application:Cisco/Voicemail',
         'Preserve native voicemail');
     ensure((string) $phone->phoneServices->phoneService[0]->url ===
-        'http://192.168.0.25/sccp-manager/phone.php?doc=directory',
-        'Physical Directories button provisions the same direct root as the generated XML');
+        'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1',
+        'Physical Directories button provisions the Favorites list directly');
     ensure(strpos($phone->asXML(), 'Application:Cisco/MissedCalls') === false,
         'Call history entries really removed');
     ensure((string) $phone->devicePool->callManagerGroup->members->member->callManager->ports->ethernetPhonePort === '2000',
@@ -104,7 +109,7 @@ try {
     ensure(strpos($bmo, "'save_menus'") !== false &&
            strpos($bmo, 'phoneContentRegenerate(false)') !== false,
            'Saving menus already automatically regenerates signed phone configs');
-    ensure(strpos($module, "phonecontent_directories_signed_1736") !== false &&
+    ensure(strpos($module, "phonecontent_favorites_signed_1738") !== false &&
            strpos($module, "phoneContentRegenerate(false)") !== false,
            'Upgraded button URL is automatically signed on the next Phone Content visit');
     ensure(strpos($menusView, 'Saving menus automatically regenerates') !== false,
