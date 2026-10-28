@@ -29,6 +29,7 @@ jobs:
           php -r 'simplexml_load_file("module.xml") ?: exit(1);'
           python3 -m py_compile scripts/sccp-manager-vpn-helper scripts/sccp-manager-ocserv-setup
           bash -n scripts/install-vpn-helper.sh
+          bash -n scripts/ensure-cisco-ocserv.sh
           python3 -m py_compile scripts/sccp-manager-vpn-helper
           php tests/vpn-provisioning.php
           php tests/vpn-firewall.php
@@ -42,6 +43,19 @@ jobs:
           python3 -m venv /tmp/vpn-checks
           /tmp/vpn-checks/bin/pip install cryptography
           /tmp/vpn-checks/bin/python tests/test_vpn_helper.py /tmp/certutils-test
+      - name: Build Cisco-capable ocserv automatically on Debian 12
+        run: |
+          docker run --rm -v "$PWD:/src:ro" debian:12 bash -ec '
+            # Simulate Bookworm with no source build pre-installed.
+            apt-get update -qq
+            apt-get install -y --no-install-recommends ocserv
+            /usr/sbin/ocserv --version | grep -q 1.1.6
+            /src/scripts/ensure-cisco-ocserv.sh > /tmp/ocserv-path
+            test "$(cat /tmp/ocserv-path)" = "/usr/local/sbin/ocserv"
+            /usr/local/sbin/ocserv --version | grep -q 1.3.0
+            /src/scripts/ensure-cisco-ocserv.sh > /tmp/ocserv-again
+            cmp /tmp/ocserv-path /tmp/ocserv-again
+          '
       - name: Start managed ocserv from a clean install (integration smoke test)
         run: |
           id asterisk || sudo useradd --system --no-create-home asterisk
