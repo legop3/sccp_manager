@@ -19,6 +19,14 @@ function check($condition, $message) {
     echo "PASS: {$message}\n";
 }
 
+// Missing chan_sccp is normal on a clean install: version 0 must not
+// close an authenticated Asterisk Manager session before driver bootstrap.
+$shouldClose = array('0' => false, '410' => true, '430' => true, '433' => false);
+foreach ($shouldClose as $version => $expected) {
+    check(\FreePBX\modules\Sccp_manager\aminterface::shouldDisconnectForSccpCode((int) $version) === $expected,
+        'AMI compatibility decision for SCCP code ' . $version);
+}
+
 $ami = \FreePBX\modules\Sccp_manager\aminterface::parseRealTimeStatusOutput(array(
     'mysql Connected to database admin@localhost',
     'mysql2 Database backend unavailable',
