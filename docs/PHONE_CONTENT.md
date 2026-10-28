@@ -241,3 +241,32 @@ paging, and voicemail are unchanged. Updating a directory entry
 republishes XML for the next phone request, without resetting phones or
 touching VPN or signed SEP provisioning.
 
+
+## 17.1.34 — Exact Phone Book label editor
+
+The Address Book's former generic "Phone display text" accordion has been
+replaced by **Phone Book screen labels**, organized around the **actual Cisco
+navigation path**:
+
+- **Phone Book chooser**: `phonebook_title` at the top, `phonebook_prompt`
+  under its two choices. No longer reuses the Directories button prompt.
+- **Favorites**: `favorites_entry` is its choice *inside Phone Book*,
+  `contacts_title` and `contacts_prompt` are on the contact list itself.
+  The default list title is now "Favorites" rather than the leftover "Phone
+  Book" title.
+- **All Extensions**: `extensions_entry` is its choice inside Phone Book,
+  `extensions_title` and `extensions_prompt` appear on its contact list.
+
+A live preview lets the administrator switch among all three phone screens
+while editing those eight fields. The independent root Directories and
+Services button titles/prompts have moved to **Phone Content → Menus** under
+"Directories and Services button screen text". The names of *items within*
+those root menus are still managed by the menu editor above.
+
+The previous labels are preserved in the module's saved configuration. For
+existing installations, a customized old `menu_entry` is used as the Phone
+Book screen title until explicitly changed; the old root menu prompt is
+retained if it was customized. Scoped save forms update only their own
+fields, so changing Favorites does not rewrite Directories/Services and vice
+versa. The phone fetches fresh XML at existing URLs without a reboot.
+
