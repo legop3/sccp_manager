@@ -31,6 +31,12 @@ jobs:
           bash -n scripts/install-vpn-helper.sh
           bash -n scripts/ensure-cisco-ocserv.sh
           python3 -m py_compile scripts/sccp-manager-vpn-helper
+          php -l sccpManClasses/phonecontent.class.php
+          php -l page.sccp_content.php
+          php -l views/content.contacts.php
+          php -l views/content.wallpapers.php
+          php -l views/content.ringtones.php
+          php tests/phone-content.php
           php tests/vpn-provisioning.php
           php tests/vpn-firewall.php
           php tests/vpn-ui.php
@@ -82,6 +88,7 @@ jobs:
             ./ "$RUNNER_TEMP/vpn-package/sccp_manager/"
           tar -C "$RUNNER_TEMP/vpn-package" -czf sccp_manager.tar.gz sccp_manager
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/module.xml
+          tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/sccpManClasses/phonecontent.class.php
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/vendor/certutils/sgnfile
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-vpn-helper
           tar -tzf sccp_manager.tar.gz | grep -q sccp_manager/scripts/sccp-manager-ocserv-setup
@@ -99,11 +106,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view vpn-preview-17.1.14 >/dev/null 2>&1; then
-            gh release create vpn-preview-17.1.14 \
-              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.14 VPN preview" \
+          if ! gh release view vpn-preview-17.1.15 >/dev/null 2>&1; then
+            gh release create vpn-preview-17.1.15 \
+              --target "$GITHUB_SHA" --title "SCCP Manager 17.1.15 VPN + Phone Content preview" \
               --notes "Development build from feature/vpn-provisioning. Not upstream. Test on a backed-up FreePBX installation." \
               --prerelease --latest=false sccp_manager.tar.gz
           else
-            gh release upload vpn-preview-17.1.14 sccp_manager.tar.gz --clobber
+            gh release upload vpn-preview-17.1.15 sccp_manager.tar.gz --clobber
           fi
