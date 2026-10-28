@@ -13,7 +13,7 @@ if (!empty(\FreePBX::create()->Sccp_manager->phoneContentMessage)) {
         htmlspecialchars(\FreePBX::create()->Sccp_manager->phoneContentMessage, ENT_QUOTES, 'UTF-8') . '</div>';
 }
 include('page.html.php');
-
+?>
 <script>
 (function () {
     // After a normal multipart form POST, keep the tab the user was editing.
