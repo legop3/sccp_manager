@@ -8,6 +8,12 @@ on:
 permissions:
   contents: write
 
+# Only the newest commit may replace the preview asset. Older builds of the
+# same tag must not race and overwrite it with an outdated tarball.
+concurrency:
+  group: sccp-phone-content-preview-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   preview:
     runs-on: ubuntu-latest
