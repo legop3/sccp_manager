@@ -51,6 +51,26 @@ with tempfile.TemporaryDirectory(prefix="sccp-vpn-integration-") as tmp:
     module.sign(device)
     assert trust.read_bytes() == old_trust, "A preexisting ITL was changed"
 
+    # Real FreePBX failure: generator writes settings/SEP...xml, while the
+    # phone fetches root/SEP...xml. The signer must publish the NEW XML,
+    # not silently sign the obsolete root copy.
+    settings = module.TFTP / "settings"
+    settings.mkdir()
+    new_xml = "<device><versionStamp>new-from-settings</versionStamp></device>"
+    (settings / xml.name).write_text(new_xml)
+    xml.write_text("<device><versionStamp>stale-root</versionStamp></device>")
+    old_signed = signed.read_bytes()
+    module.sign(device, "settings")
+    assert xml.read_text() == new_xml, "The TFTP root still has stale XML"
+    assert signed.read_bytes() != old_signed, "Signed file was not regenerated"
+    assert trust.read_bytes() == old_trust, "Publishing new XML changed existing ITL"
+    for bad_source in ("../etc", "/tmp", "settings/nested", ".."):
+        try:
+            module.sign(device, bad_source)
+            raise AssertionError("Unsafe source directory was accepted")
+        except ValueError:
+            pass
+
     make_cert(module.KEY_DIR / "tftp.pem", "Different-TFTP")
     try:
         module.sign(device)
