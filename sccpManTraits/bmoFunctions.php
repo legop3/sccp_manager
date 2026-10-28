@@ -23,7 +23,7 @@ trait bmoFunctions {
                     // wallpaper regenerates signed phone configuration as part
                     // of that save, without a second "Apply" button.
                     $this->phoneContentMessage = $this->phonecontent->handle($_POST, $_FILES);
-                    if (in_array($action, array('address', 'wallpaper', 'save_menus', 'publish_buttons'), true)) {
+                    if (in_array($action, array('address', 'wallpaper', 'save_menus'), true)) {
                         $this->phoneContentMessage .= ' ' . $this->phoneContentRegenerate(false);
                     } elseif ($action === 'contact') {
                         // On the initial contact creation, publish the phone
