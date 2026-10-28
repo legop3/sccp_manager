@@ -53,7 +53,7 @@ class phonecontent
         }
         $this->parent->setConfig('phonecontent_host', $value);
         $this->publishDirectory();
-        $this->syncUrls();
+        $this->syncUrls(true);
     }
 
     private function ensureDirectory($dir)
@@ -156,7 +156,7 @@ class phonecontent
      * manually configured service. Existing signed SEP XML is not rewritten until
      * the administrator explicitly chooses Publish Phone Configurations.
      */
-    public function syncUrls()
+    public function syncUrls($force = false)
     {
         $base = $this->baseUrl();
         if (!$base) return array();
@@ -166,8 +166,14 @@ class phonecontent
             $current = (string) ($this->parent->sccpvalues[$key]['data'] ?? '');
             $old = (string) $this->parent->getConfig('phonecontent_managed_' . $key);
             $new = $base . $suffix;
-            if ($current !== '' && ($old === '' || $current !== $old)) continue;
+            if (!$force && $current !== '' && ($old === '' || $current !== $old)) continue;
             if ($current !== $new) {
+                // Administrator explicitly enabled built-in services. Keep the
+                // former URL so it can be restored if the feature is disabled.
+                if ($force && $current !== $old && $current !== '' &&
+                    $this->parent->getConfig('phonecontent_previous_' . $key) === null) {
+                    $this->parent->setConfig('phonecontent_previous_' . $key, $current);
+                }
                 $record = $this->parent->sccpvalues[$key] ?? array();
                 $record = array_merge(array(
                     'keyword' => $key, 'seq' => 10, 'type' => 0, 'systemdefault' => ''
@@ -177,6 +183,92 @@ class phonecontent
                 $changed[] = $key;
             }
             $this->parent->setConfig('phonecontent_managed_' . $key, $new);
+        }
+        return $changed;
+    }
+
+    public function status()
+    {
+        $base = $this->baseUrl();
+        $xml = $this->public . '/directory.xml';
+        $index = $this->tftp . '/Desktops/320x212x16/List.xml';
+        $rings = $this->tftp . '/RingList.xml';
+        $conf = $this->parent->sccpvalues;
+        $url = (string) ($conf['dev_directoryURL']['data'] ?? '');
+        $status = array(
+            'web_dir' => $this->public,
+            'directory_file' => $xml,
+            'directory_exists' => is_file($xml),
+            'directory_readable' => is_readable($xml),
+            'configured_url' => $url,
+            'expected_url' => $base ? $base . '/directory.xml' : '',
+            'url_matches' => $url !== '' && $url === $base . '/directory.xml',
+            'wallpaper_index' => $index,
+            'wallpaper_index_exists' => is_file($index),
+            'wallpaper_index_readable' => is_readable($index),
+            'wallpaper_count' => count($this->wallpapers()),
+            'wallpaper_access_enabled' => in_array(
+                strtolower((string) ($conf['backgroundImageAccess']['data'] ?? 'off')),
+                array('on', 'true', '1'), true),
+            'ring_index' => $rings,
+            'ring_index_exists' => is_file($rings),
+            'ring_index_readable' => is_readable($rings),
+            'ring_count' => count($this->ringtones()),
+            'tftp_root' => $this->tftp,
+            'tftp_root_exists' => is_dir($this->tftp)
+        );
+        $status['wallpaper_files_ok'] = $status['wallpaper_count'] > 0;
+        foreach ($this->wallpapers() as $item) {
+            $id = $item['id'] ?? '';
+            if (!preg_match('/^[0-9a-f]{16}$/D', (string) $id)) {
+                $status['wallpaper_files_ok'] = false;
+                continue;
+            }
+            $dir = dirname($index);
+            if (!is_readable($dir . '/PC-' . $id . '.png') ||
+                !is_readable($dir . '/TN-PC-' . $id . '.png')) {
+                $status['wallpaper_files_ok'] = false;
+            }
+        }
+        // Report the effective deployed config for the user's 7945G when
+        // available. This is a disk check, not a promise of network delivery.
+        $status['phones'] = array();
+        foreach (glob($this->tftp . '/SEP*.cnf.xml') ?: array() as $file) {
+            $name = basename($file);
+            if (!preg_match('/^SEP[0-9A-F]{12}\.cnf\.xml$/D', $name)) continue;
+            if (count($status['phones']) >= 30) break;
+            $xmlContent = @file_get_contents($file);
+            if ($xmlContent === false) continue;
+            $document = new \DOMDocument();
+            if (!@$document->loadXML($xmlContent, LIBXML_NONET)) continue;
+            $find = function ($tag) use ($document) {
+                return trim((string) ($document->getElementsByTagName($tag)->item(0)->textContent ?? ''));
+            };
+            $status['phones'][] = array(
+                'id' => substr($name, 0, 15),
+                'directory_url' => $find('directoryURL'),
+                'services_url' => $find('servicesURL'),
+                'wallpaper_enabled' => $find('backgroundImageAccess'),
+                'signature_exists' => is_file($file . '.sgn')
+            );
+        }
+        return $status;
+    }
+
+    public function restoreUrls()
+    {
+        $changed = array();
+        foreach (array('dev_directoryURL', 'dev_servicesURL') as $key) {
+            $current = (string) ($this->parent->sccpvalues[$key]['data'] ?? '');
+            $old = (string) $this->parent->getConfig('phonecontent_managed_' . $key);
+            if (!$old || $current !== $old) continue;
+            $previous = (string) ($this->parent->getConfig('phonecontent_previous_' . $key) ?: '');
+            $record = $this->parent->sccpvalues[$key];
+            $record['data'] = $previous;
+            $this->parent->dbinterface->write('sccpsettings', array($key => $record), 'update');
+            $this->parent->sccpvalues[$key] = $record;
+            $this->parent->setConfig('phonecontent_managed_' . $key, '');
+            $changed[] = $key;
         }
         return $changed;
     }
@@ -452,9 +544,12 @@ class phonecontent
             case 'delete_wallpaper': $this->removeWallpaper((string) ($post['id'] ?? '')); return 'Wallpaper removed.';
             case 'ringtone': $this->addRingtone($files['media'] ?? null, $post['label'] ?? ''); return 'Ringtone published.';
             case 'delete_ringtone': $this->removeRingtone((string) ($post['id'] ?? '')); return 'Ringtone removed.';
-            case 'urls': $this->publishDirectory(); $changed = $this->syncUrls();
-                return $changed ? 'Directory and Services URLs filled in SCCP Device URL.' :
-                    'Directory published. Existing custom URLs, if any, were left unchanged.';
+            case 'restore_urls': $changed = $this->restoreUrls();
+                return $changed ? 'Previous URL settings restored. Apply updated phone configurations next.' :
+                    'No managed URL settings were active.';
+            case 'urls': $this->publishDirectory(); $changed = $this->syncUrls(true);
+                return $changed ? 'Built-in Directory and Services URLs activated. Apply updated phone configurations next.' :
+                    'Directory published; built-in URL settings already active.';
             default: throw new \InvalidArgumentException('Unknown phone content action.');
         }
     }
