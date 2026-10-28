@@ -531,7 +531,7 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                         $this->phoneContentRegenerate(false);
                     }
                     $this->setConfig('phonecontent_migrated_1717', true);
-                } elseif (!is_file($this->phonecontent->publicPath() . '/directory.xml')) {
+                } elseif (!is_file($this->phonecontent->publicPath() . '/contacts-1.xml')) {
                     $this->phonecontent->publishDirectory();
                 }
                 // One-time republish of the public voicemail.php endpoint after
@@ -573,13 +573,14 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                 // are picked up without changing signed SEP provisioning.
                 $this->phonecontent->publishDirectory();
                 $this->phonecontent->syncUrls();
-                // After this directory update, automatically republish the
-                // signed SEP configs once through the existing provisioning
-                // path. Never reset remote phones from an admin page load.
+                // The provisioned Directories button now points straight to
+                // the Favorites Directory XML. Publish each phone's signed
+                // configuration through the existing automatic path once on
+                // this upgrade; normal Save Menus does the same thereafter.
                 if (!empty($this->phonemenus->config()['enabled']) &&
-                    !$this->getConfig('phonecontent_directories_signed_1736')) {
+                    !$this->getConfig('phonecontent_favorites_signed_1738')) {
                     $this->phoneContentRegenerate(false);
-                    $this->setConfig('phonecontent_directories_signed_1736', true);
+                    $this->setConfig('phonecontent_favorites_signed_1738', true);
                 }
             }
             // Existing wallpaper uploads predate ITL-aware media signing.
