@@ -43,7 +43,7 @@ final class notificationSources {
         return substr($content,0,2048);
     }
     /** Returns a phone-accessible PNG URL, or null. Source image is never sent to the phone directly. */
-    public static function image($url,$module) {
+    public static function image($url,$module,$message='') {
         $body=self::fetch($url,1048576,['image/png','image/jpeg','image/gif']);
         if ($body===null || !function_exists('imagecreatefromstring')) return null;
         $src=@imagecreatefromstring($body);
@@ -53,10 +53,13 @@ final class notificationSources {
         $dst=imagecreatetruecolor(296,156);
         $background=imagecolorallocate($dst,255,255,255);
         imagefill($dst,0,0,$background);
-        $scale=min(296/$w,156/$h);
+        $scale=min(296/$w,112/$h);
         $sw=max(1,(int)round($w*$scale));$sh=max(1,(int)round($h*$scale));
-        imagecopyresampled($dst,$src,(int)((296-$sw)/2),(int)((156-$sh)/2),0,0,$sw,$sh,$w,$h);
+        imagecopyresampled($dst,$src,(int)((296-$sw)/2),(int)((112-$sh)/2),0,0,$sw,$sh,$w,$h);
         imagedestroy($src);
+        $black=imagecolorallocate($dst,0,0,0);
+        $lines=explode("\n",wordwrap(strip_tags((string)$message),47,"\n",true));
+        foreach (array_slice($lines,0,3) as $index=>$line) imagestring($dst,2,3,113+$index*14,substr($line,0,47),$black);
         $dir=$module->phonecontent->publicPath();
         $base=$module->phonecontent->baseUrl();
         if (!is_dir($dir)||is_link($dir)||$base==='') {imagedestroy($dst);return null;}
