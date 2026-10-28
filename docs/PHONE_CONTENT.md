@@ -44,7 +44,7 @@ tabs: Address Book, Menus, Wallpapers and Ringtones.
 - URLs refer to Cisco-compatible XML services reachable by the phones over VPN.
 
 Regression checks: php tests/phone-content.php ; php tests/phone-menus.php
-## Visual Voicemail (17.1.24 preview)
+## Visual Voicemail (17.1.25 preview)
 
 1. In **Phone Content → Menus**, select **Messages** and change the action from
    **Voicemail (native)** to **Visual Voicemail (auto-answer playback)**.
@@ -142,3 +142,7 @@ Check TFTP delivery using: tftp 192.168.0.25 -m binary -c get Desktops/320x212x1
 - The Wallpapers tab checks whether tftpd-hpa's configured TFTP_DIRECTORY matches the SCCP Manager publishing root. If Selections Unavailable persists, watch real TFTP requests while opening Background Images: sudo tcpdump -ni any -s0 -A 'udp port 69'. This is the remaining reliable way to distinguish a missing request from a TFTP-server error on the actual VPN path.
 
 - Existing installations of 17.1.16 are automatically migrated on the first Phone Content page load: the old directory.xml is republished without duplicate call histories, and any existing wallpaper library triggers one signed configuration regeneration. This does not forcibly restart live phones.
+
+## 17.1.25 playback fixes
+
+Voicemail menu links resolve messages by stable ID even if the recording moves between INBOX and Old. Web responses are buffered and validated as Cisco XML, then flushed before playback begins. Asterisk plays recordings through an installed AGI which waits two seconds after SCCP auto-answer so the phone can establish its audio stream. Open Phone Content once after upgrading to publish the updated web endpoint; no phone reset is needed.
