@@ -17,10 +17,22 @@ trait bmoFunctions {
             if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' &&
                 isset($_POST['content_action'])) {
                 try {
-                    if ($_POST['content_action'] === 'regenerate') {
-                        $this->phoneContentMessage = $this->phoneContentRegenerate();
-                    } else {
-                        $this->phoneContentMessage = $this->phonecontent->handle($_POST, $_FILES);
+                    $action = (string) $_POST['content_action'];
+                    // Existing content is live: a contact edit republishes XML
+                    // immediately. Updating the PBX address or enabling a
+                    // wallpaper regenerates signed phone configuration as part
+                    // of that save, without a second "Apply" button.
+                    $this->phoneContentMessage = $this->phonecontent->handle($_POST, $_FILES);
+                    if (in_array($action, array('address', 'wallpaper'), true)) {
+                        $this->phoneContentMessage .= ' ' . $this->phoneContentRegenerate(false);
+                    } elseif ($action === 'contact') {
+                        // On the initial contact creation, publish the phone
+                        // URLs if not yet installed, but do not sign/restart on
+                        // subsequent ordinary edits.
+                        $urls = $this->phonecontent->syncUrls();
+                        if ($urls) {
+                            $this->phoneContentMessage .= ' ' . $this->phoneContentRegenerate(false);
+                        }
                     }
                 } catch (\Throwable $e) {
                     $this->phoneContentError = $e->getMessage();
