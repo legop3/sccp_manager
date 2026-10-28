@@ -28,6 +28,10 @@ $rings=$this->phonecontent->ringtones();
 <div class="col-sm-4 form-group"><label>Duration (seconds)</label><input class="form-control" type="number" min="2" max="60" name="notifications[<?php echo $kind;?>][duration]" value="<?php echo (int)$settings['duration'];?>"></div>
 </div>
 <?php if ($kind==='scheduled'): ?>
+<div class="form-group"><label>Built-in content source</label><select class="form-control" name="notifications[scheduled][source]">
+<?php foreach (['custom'=>'Custom title, message and URLs','dog'=>'Random dog photo + breed','xkcd'=>'Latest xkcd comic + caption'] as $value=>$label): ?>
+<option value="<?php echo $esc($value); ?>" <?php echo ($settings['source']??'custom')===$value?'selected':''; ?>><?php echo $esc($label); ?></option>
+<?php endforeach; ?></select><p class="help-block">Built-in sources fetch an updated image and caption at send time. Select Image with text as the display type.</p></div>
 <div class="row">
 <div class="col-sm-6 form-group"><label>Repeat every X minutes (when no daily time)</label><input class="form-control" type="number" min="1" max="10080" name="notifications[scheduled][interval]" value="<?php echo (int)$settings['interval'];?>"></div>
 <div class="col-sm-6 form-group"><label>Or daily at HH:MM</label><input class="form-control" type="time" name="notifications[scheduled][time]" value="<?php echo $esc($settings['time']);?>"></div>
