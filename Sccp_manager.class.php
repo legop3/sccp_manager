@@ -235,6 +235,38 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
     public $vpnPageMessage = '';
     public $vpnPageError = '';
 
+    /**
+     * Use the source address chosen by Linux for outbound traffic as the
+     * default PBX address routed through the phone VPN. Admins can override
+     * it for multihomed hosts and unusual routing arrangements.
+     */
+    public function vpnDetectedPbxIp() {
+        foreach (array('/usr/sbin/ip', '/sbin/ip', '/usr/bin/ip', '/bin/ip') as $ip) {
+            if (!is_executable($ip)) {
+                continue;
+            }
+            $pipes = array();
+            $process = @proc_open(array($ip, '-4', 'route', 'get', '1.1.1.1'), array(
+                0 => array('file', '/dev/null', 'r'),
+                1 => array('pipe', 'w'),
+                2 => array('pipe', 'w')
+            ), $pipes);
+            if (!is_resource($process)) {
+                continue;
+            }
+            $output = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            if (proc_close($process) === 0 &&
+                preg_match('/\\bsrc\\s+([0-9.]+)/', $output, $match) &&
+                filter_var($match[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) &&
+                !preg_match('/^(127\\.|169\\.254\\.)/', $match[1])) {
+                return $match[1];
+            }
+        }
+        return '';
+    }
+
     public function vpnSettings() {
         $stored = $this->getConfig('vpn_provisioning');
         return array_merge(array(
@@ -260,15 +292,36 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             !in_array($signDefault, array('auto', 'on', 'off'), true)) {
             throw new \InvalidArgumentException(_('Invalid global provisioning default.'));
         }
+        // The UI accepts a hostname and TCP port; Cisco's HTTPS scheme and
+        // /svc endpoint are implementation details, not user settings.
+        $gateway = trim((string) ($post['vpn_gateway'] ?? ''));
+        if (array_key_exists('vpn_host', $post)) {
+            $host = trim((string) $post['vpn_host']);
+            $port = filter_var($post['vpn_tcp_port'] ?? '4443', FILTER_VALIDATE_INT,
+                array('options' => array('min_range' => 1, 'max_range' => 65535)));
+            if ($port === false) {
+                throw new \\InvalidArgumentException(_('Invalid VPN TCP port.'));
+            }
+            if ($host !== '' && (!preg_match('/^[A-Za-z0-9.-]{1,253}$/D', $host) ||
+                $host[0] === '-' || substr($host, -1) === '-' ||
+                strpos($host, '..') !== false)) {
+                throw new \\InvalidArgumentException(_('Enter a valid VPN hostname or IPv4 address.'));
+            }
+            $gateway = $host === '' ? '' : 'https://' . $host . ':' . $port . '/svc';
+        }
+        $pbxIp = trim((string) ($post['vpn_pbx_ip'] ?? ''));
+        if ($pbxIp === '') {
+            $pbxIp = $this->vpnDetectedPbxIp();
+        }
         $settings = array_merge($old, array(
             'enabled' => ($post['vpn_enabled'] ?? '') === '1',
             'managed_signer' => true,
             'vpn_default' => $vpnDefault,
             'sign_default' => $signDefault,
             'auto_detect_default' => ($post['vpn_auto_detect_default'] ?? '') === '1',
-            'gateway' => trim((string) ($post['vpn_gateway'] ?? '')),
+            'gateway' => $gateway,
             'mtu' => (int) ($post['vpn_mtu'] ?? 1290),
-            'pbx_ip' => trim((string) ($post['vpn_pbx_ip'] ?? '')),
+            'pbx_ip' => $pbxIp,
             'vpn_subnet' => trim((string) ($post['vpn_subnet'] ?? '10.254.77.0/24')),
             'udp_port' => (int) ($post['vpn_udp_port'] ?? 443),
             'max_same_clients' => (int) ($post['vpn_max_same_clients'] ?? 0)
@@ -296,11 +349,9 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                 (int) $settings['udp_port'],
                 (string) $settings['vpn_subnet']
             );
-            $this->vpnPageMessage = !empty($firewallStatus['managed'])
-                ? _('Cisco VPN server configured. VPN firewall services and client subnet saved; SCCP Manager did not start or restart FreePBX Firewall. Apply firewall changes separately when ready.')
-                : _('Cisco VPN server configured. FreePBX Firewall module is absent, so firewall permissions are not managed.');
+            $this->vpnPageMessage = _('VPN settings saved.');
         } else {
-            $this->vpnPageMessage = _('Phone VPN provisioning disabled. Existing VPN service is not stopped automatically.');
+            $this->vpnPageMessage = _('VPN provisioning disabled.');
         }
         $this->setConfig('vpn_provisioning', $settings);
     }
@@ -361,7 +412,7 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
 
     public function vpnStartService() {
         $this->vpnprovisioning->startManagedService();
-        $this->vpnPageMessage = _('Managed ocserv service started.');
+        $this->vpnPageMessage = _('VPN server started.');
     }
 
     /** Rebuild phones that need VPN profiles or signed configurations. */
@@ -391,7 +442,7 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         if ($errors) {
             throw new \RuntimeException(_('Provisioning failed for: ') . implode(', ', $errors));
         }
-        $this->vpnPageMessage = sprintf(_('Successfully regenerated %d managed phone configurations.'), $updated);
+        $this->vpnPageMessage = sprintf(_('%d phone configurations regenerated.'), $updated);
     }
 
     /*
