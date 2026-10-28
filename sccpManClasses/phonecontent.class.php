@@ -177,19 +177,15 @@ class phonecontent
     {
         return array(
             'menu_title' => 'Directories',
-            'menu_prompt' => 'Select a directory',
-            'menu_entry' => 'Phone Book',
-            'phonebook_title' => 'Phone Book',
-            'phonebook_prompt' => 'Select Favorites or All Extensions',
+            'menu_prompt' => 'Select Favorites or All Extensions',
+            'favorites_entry' => 'Favorites',
             'contacts_title' => 'Favorites',
             'contacts_prompt' => 'Select a contact to call',
-            'favorites_entry' => 'Favorites',
             'extensions_entry' => 'All Extensions',
             'extensions_title' => 'All Extensions',
             'extensions_prompt' => 'Select an extension to call',
             'services_title' => 'Phone Services',
-            'services_prompt' => 'Choose a service',
-            'services_entry' => 'Address Book'
+            'services_prompt' => 'Choose a service'
         );
     }
 
@@ -197,23 +193,8 @@ class phonecontent
     {
         $defaults = self::defaultDirectoryLabels();
         $saved = $this->parent->getConfig('phonecontent_directory_labels');
-        if (!is_array($saved)) return $defaults;
-        $labels = array_replace($defaults, array_intersect_key($saved, $defaults));
-        // Older versions conflated the Directories-button entry text with
-        // the Phone Book screen title, and reused the Directories prompt for
-        // the Phone Book chooser. Preserve customized older labels until
-        // the admin explicitly edits the now-independent fields.
-        if (!array_key_exists('phonebook_title', $saved)) {
-            $labels['phonebook_title'] = $labels['menu_entry'];
-        }
-        if (!array_key_exists('phonebook_prompt', $saved) &&
-            $labels['menu_prompt'] !== 'Select a directory') {
-            $labels['phonebook_prompt'] = $labels['menu_prompt'];
-        }
-        if ($labels['contacts_title'] === 'Phone Book') {
-            $labels['contacts_title'] = 'Favorites';
-        }
-        return $labels;
+        return is_array($saved) ?
+            array_replace($defaults, array_intersect_key($saved, $defaults)) : $defaults;
     }
 
     public function saveDirectoryLabels($submitted)
@@ -329,7 +310,7 @@ class phonecontent
         $script = <<<'PHP'
 <?php
 $doc = (string) ($_GET['doc'] ?? '');
-if (!preg_match('/^(directory|phonebook|services|contacts-[1-9][0-9]*|extensions-[1-9][0-9]*|favorites-pages|extensions-pages|pc-(sub|text)-[a-z0-9-]+)$/D', $doc)) {
+if (!preg_match('/^(directory|services|contacts-[1-9][0-9]*|extensions-[1-9][0-9]*|favorites-pages|extensions-pages|pc-(sub|text)-[a-z0-9-]+)$/D', $doc)) {
     http_response_code(404);
     exit;
 }
@@ -498,11 +479,10 @@ PHP;
         $extensionsUrl = $this->publishContactPages($allExtensions, 'extensions',
             $labels['extensions_title'], $labels['extensions_prompt'], $base, $labels['extensions_entry']);
 
-        // Keep the original 'Phone Book' root URL. Inside it, Favorites is
-        // first and All Extensions is one separate choice. No new SEP XML.
+        // The physical Directories button opens this chooser directly.
         list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
-        $this->element($doc, $root, 'Title', $labels['phonebook_title']);
-        $this->element($doc, $root, 'Prompt', $labels['phonebook_prompt']);
+        $this->element($doc, $root, 'Title', $labels['menu_title']);
+        $this->element($doc, $root, 'Prompt', $labels['menu_prompt']);
         foreach (array(
             array($labels['favorites_entry'], $favoritesUrl),
             array($labels['extensions_entry'], $extensionsUrl)
@@ -511,7 +491,7 @@ PHP;
             $this->element($doc, $row, 'Name', $itemData[0]);
             $this->element($doc, $row, 'URL', $itemData[1]);
         }
-        $this->publishFile($this->public . '/phonebook.xml', $doc->saveXML());
+        $this->publishFile($this->public . '/directory.xml', $doc->saveXML());
         $this->parent->phonemenus->publish();
     }
 
