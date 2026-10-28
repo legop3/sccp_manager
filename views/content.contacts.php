@@ -184,54 +184,26 @@ foreach ($entries as $entry) {
         </p>
         <?php $labels = $pc->directoryLabels(); ?>
         <details id="pc-phone-labels" style="margin-top:20px">
-            <summary style="font-weight:600"><?php echo _('Directories screen labels'); ?></summary>
+            <summary style="font-weight:600"><?php echo _('Directory screen labels'); ?></summary>
             <p class="help-block" style="margin-top:12px">
-                <?php echo _('Pressing the physical Directories button opens Favorites and All Extensions directly. These fields control that menu and the two contact lists.'); ?>
-            </p>
-            <p class="text-muted">
-                <i class="fa fa-sitemap" aria-hidden="true"></i>
-                <?php echo _('Directories → Favorites / All Extensions'); ?>
+                <?php echo _('Directories opens Favorites immediately. The All softkey switches to All Extensions, and Favs brings you back. Both screens have their own title and prompt.'); ?>
             </p>
             <form method="post" action="config.php?display=sccp_content#general" id="pc-phone-label-form">
                 <input type="hidden" name="content_action" value="directory_text">
-                <?php
-                $labelGroups = array(
-                    array(
-                        'heading' => _('1. Directories — choose a list'),
-                        'description' => _('This is the first screen when you press Directories on the phone.'),
-                        'fields' => array(
-                            'menu_title' => _('Title on Directories screen'),
-                            'menu_prompt' => _('Prompt on Directories screen')
-                        )
-                    ),
-                    array(
-                        'heading' => _('2. Favorites — contact list'),
-                        'description' => _('The first option in Directories. Shows shared favorites and non-hidden custom contacts.'),
-                        'fields' => array(
-                            'favorites_entry' => _('Name of option on Directories screen'),
-                            'contacts_title' => _('Title at top of Favorites list'),
-                            'contacts_prompt' => _('Prompt below the Favorites list')
-                        )
-                    ),
-                    array(
-                        'heading' => _('3. All Extensions — extension list'),
-                        'description' => _('The second option in Directories. Shows non-hidden FreePBX extensions.'),
-                        'fields' => array(
-                            'extensions_entry' => _('Name of option on Directories screen'),
-                            'extensions_title' => _('Title at top of All Extensions list'),
-                            'extensions_prompt' => _('Prompt below the All Extensions list')
-                        )
-                    )
-                );
-                ?>
-                <p class="help-block"><?php echo _('Cisco 7945G titles and prompts are limited to 32 characters. Older longer text is shortened automatically so the phone does not display XML Error [4].'); ?></p>
                 <div class="row">
-                    <?php foreach ($labelGroups as $group): ?>
-                    <div class="col-lg-4 col-md-6" style="margin-bottom:16px">
-                        <div class="panel panel-default" style="height:100%;margin-bottom:0">
+                    <?php foreach (array(
+                        array('heading'=>_('Favorites — opens with Directories'),
+                            'description'=>_('First screen shown by the physical Directories button. All appears on the third softkey.'),
+                            'fields'=>array('contacts_title'=>_('Title'), 'contacts_prompt'=>_('Bottom prompt'))),
+                        array('heading'=>_('All Extensions — opens with All'),
+                            'description'=>_('All FreePBX extensions except hidden ones. Favs returns to Favorites.'),
+                            'fields'=>array('extensions_title'=>_('Title'), 'extensions_prompt'=>_('Bottom prompt')))
+                    ) as $group): ?>
+                    <div class="col-md-6" style="margin-bottom:14px">
+                        <div class="panel panel-default" style="margin-bottom:0">
                             <div class="panel-heading"><strong><?php echo $esc($group['heading']); ?></strong></div>
                             <div class="panel-body">
-                                <p class="help-block" style="min-height:34px;margin-top:0"><?php echo $esc($group['description']); ?></p>
+                                <p class="help-block" style="margin-top:0"><?php echo $esc($group['description']); ?></p>
                                 <?php foreach ($group['fields'] as $key => $fieldName): ?>
                                 <div class="form-group">
                                     <label for="sccp-text-<?php echo $esc($key); ?>"><?php echo $esc($fieldName); ?></label>
@@ -240,7 +212,7 @@ foreach ($entries as $entry) {
                                         data-label-key="<?php echo $esc($key); ?>"
                                         name="directory_text[<?php echo $esc($key); ?>]"
                                         value="<?php echo $esc($labels[$key]); ?>"
-                                        maxlength="<?php echo preg_match('/_(title|prompt)$/D', $key) ? 32 : 60; ?>" required>
+                                        maxlength="32" required>
                                 </div>
                                 <?php endforeach; ?>
                             </div>
@@ -250,27 +222,22 @@ foreach ($entries as $entry) {
                 </div>
                 <div class="panel panel-default" style="max-width:420px">
                     <div class="panel-heading"><strong><?php echo _('Phone screen preview'); ?></strong></div>
-                    <div class="panel-body" style="padding:12px">
-                        <div id="pc-label-preview" style="border:1px solid #aaa;border-radius:3px;padding:10px">
-                            <strong data-preview="menu_title"><?php echo $esc($labels['menu_title']); ?></strong>
+                    <div class="panel-body">
+                        <select id="pc-label-preview-screen" class="form-control input-sm" aria-label="<?php echo _('Preview directory'); ?>">
+                            <option value="favorites"><?php echo _('Favorites'); ?></option>
+                            <option value="extensions"><?php echo _('All Extensions'); ?></option>
+                        </select>
+                        <div id="pc-label-preview" style="border:1px solid #aaa;border-radius:3px;padding:10px;margin-top:9px">
+                            <strong><?php echo $esc($labels['contacts_title']); ?></strong>
                             <hr style="margin:8px 0">
-                            <div>1. <span data-preview="favorites_entry"><?php echo $esc($labels['favorites_entry']); ?></span></div>
-                            <div>2. <span data-preview="extensions_entry"><?php echo $esc($labels['extensions_entry']); ?></span></div>
+                            <div>1. <?php echo _('Example Contact'); ?></div>
                             <hr style="margin:8px 0">
-                            <small class="text-muted" data-preview="menu_prompt"><?php echo $esc($labels['menu_prompt']); ?></small>
+                            <small><?php echo $esc($labels['contacts_prompt']); ?></small>
                         </div>
-                        <p class="help-block" style="margin:8px 0 0">
-                            <?php echo _('Select a preview screen:'); ?>
-                            <select id="pc-label-preview-screen" class="form-control input-sm" style="margin-top:4px">
-                                <option value="directory"><?php echo _('Directories (two options)'); ?></option>
-                                <option value="favorites"><?php echo _('Favorites (contact list)'); ?></option>
-                                <option value="extensions"><?php echo _('All Extensions (extension list)'); ?></option>
-                            </select>
-                        </p>
                     </div>
                 </div>
+                <p class="help-block"><?php echo _('Titles and prompts are limited to 32 UTF-8 bytes on the 7945G. Changes appear the next time the directory opens.'); ?></p>
                 <button type="submit" class="btn btn-primary"><i class="fa fa-save" aria-hidden="true"></i> <?php echo _('Save phone labels'); ?></button>
-                <p class="help-block"><?php echo _('Updates are visible on the next directory request. No phone reboot or reprovisioning.'); ?></p>
             </form>
         </details>
         <details style="margin-top:24px">
@@ -288,7 +255,7 @@ foreach ($entries as $entry) {
                 </form>
                 <?php if ($base): ?>
                     <p class="help-block"><?php echo _('Directory URL:'); ?>
-                        <a target="_blank" rel="noopener noreferrer" href="<?php echo $esc($base . '/phone.php?doc=directory'); ?>"><?php echo $esc($base . '/phone.php?doc=directory'); ?></a>
+                        <a target="_blank" rel="noopener noreferrer" href="<?php echo $esc($base . '/phone.php?doc=contacts-1'); ?>"><?php echo $esc($base . '/phone.php?doc=contacts-1'); ?></a>
                     </p>
                 <?php endif; ?>
             </div>
@@ -378,8 +345,7 @@ foreach ($entries as $entry) {
             root.querySelector('#pc-contact-delete-form').submit();
         });
     });
-    // Preview the three real Directories screens edited in this section.
-    // Never render user-supplied text as HTML.
+    // The live preview matches the two actual CiscoIPPhoneDirectory views.
     var labelInputs = root.querySelectorAll('.pc-label-input');
     var previewScreen = root.querySelector('#pc-label-preview-screen');
     var preview = root.querySelector('#pc-label-preview');
@@ -389,29 +355,24 @@ foreach ($entries as $entry) {
         labelInputs.forEach(function (field) {
             values[field.getAttribute('data-label-key')] = field.value;
         });
-        var mode = previewScreen.value;
-        var titleKey = mode === 'directory' ? 'menu_title' :
-            mode === 'favorites' ? 'contacts_title' : 'extensions_title';
-        var promptKey = mode === 'directory' ? 'menu_prompt' :
-            mode === 'favorites' ? 'contacts_prompt' : 'extensions_prompt';
+        var favorites = previewScreen.value === 'favorites';
         preview.textContent = '';
         var heading = document.createElement('strong');
-        heading.textContent = values[titleKey] || '';
+        heading.textContent = values[favorites ? 'contacts_title' : 'extensions_title'] || '';
         preview.appendChild(heading);
         preview.appendChild(document.createElement('hr'));
-        var entries = mode === 'directory' ?
-            [values.favorites_entry, values.extensions_entry] :
-            (mode === 'favorites' ? ['Example Contact — 111'] : ['Example Extension — 150']);
-        entries.forEach(function (value, i) {
-            var row = document.createElement('div');
-            row.textContent = (i + 1) + '. ' + (value || '');
-            preview.appendChild(row);
-        });
+        var item = document.createElement('div');
+        item.textContent = favorites ? '1. Example Contact' : '1. Example Extension';
+        preview.appendChild(item);
         preview.appendChild(document.createElement('hr'));
         var prompt = document.createElement('small');
-        prompt.className = 'text-muted';
-        prompt.textContent = values[promptKey] || '';
+        prompt.textContent = values[favorites ? 'contacts_prompt' : 'extensions_prompt'] || '';
         preview.appendChild(prompt);
+        var keys = document.createElement('p');
+        keys.className = 'help-block';
+        keys.textContent = favorites ? 'Dial  |  EditDial  |  All  |  Exit' :
+            'Dial  |  EditDial  |  Favs  |  Exit';
+        preview.appendChild(keys);
     }
     labelInputs.forEach(function (field) {
         field.addEventListener('input', showLabelPreview);
