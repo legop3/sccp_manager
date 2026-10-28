@@ -1,0 +1,15 @@
+<?php
+if (!defined('FREEPBX_IS_AUTH')) {
+    die('No direct script access allowed');
+}
+$display_info = _('Phone Content');
+$display_page = \FreePBX::create()->Sccp_manager->phoneContentShowPage();
+if (!empty(\FreePBX::create()->Sccp_manager->phoneContentError)) {
+    echo '<div class="alert alert-danger">' .
+        htmlspecialchars(\FreePBX::create()->Sccp_manager->phoneContentError, ENT_QUOTES, 'UTF-8') . '</div>';
+}
+if (!empty(\FreePBX::create()->Sccp_manager->phoneContentMessage)) {
+    echo '<div class="alert alert-success">' .
+        htmlspecialchars(\FreePBX::create()->Sccp_manager->phoneContentMessage, ENT_QUOTES, 'UTF-8') . '</div>';
+}
+include('page.html.php');
