@@ -44,6 +44,41 @@ tabs: Address Book, Menus, Wallpapers and Ringtones.
 - URLs refer to Cisco-compatible XML services reachable by the phones over VPN.
 
 Regression checks: php tests/phone-content.php ; php tests/phone-menus.php
+## Visual Voicemail (17.1.23 preview)
+
+1. In **Phone Content → Menus**, select **Messages** and change the action from
+   **Voicemail (native)** to **Visual Voicemail (auto-answer playback)**.
+2. Enable **Use custom phone-button menus** and save. SCCP Manager publishes
+   `voicemail.php` and regenerates/saves signed SEP configurations.
+3. Reset a test 7945G to activate its Messages-button service URL.
+4. The phone's Messages button displays **its own** voicemail from the default
+   SCCP line (mailbox `extension@default`), with INBOX and Old messages.
+   Selecting a message opens Play, Mark as Heard, and Delete (with confirmation).
+5. Play originates `SCCP/extension/aa=1w` via AMI with
+   `Application: VoiceMailPlayMsg` and the message's stable Asterisk `msg_id`.
+   The playback call's CallerID name/number are derived from the voicemail
+   caller metadata (not a fixed 'Voicemail' label). It is rejected if the phone
+   is already on a channel according to `CoreShowChannels`.
+
+**Scope and compatibility:** This implementation reads the normal FreePBX
+filesystem voicemail store `/var/spool/asterisk/voicemail/default/<extension>`
+and uses Asterisk 22 AMI. ODBC/IMAP voicemail backends and non-default
+voicemail contexts are not supported yet. Some older voicemail recordings
+without a stable `msg_id` cannot be played and are omitted. The phone must
+have a numeric SCCP default line assigned in SCCP Manager.
+
+**Access:** Each phone receives a random, independently provisioned bearer
+token embedded in its signed SEP phone service URL. Anyone who obtains the
+full URL can access that mailbox, so restrict access to the HTTP endpoint
+and TFTP provisioning files to trusted networks/VPN clients. Do not expose
+`/sccp-manager/voicemail.php` on a public web proxy. Tokens are not a
+substitute for network access controls. Regenerating signed phone configs
+does not reset phones automatically.
+
+**Playback note:** The 7945G firmware's exact behavior with a custom Messages
+service and SCCP auto-answer playback still requires an on-device test.
+
+Test: `php tests/phone-voicemail.php`.
 ## Wallpapers
 
 The 7945/7965 SCCP firmware looks for:
