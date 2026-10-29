@@ -37,6 +37,10 @@ final class homeScreenConfig {
         );
     }
     public function get() {
+        // install.php also invokes config generation on a temporary anonymous
+        // helper without the FreePBX KV-store methods. Keep install safe.
+        if (!is_object($this->parent) || !method_exists($this->parent, 'getConfig'))
+            return array('enabled'=>false, 'states'=>self::defaults());
         $stored = $this->parent->getConfig('phonecontent_home_softkeys');
         $defaults = self::defaults();
         if (!is_array($stored)) return array('enabled'=>false,'states'=>$defaults);
