@@ -3,7 +3,7 @@ name: Phone Content PHP tests
 on:
   push:
     branches:
-      - feature/vpn-provisioning
+      - stable
   pull_request:
 
 permissions:
