@@ -1,0 +1,54 @@
+name: SCCP Manager self-contained phone-content preview
+
+on:
+  push:
+    branches:
+      - feature/phone-notifications
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sccp-phone-notifications-preview
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: Validate complete FreePBX module
+        run: |
+          php -l Sccp_manager.class.php
+          php -l sccpManTraits/helperFunctions.php
+          php -l sccpManClasses/phonecontent.class.php
+          php -l page.sccp_content.php
+          php -l views/advserver.keyset.php
+          php -r 'simplexml_load_file("module.xml") ?: exit(1);'
+          php tests/phone-content.php
+          php tests/regression-sccp.php
+      - name: Assemble self-contained module tarball
+        run: |
+          mkdir -p "$RUNNER_TEMP/module/sccp_manager"
+          rsync -a --exclude=.git --exclude=.github --exclude=tests ./ "$RUNNER_TEMP/module/sccp_manager/"
+          tar -C "$RUNNER_TEMP/module" -czf sccp_manager.tar.gz sccp_manager
+          for p in module.xml Sccp_manager.class.php vendor/certutils/sgnfile scripts/sccp-manager-vpn-helper; do
+            tar -tzf sccp_manager.tar.gz | grep -qx "sccp_manager/$p"
+          done
+      - name: Publish installable FreePBX preview package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=phone-content-preview-17.1.71
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" sccp_manager.tar.gz --clobber
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" \
+              --title "SCCP Manager 17.1.71 Phone Content preview" \
+              --notes "Complete FreePBX module from feature/phone-notifications. Includes VPN, directories, voicemail, notifications and native softkey editor. Test build." \
+              --prerelease --latest=false sccp_manager.tar.gz
+          fi

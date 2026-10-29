@@ -132,6 +132,30 @@ if (!function_exists('sccp_manager_content_install')) {
     }
 }
 
+
+if (!function_exists('sccp_manager_notifications_install')) {
+    function sccp_manager_notifications_install() {
+        if (!function_exists('posix_geteuid') || posix_geteuid()!==0) {
+            outn('<li>Notifications: root-level fwconsole module upgrade needed to install the automatic polling schedule.</li>');
+            return;
+        }
+        $path='/etc/cron.d/sccp-manager-notifications';
+        if (is_link($path)) {
+            outn('<li>Notifications: refusing symlinked cron configuration.</li>');
+            return;
+        }
+        $runner=__DIR__.'/scripts/notifications.php';
+        $line='* * * * * asterisk /usr/bin/php '.escapeshellarg($runner).' >/dev/null 2>&1'."\n";
+        if (!is_file($runner) || file_put_contents($path,"# SCCP Manager internal phone notifications\n".$line,LOCK_EX)===false) {
+            outn('<li>Notifications: could not install cron job.</li>');
+            return;
+        }
+        @chmod($path,0644);
+        outn('<li>Notifications: internal scheduled/event checks installed (every 5 seconds).</li>');
+    }
+}
+sccp_manager_notifications_install();
+
 // Avoid running the legacy full SCCP schema/realtime/driver installer on an
 // ordinary update of an already working Nortien installation. VPN uses BMO's
 // key/value settings store, so no SQL schema migration is needed.

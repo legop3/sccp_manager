@@ -9,6 +9,7 @@ import base64
 import hashlib
 import json
 import os
+import pwd
 from pathlib import Path
 import stat
 import re
@@ -125,6 +126,10 @@ def sign(device, source_dir=""):
         # Never sign stale root XML while a newer configuration sits in settings.
         os.chmod(signed, 0o644)
         os.chmod(source, 0o644)
+        # Root creates the staging copy. Make the published unsigned XML
+        # writable by FreePBX's asterisk process after atomic replacement.
+        service = pwd.getpwnam('asterisk')
+        os.chown(source, service.pw_uid, service.pw_gid)
         os.replace(signed, target)
         os.replace(source, TFTP / xml.name)
     print("Signed", device)

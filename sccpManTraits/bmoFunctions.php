@@ -18,6 +18,39 @@ trait bmoFunctions {
                 isset($_POST['content_action'])) {
                 try {
                     $action = (string) $_POST['content_action'];
+                    if ($action === 'notifications_preview') {
+                        // Authorized FreePBX admin endpoint. Render using the exact
+                        // same GD method as the outgoing Cisco notification.
+                        header('Content-Type: application/json; charset=UTF-8');
+                        header('Cache-Control: no-store');
+                        try {
+                            $kind=(string)($_POST['kind']??'');
+                            if (!in_array($kind,array('voicemail','missed'),true)) throw new \InvalidArgumentException('Invalid preview kind.');
+                            $base=(new \FreePBX\modules\Sccp_manager\notificationConfig($this))->all()[$kind];
+                            $submitted=(array)($_POST['appearance']??array());
+                            $base['theme']=in_array(($submitted['theme']??''),array('cisco','ocean','charcoal','plum','forest','custom'),true)?$submitted['theme']:$base['theme'];
+                            foreach (array('show_number','show_details') as $key) $base[$key]=!empty($submitted[$key]);
+                            $base['stripe_position']=in_array(($submitted['stripe_position']??''),array('off','header','top','bottom','background'),true)?$submitted['stripe_position']:'off';
+                            $base['stripes']=array();
+                            foreach (array_slice((array)($submitted['stripes']??array()),0,10) as $hex)
+                                if (is_string($hex)&&preg_match('/^#[0-9a-f]{6}$/i',$hex)) $base['stripes'][]=$hex;
+                            foreach (array('background','header','header_text','name_text','secondary_text','details_background','details_label','details_text','accent') as $key) {
+                                $hex=(string)($submitted['colors'][$key]??'');
+                                if (preg_match('/^#[0-9a-f]{6}$/i',$hex)) $base['colors'][$key]=$hex;
+                            }
+                            $sample=$kind==='voicemail'
+                                ? array('caller'=>'Jane Smith','number'=>'555-0123','time'=>'2:35 PM','length'=>'0:42')
+                                : array('caller'=>'John Smith','number'=>'555-0199','when'=>'Oct 28 3:14 PM');
+                            $xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,$kind,$sample,array(),$base);
+                            if (!is_string($xml)||!preg_match('~<URL>([^<]+)</URL>~',$xml,$m)) throw new \RuntimeException('Preview renderer failed.');
+                            echo json_encode(array('url'=>html_entity_decode($m[1],ENT_QUOTES,'UTF-8')));
+                        } catch (\Throwable $e) {
+                            http_response_code(400);
+                            echo json_encode(array('error'=>$e->getMessage()));
+                        }
+                        exit;
+                    }
+
                     // Existing content is live: a contact edit republishes XML
                     // immediately. Updating the PBX address or enabling a
                     // wallpaper regenerates signed phone configuration as part

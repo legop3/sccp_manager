@@ -603,7 +603,8 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             'general' => array('name' => _('Address Book'), 'page' => 'views/content.contacts.php'),
             'menus' => array('name' => _('Menus'), 'page' => 'views/content.menus.php'),
             'wallpapers' => array('name' => _('Wallpapers'), 'page' => 'views/content.wallpapers.php'),
-            'ringtones' => array('name' => _('Ringtones'), 'page' => 'views/content.ringtones.php')
+            'ringtones' => array('name' => _('Ringtones'), 'page' => 'views/content.ringtones.php'),
+            'notifications' => array('name' => _('Notifications'), 'page' => 'views/content.notifications.php')
         );
         $this->processPageData();
         return $this->pagedata;
@@ -1418,6 +1419,26 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                 // to no firmware rather than fataling XML generation for the whole
                 // device.
                 $dev_config['addon_info'][$key] = $hw_data[0]['loadimage'] ?? '';
+            }
+        }
+
+        // When notification pushes are configured, provision their Cisco XML
+        // authentication endpoint. Preserve an explicitly configured URL.
+        if ($sccp_native && $this->getConfig('phonecontent_push_secret') &&
+            $this->phonecontent->baseUrl() !== '') {
+            $managedAuth = $this->phonecontent->baseUrl() . '/notification-auth.php';
+            $deviceAuth = (string)($dev_config['dev_authenticationURL'] ?? '');
+            $globalAuth = (string)($data_value['dev_authenticationURL'] ?? '');
+            // Upgrade only URLs previously installed by this module; leave
+            // administrator-specified authentication endpoints untouched.
+            $isManaged = static function ($value) use ($managedAuth) {
+                return $value === '' || $value === $managedAuth ||
+                    strpos($value, $managedAuth . '?token=') === 0;
+            };
+            if ($isManaged($deviceAuth) && $isManaged($globalAuth)) {
+                $dev_config['dev_authenticationURL'] = $managedAuth . '?token=' .
+                    hash_hmac('sha256', strtoupper((string)$dev_id),
+                        (string)$this->getConfig('phonecontent_push_secret'));
             }
         }
 
