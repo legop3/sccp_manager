@@ -534,8 +534,9 @@ trait helperfunctions {
                 "#include sccp_custom.conf"
             );
         }
-        // A managed native SCCP softkey set, separate from SIP XML softKeyFile.
-        (new \FreePBX\modules\Sccp_manager\homeScreenConfig($this))->inject($conf_init);
+        // Remove only the retired experimental set from generated configuration.
+        // All original softkey sets remain managed by Advanced Server Configuration.
+        unset($conf_init['sccpmanager-home']);
         $cnf_wr->WriteConfig('sccp.conf', $conf_init);
     }
 
