@@ -27,4 +27,9 @@ $internal=notificationWorker::classifyMissedCallRows([$sccp],$now);
 if (count($internal)!==1 || $internal[0]['src']!=='111' || (string)$internal[0]['dst']!=='222') {
     fwrite(STDERR,"FAIL SCCP-to-SCCP caller number recovery\n");exit(1);
 }
+$call=row('vm','SCCP/111-0001','NO ANSWER');
+$recorded=['111'=>[['time'=>strtotime('2026-10-28 18:58:20'),'number'=>'5550123']]];
+if (!notificationWorker::hasRecordedVoicemail($call,$recorded)) {fwrite(STDERR,"FAIL voicemail recording should suppress missed notification\n");exit(1);}
+if (notificationWorker::hasRecordedVoicemail($call,['111'=>[['time'=>strtotime('2026-10-28 18:58:20'),'number'=>'9999']]])) {fwrite(STDERR,"FAIL different caller suppressed\n");exit(1);}
+if (notificationWorker::hasRecordedVoicemail($call,[])) {fwrite(STDERR,"FAIL missing recording suppressed\n");exit(1);}
 echo "Missed call classification tests passed\n";
