@@ -163,6 +163,17 @@ final class phoneNotifications
             $ext=(bool)preg_match('/^[0-9]{1,6}$/D',$number);
             $draw(($ext?'Ext. ':'').$number,10,101,276,17,$colors['secondary_text'],10);
         }
+        if ($kind==='voicemail' && (!isset($settings['show_details']) || $settings['show_details'])) {
+            $length=(string)($fields['length']??'');
+            if ($length!=='') {
+                $label='Length: '.$length;
+                // Right-align duration alongside the caller number.
+                $labelWidth=($font!==null && function_exists('imagettfbbox'))
+                    ? (imagettfbbox(13,0,$font,$label)[2] ?? strlen($label)*9)
+                    : strlen($label)*9;
+                $draw($label,max(10,286-$labelWidth),101,145,13,$colors['details_label'],10);
+            }
+        }
         if (!isset($settings['show_details']) || $settings['show_details']) {
             $timestamp=(string)($fields['when']??$fields['received']??'');
             if ($timestamp==='') {
@@ -170,10 +181,6 @@ final class phoneNotifications
             }
             // Both notifications use the same complete absolute timestamp.
             $draw($timestamp,10,129,276,16,$colors['details_text'],10);
-            if ($kind==='voicemail') {
-                $length=(string)($fields['length']??'');
-                if ($length!=='') $draw('Length: '.$length,10,150,276,14,$colors['details_label'],10);
-            }
         }
         $id=bin2hex(random_bytes(12));
         $filename='notification-'.$id.'.png';
