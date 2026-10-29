@@ -85,12 +85,12 @@ $samples=[
     <?php else: ?>
      <div class="ne-card"><h4>Design & layout</h4>
       <div class="form-group"><label>Base theme</label><select class="form-control ne-theme" name="notifications[<?php echo $kind;?>][theme]">
-       <?php foreach (['ocean'=>'Ocean','charcoal'=>'Charcoal','plum'=>'Plum','forest'=>'Forest','custom'=>'Custom'] as $value=>$label):?>
+       <?php foreach (['cisco'=>'Cisco Classic','ocean'=>'Ocean','charcoal'=>'Charcoal','plum'=>'Plum','forest'=>'Forest','custom'=>'Custom'] as $value=>$label):?>
        <option value="<?php echo $value;?>" <?php echo $settings['theme']===$value?'selected':'';?>><?php echo $label;?></option><?php endforeach;?></select></div>
       <label><input type="checkbox" name="notifications[<?php echo $kind;?>][show_number]" value="1" <?php echo $settings['show_number']?'checked':'';?>> Display caller number</label>
       <label style="margin-left:15px"><input type="checkbox" name="notifications[<?php echo $kind;?>][show_details]" value="1" <?php echo $settings['show_details']?'checked':'';?>> Display details</label>
       <h4 style="margin-top:18px">Section colors</h4><div class="ne-colors">
-       <?php $themes=['ocean'=>['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],'charcoal'=>['#181B20','#30343C','#FFFFFF','#BFC6D0','#FFD084'],'plum'=>['#301C3F','#513162','#FFFFFF','#DFC6EC','#FF9BC8'],'forest'=>['#123C31','#245C48','#F5FFF8','#C1E9D2','#91E7B1']];
+       <?php $themes=['cisco'=>['#D5E2ED','#1E568F','#101C2A','#233849','#FFFFFF'],'ocean'=>['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],'charcoal'=>['#181B20','#30343C','#FFFFFF','#BFC6D0','#FFD084'],'plum'=>['#301C3F','#513162','#FFFFFF','#DFC6EC','#FF9BC8'],'forest'=>['#123C31','#245C48','#F5FFF8','#C1E9D2','#91E7B1']];
        $palette=$themes[$settings['theme']]??$themes['ocean'];
        $defaults=['background'=>$palette[0],'header'=>$palette[1],'header_text'=>$palette[4],'name_text'=>$palette[2],'secondary_text'=>$palette[3],'details_background'=>$palette[0],'details_label'=>$palette[3],'details_text'=>$palette[2],'accent'=>$palette[4]];
        foreach ($colorLabels as $key=>$label): ?>
@@ -148,6 +148,7 @@ $samples=[
  }));
  const palettes=<?php echo json_encode($palettes,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);?>;
  const themes={
+  cisco:['#D5E2ED','#1E568F','#101C2A','#233849','#FFFFFF'],
   ocean:['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],
   charcoal:['#181B20','#30343C','#FFFFFF','#BFC6D0','#FFD084'],
   plum:['#301C3F','#513162','#FFFFFF','#DFC6EC','#FF9BC8'],
