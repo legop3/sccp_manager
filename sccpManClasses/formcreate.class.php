@@ -523,6 +523,13 @@ class formcreate
             case 'SLK':
                 $softKeyList = array();
                 $softKeyList = \FreePBX::Sccp_manager()->aminterface->sccp_list_keysets();
+                // Managed layout is created through Phone Content and may not yet
+                // appear in the driver's AMI list until a reload. Still offer it.
+                $manager = \FreePBX::Sccp_manager();
+                $home = new \FreePBX\modules\Sccp_manager\homeScreenConfig($manager);
+                if ($home->get()['enabled']) {
+                    $softKeyList[\FreePBX\modules\Sccp_manager\homeScreenConfig::SET_NAME] = \FreePBX\modules\Sccp_manager\homeScreenConfig::SET_NAME;
+                }
                 $select_opt= $softKeyList;
                 break;
             case 'SLP':
