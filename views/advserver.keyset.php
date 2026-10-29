@@ -174,19 +174,6 @@ foreach ($keysetarray as $key => $value) {
     }
 </script>
 
-<?php
-// Unified palette from every action already defined by the existing SCCP
-// Manager schema. Individual phone features and driver state may filter keys.
-$sccp_all_keys = array();
-foreach ($keysetarray as $state => $actions) {
-    if ($state === 'uriaction') continue;
-    foreach (explode(',', (string) $actions) as $action) {
-        $action = trim($action);
-        if ($action !== '' && !in_array($action, $sccp_all_keys, true)) $sccp_all_keys[] = $action;
-    }
-}
-?>
-<script type="application/json" id="sccp-softkey-palette"><?php echo json_encode($sccp_all_keys, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT); ?></script>
 <!-- SCCP modern keyset editor -->
 <style>
 .sccp-key-builder{border:1px solid #ccd3dc;border-radius:8px;margin:12px 0;padding:14px;background:var(--surface,#fafbfc)}
@@ -226,18 +213,12 @@ function build(tab){
  var src=tab.querySelector('select[id^="source_"]'),dst=tab.querySelector('select[id^="destination_"]');
  if(!src||!dst)return;
  var existing=tab.querySelector('.sccp-key-builder');if(existing)return;
- var paletteElement=document.getElementById('sccp-softkey-palette');
- var palette=[];
- try {palette=JSON.parse(paletteElement.textContent);} catch(e) {}
  var available=Array.from(src.options).concat(Array.from(dst.options)).map(o=>o.value).filter(Boolean);
- var master=Array.from(new Set(available.concat(palette)));
- // Expand the legacy source list BEFORE the original AJAX edit handler runs.
- // Its loader only recognizes values that appear in source options.
- master.forEach(k=>{if(!available.includes(k)){var option=node('option','',k);option.value=k;src.appendChild(option);}});
-
+ var master=Array.from(new Set(available));
+ // Preserve state-specific choices from the original editor.
  var group=node('section','sccp-key-builder');
  var title=node('strong','', 'Button layout');group.appendChild(title);
- var help=node('p','skb-note','Reorder with the arrows or drag a button. The available palette includes actions from all existing state definitions; some actions only work in particular phone states or when their features are enabled.');group.appendChild(help);
+ var help=node('p','skb-note','Reorder with the arrows or drag a button. The available buttons are specific to this phone state; the phone may hide features that are disabled.');group.appendChild(help);
  var preview=node('div','skb-preview');group.appendChild(preview);
  var list=node('ol','skb-items');group.appendChild(list);
  var addRow=node('div','skb-add'),pick=node('select','form-control'),add=node('button','btn btn-default','Add button');
