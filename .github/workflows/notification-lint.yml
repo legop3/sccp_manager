@@ -2,7 +2,7 @@ name: PHP notification lint
 on:
   push:
     branches:
-      - feature/phone-notifications
+      - stable
   pull_request:
     paths:
       - 'sccpManClasses/**'
