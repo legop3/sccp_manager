@@ -1041,9 +1041,6 @@ PHP;
                 return 'Shared Favorites and hidden extension settings saved.';
             case 'wallpaper': $this->addWallpaper($files['media'] ?? null, $post['label'] ?? ''); return 'Wallpaper published.';
             case 'delete_wallpaper': $this->removeWallpaper((string) ($post['id'] ?? '')); return 'Wallpaper removed.';
-            case 'home_softkeys_save':
-                (new homeScreenConfig($this->parent))->save($post['home'] ?? array());
-                return 'Native softkey layout saved. Apply Config, then select sccpmanager-home on the phone device.';
             case 'notifications_save': (new notificationConfig($this->parent))->save($post['notifications'] ?? []); return 'Notification settings saved.';
             case 'notifications_test': $sent=(new notificationDelivery($this->parent))->send('scheduled', [], null, true); return 'Test notification sent to ' . $sent . ' phone(s).';
             case 'ringtone': $this->addRingtone($files['media'] ?? null, $post['label'] ?? ''); return 'Ringtone published.';
