@@ -67,19 +67,31 @@ final class notificationWorker {
                 $when=strtotime((string)$call['calldate']) ?: $now;
                 $number=(string)$call['src'];
                 $caller=$this->formatCaller((string)($call['clid']??''),$number);
-                $this->delivery->send('missed',[
-                    'caller'=>$caller, 'number'=>$number,
-                    'extension'=>(string)$call['dst'],
-                    'date'=>date('M j, Y',$when),
-                    'time'=>date('g:i A',$when),
-                    'when'=>date('M j, Y \\a\\t g:i A',$when),
-                    'reason'=>(string)$call['disposition']==='BUSY'?'Busy':'No answer'
-                ],[(string)$call['dst']]);
+                $this->delivery->send('missed',self::missedNotificationFields($call,$when),[(string)$call['dst']]);
             }
             $state['seen']=array_filter($seen,static function($time)use($now){return (int)$time>$now-3600;});
             $dirty=true;
         }
         if ($dirty) $this->module->setConfig('phonecontent_notification_state',$state);
+    }
+
+    /** One field formatter for live missed-call delivery and designer preview. */
+    public static function missedNotificationFields(array $call,$when) {
+        $number=(string)($call['src']??'');
+        $clid=trim((string)($call['clid']??''));
+        $caller=$number!==''?$number:'Unknown caller';
+        if (preg_match('/^"([^"]+)"\\s*<[^>]*>$/',$clid,$m) && trim($m[1])!=='')
+            $caller=trim($m[1]);
+        elseif (preg_match('/^([^<]+)\\s*<[^>]*>$/',$clid,$m) && trim($m[1])!=='')
+            $caller=trim($m[1]);
+        return [
+            'caller'=>$caller,'number'=>$number,
+            'extension'=>(string)($call['dst']??''),
+            'date'=>date('M j, Y',$when),
+            'time'=>date('g:i A',$when),
+            'when'=>date('M j, Y \\a\\t g:i A',$when),
+            'reason'=>(string)($call['disposition']??'')==='BUSY'?'Busy':'No answer'
+        ];
     }
 
     private function voicemailInbox(phonevoicemail $vm) {
