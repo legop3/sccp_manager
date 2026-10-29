@@ -28,7 +28,7 @@ trait bmoFunctions {
                             if (!in_array($kind,array('voicemail','missed'),true)) throw new \InvalidArgumentException('Invalid preview kind.');
                             $base=(new \FreePBX\modules\Sccp_manager\notificationConfig($this))->all()[$kind];
                             $submitted=(array)($_POST['appearance']??array());
-                            $base['theme']=in_array(($submitted['theme']??''),array('ocean','charcoal','plum','forest','custom'),true)?$submitted['theme']:$base['theme'];
+                            $base['theme']=in_array(($submitted['theme']??''),array('cisco','ocean','charcoal','plum','forest','custom'),true)?$submitted['theme']:$base['theme'];
                             foreach (array('show_number','show_details') as $key) $base[$key]=!empty($submitted[$key]);
                             $base['stripe_position']=in_array(($submitted['stripe_position']??''),array('off','header','top','bottom','background'),true)?$submitted['stripe_position']:'off';
                             $base['stripes']=array();
