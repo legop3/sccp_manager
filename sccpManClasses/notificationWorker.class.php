@@ -62,6 +62,8 @@ final class notificationWorker {
                 $key=(string)$call['uniqueid'].'/'.(string)$call['dst'];
                 if (isset($seen[$key])) continue;
                 $seen[$key]=$now;
+                // A stored voicemail takes precedence over the missed-call popup.
+                if (self::hasRecordedVoicemail($call,$inbox)) continue;
                 // Do not send previously unseen historical missed calls on first enable.
                 if (strtotime((string)$call['calldate'])<$now-240) continue;
                 $when=strtotime((string)$call['calldate']) ?: $now;
@@ -92,6 +94,28 @@ final class notificationWorker {
             'when'=>date('M j, Y \\a\\t g:i A',$when),
             'reason'=>(string)($call['disposition']??'')==='BUSY'?'Busy':'No answer'
         ];
+    }
+
+    /**
+     * Suppress missed-call popups only if a real voicemail recording exists
+     * for this extension and caller during the same call. Merely reaching
+     * VoiceMail() does not mean the caller actually left a message.
+     */
+    public static function hasRecordedVoicemail(array $call,array $inbox) {
+        $extension=(string)($call['dst']??'');
+        $started=strtotime((string)($call['calldate']??'')) ?: 0;
+        if (!$started || !isset($inbox[$extension])) return false;
+        $ended=$started+max(0,(int)($call['duration']??0));
+        $number=preg_replace('/[^0-9]/','',(string)($call['src']??''));
+        foreach ($inbox[$extension] as $msg) {
+            $recorded=(int)($msg['time']??0);
+            if ($recorded<$started-5 || $recorded>$ended+30) continue;
+            $from=preg_replace('/[^0-9]/','',(string)($msg['number']??''));
+            // A different known caller is never a match.
+            if ($number!=='' && $from!=='' && $number!==$from) continue;
+            return true;
+        }
+        return false;
     }
 
     private function voicemailInbox(phonevoicemail $vm) {
