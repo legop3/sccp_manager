@@ -25,7 +25,8 @@ $esc = static function($value) {return htmlspecialchars((string)$value,ENT_QUOTE
  name="home[states][<?php echo $esc($state); ?>]" maxlength="240" type="text"
  value="<?php echo $esc(implode(',',$config['states'][$state])); ?>"
  data-state="<?php echo $esc($state); ?>">
-<small class="text-muted">Comma-separated keys in display order. First four are shown before More on most 7945G screens.</small>
+<small class="text-muted">First four normally appear before More. Use the controls below to add, remove, or reorder keys; the text field also accepts a comma-separated layout.</small>
+<div class="sccp-home-visual" data-for="home-<?php echo $esc($state); ?>" style="margin-top:8px"></div>
 </div>
 <?php endforeach; ?>
 </div>
@@ -36,3 +37,36 @@ $esc = static function($value) {return htmlspecialchars((string)$value,ENT_QUOTE
 <h3>About the home-screen message</h3>
 <p>The firmware-generated <em>Your Current Options</em> and <em>You Have VoiceMail</em> prompts are not part of the native softkey layout. The existing Phone Content notification system can show custom status messages, but replacing these firmware prompts permanently is not verified. This editor deliberately leaves message-waiting indication intact.</p>
 </div>
+
+<script>
+(function(){
+const options = <?php echo json_encode($choices, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT); ?>;
+function attach(target) {
+ const input=document.getElementById(target.getAttribute('data-for'));
+ if(!input) return;
+ const parse=()=>input.value.split(',').map(k=>k.trim().toLowerCase()).filter(Boolean);
+ function render(){
+  const keys=parse(); target.replaceChildren();
+  const row=document.createElement('div'); row.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:7px';
+  keys.forEach((k,i)=>{
+   const chip=document.createElement('span');chip.style.cssText='display:inline-flex;gap:3px;align-items:center;border:1px solid #9ca8b4;border-radius:5px;padding:4px 6px';
+   const name=document.createElement('span');name.textContent=options[k]||k;chip.appendChild(name);
+   function btn(label,title,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.title=title;b.className='btn btn-default btn-xs';b.addEventListener('click',fn);chip.appendChild(b);}
+   btn('←','Move earlier',()=>{if(i>0){[keys[i-1],keys[i]]=[keys[i],keys[i-1]];input.value=keys.join(',');render();}});
+   btn('→','Move later',()=>{if(i<keys.length-1){[keys[i+1],keys[i]]=[keys[i],keys[i+1]];input.value=keys.join(',');render();}});
+   btn('×','Remove',()=>{keys.splice(i,1);input.value=keys.join(',');render();});
+   row.appendChild(chip);
+  });
+  target.appendChild(row);
+  const pick=document.createElement('select');pick.className='form-control';pick.style.cssText='width:auto;display:inline-block;max-width:220px;margin-right:7px';
+  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Add a softkey…';pick.appendChild(placeholder);
+  Object.entries(options).forEach(([key,label])=>{if(keys.includes(key))return;const o=document.createElement('option');o.value=key;o.textContent=label;pick.appendChild(o);});
+  target.appendChild(pick);
+  const add=document.createElement('button');add.type='button';add.className='btn btn-default btn-sm';add.textContent='Add';add.addEventListener('click',()=>{if(pick.value&&keys.length<15){keys.push(pick.value);input.value=keys.join(',');render();}});
+  target.appendChild(add);
+ }
+ input.addEventListener('change',render);render();
+}
+document.querySelectorAll('.sccp-home-visual').forEach(attach);
+})();
+</script>
