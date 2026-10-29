@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.73</version>
+	<version>17.1.74</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.74 * - Increase notification typography and use horizontal space for number and time
 		 * Version 17.1.73 * - Cisco-style graphical notification layout and optional Cisco Classic palette
 		 * Version 17.1.72 * - Route missed call and voicemail notifications only to the handset's assigned SCCP extension
 		 * Version 17.1.71 * - Expose additional supported softkeys in existing Advanced Server keyset editor without changing saved sets
