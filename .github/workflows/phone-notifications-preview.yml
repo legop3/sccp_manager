@@ -27,6 +27,7 @@ jobs:
           php -l sccpManTraits/helperFunctions.php
           php -l sccpManClasses/phonecontent.class.php
           php -l page.sccp_content.php
+          php -l views/advserver.keyset.php
           php -r 'simplexml_load_file("module.xml") ?: exit(1);'
           php tests/phone-content.php
           php tests/regression-sccp.php
