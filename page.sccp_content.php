@@ -18,7 +18,7 @@ include('page.html.php');
 (function () {
     // After a normal multipart form POST, keep the tab the user was editing.
     var tab = window.location.hash.slice(1);
-    if (['general', 'menus', 'wallpapers', 'ringtones', 'notifications', 'home'].indexOf(tab) !== -1) {
+    if (['general', 'menus', 'wallpapers', 'ringtones', 'notifications'].indexOf(tab) !== -1) {
         $(function () {
             $('.change-tab a[href="#' + tab + '"]').tab('show');
         });
