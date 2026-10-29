@@ -67,6 +67,7 @@ final class phoneNotifications
             'charcoal'=>['#181B20','#30343C','#FFFFFF','#BFC6D0','#FFD084'],
             'plum'=>['#301C3F','#513162','#FFFFFF','#DFC6EC','#FF9BC8'],
             'forest'=>['#123C31','#245C48','#F5FFF8','#C1E9D2','#91E7B1'],
+            'cisco'=>['#D5E2ED','#1E568F','#101C2A','#233849','#FFFFFF'],
             'custom'=>['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5']
         ];
         $p=$presets[$settings['theme']??'ocean']??$presets['ocean'];
@@ -74,6 +75,11 @@ final class phoneNotifications
             'name_text'=>$p[2],'secondary_text'=>$p[3],
             'details_background'=>$p[0],'details_label'=>$p[3],
             'details_text'=>$p[2],'accent'=>$p[4]];
+        if (($settings['theme']??'')==='cisco') {
+            $defaults['details_background']='#D5E2ED';
+            $defaults['details_label']='#334A5D';
+            $defaults['details_text']='#172A3C';
+        }
         $colors=array_merge($defaults,(array)($settings['colors']??[]));
         $color=static function($hex) use($im) {
             if (!is_string($hex)||!preg_match('/^#[0-9a-f]{6}$/i',$hex)) $hex='#FFFFFF';
@@ -103,23 +109,22 @@ final class phoneNotifications
             // Solid panel ensures caller details remain readable over stripes.
             imagefilledrectangle($im,4,31,291,145,$bg);
         }
-        $heading=$kind==='voicemail'?'NEW VOICEMAIL':'MISSED CALL';
-        imagestring($im,4,10,6,$heading,$color($colors['header_text']));
+        $heading=$kind==='voicemail'?'New voicemail':'Missed call';
+        imagestring($im,5,9,5,$heading,$color($colors['header_text']));
         $name=preg_replace('/[^\\x20-\\x7E]/','',(string)($fields['caller']??'Unknown caller'));
-        imagestring($im,5,10,38,substr($name,0,28),$color($colors['name_text']));
-        if (!isset($settings['show_number']) || $settings['show_number'])
-            imagestring($im,3,10,62,substr((string)($fields['number']??''),0,39),$color($colors['secondary_text']));
+        imagestring($im,5,10,43,substr($name,0,28),$color($colors['name_text']));
+        if (!isset($settings['show_number']) || $settings['show_number']) {
+            $number=(string)($fields['number']??'');
+            if ($number!=='') {
+                $isExtension=(bool)preg_match('/^[0-9]{1,6}$/D',$number);
+                imagestring($im,4,10,81,substr(($isExtension?'Ext. ':'').$number,0,35),$color($colors['secondary_text']));
+            }
+        }
         if (!isset($settings['show_details']) || $settings['show_details']) {
-            if ($position!=='background') imagefilledrectangle($im,0,90,295,145,$color($colors['details_background']));
-            imageline($im,10,87,285,87,$color($colors['accent']));
-            if ($kind==='voicemail') {
-                imagestring($im,3,10,98,'RECEIVED',$color($colors['details_label']));
-                imagestring($im,3,10,116,substr((string)($fields['time']??''),0,22),$color($colors['details_text']));
-                imagestring($im,3,169,98,'LENGTH',$color($colors['details_label']));
-                imagestring($im,3,169,116,substr((string)($fields['length']??''),0,12),$color($colors['details_text']));
-            } else {
-                imagestring($im,3,10,98,'LAST CALL',$color($colors['details_label']));
-                imagestring($im,3,10,116,substr((string)($fields['when']??''),0,38),$color($colors['details_text']));
+            $when=$kind==='voicemail'?(string)($fields['time']??''):(string)($fields['when']??'');
+            imagestring($im,3,10,112,substr($when,0,38),$color($colors['details_text']));
+            if ($kind==='voicemail' && (string)($fields['length']??'')!=='') {
+                imagestring($im,2,10,139,substr((string)$fields['length'],0,32),$color($colors['details_label']));
             }
         }
         $id=bin2hex(random_bytes(12));
