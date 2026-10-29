@@ -54,6 +54,26 @@ final class phoneNotifications
         return $xml.'</CiscoIPPhoneText>';
     }
 
+    /** Sample notification using the same field builders as live delivery. */
+    public static function previewFields($module,$kind)
+    {
+        $when=strtotime('2026-10-28 14:35:00');
+        if ($kind==='voicemail') {
+            $vm=new phonevoicemail($module);
+            return $vm->notificationFields('67',[
+                'id'=>'preview','name'=>'Jane Smith','number'=>'150',
+                'time'=>$when,'duration'=>42
+            ],1);
+        }
+        if ($kind==='missed') {
+            return notificationWorker::missedNotificationFields([
+                'src'=>'150','dst'=>'67','clid'=>'"John Smith" <150>',
+                'disposition'=>'NO ANSWER'
+            ],$when);
+        }
+        throw new \InvalidArgumentException('Invalid notification preview kind.');
+    }
+
     /** Render a compact graphical notification for the 7945G screen. */
     public static function graphic($module, $kind, $fields, array $actions, array $settings = [])
     {
