@@ -42,12 +42,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG=phone-content-preview-17.1.68
+          TAG=phone-content-preview-17.1.69
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" sccp_manager.tar.gz --clobber
           else
             gh release create "$TAG" --target "$GITHUB_SHA" \
-              --title "SCCP Manager 17.1.68 Phone Content preview" \
+              --title "SCCP Manager 17.1.69 Phone Content preview" \
               --notes "Complete FreePBX module from feature/phone-notifications. Includes VPN, directories, voicemail, notifications and native softkey editor. Test build." \
               --prerelease --latest=false sccp_manager.tar.gz
           fi
