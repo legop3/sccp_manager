@@ -118,10 +118,12 @@ final class phoneNotifications
         $nameWidth=imagefontwidth(5)*strlen($displayName);
         if ($nameWidth>0) {
             $layer=imagecreatetruecolor($nameWidth,15);
-            imagefill($layer,0,0,imagecolorallocate($layer,0,0,0));
-            $ink=imagecolorallocate($layer,255,255,255);
+            $transparent=imagecolorallocate($layer,255,0,255);
+            imagefill($layer,0,0,$transparent);
+            $rgb=imagecolorsfor($im,$color($colors['name_text']));
+            $ink=imagecolorallocate($layer,$rgb['red'],$rgb['green'],$rgb['blue']);
             imagestring($layer,5,0,0,$displayName,$ink);
-            imagecolortransparent($layer,imagecolorallocate($layer,0,0,0));
+            imagecolortransparent($layer,$transparent);
             $scaledWidth=min(276,$nameWidth*2);
             imagecopyresized($im,$layer,10,42,0,0,$scaledWidth,31,$nameWidth,15);
             imagedestroy($layer);
