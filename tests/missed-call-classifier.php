@@ -24,7 +24,7 @@ foreach ($cases as $name=>$case) {
 $sccp=row('sccp','SCCP/222-0001','NO ANSWER','Dial','SCCP/222,20');
 $sccp['src']=''; $sccp['clid']=''; $sccp['channel']='SCCP/111-0001';
 $internal=notificationWorker::classifyMissedCallRows([$sccp],$now);
-if (count($internal)!==1 || $internal[0]['src']!=='111' || $internal[0]['dst']!=='222') {
+if (count($internal)!==1 || $internal[0]['src']!=='111' || (string)$internal[0]['dst']!=='222') {
     fwrite(STDERR,"FAIL SCCP-to-SCCP caller number recovery\n");exit(1);
 }
 echo "Missed call classification tests passed\n";
