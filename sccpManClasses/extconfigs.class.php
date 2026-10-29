@@ -145,16 +145,16 @@ class extconfigs
         'dev_proxyServerURL' => ''
     );
     private $keysetdefault = array('onhook' => 'redial,newcall,cfwdall,cfwdbusy,cfwdnoanswer,pickup,gpickup,dnd,private',
-        'connected' => 'hold,endcall,park,vidmode,select,cfwdall,cfwdbusy,idivert,monitor',
-        'onhold' => 'resume,newcall,endcall,transfer,conflist,select,dirtrfr,idivert,meetme',
+        'connected' => 'hold,endcall,transfer,conf,conflist,join,newcall,park,vidmode,select,cfwdall,cfwdbusy,idivert,monitor',
+        'onhold' => 'resume,newcall,endcall,transfer,conf,conflist,join,select,dirtrfr,idivert,meetme',
         'ringin' => 'answer,endcall,transvm,idivert',
         'offhook' => 'redial,endcall,private,cfwdall,cfwdbusy,cfwdnoanswer,pickup,gpickup,meetme,barg',
         'conntrans' => 'hold,endcall,transfer,conf,park,select,dirtrfr,monitor,vidmode,meetme,cfwdal',
         'digitsfoll' => 'back,endcall,dial',
-        'connconf' => 'conflist,newcall,endcall,hold,vidmode,monitor',
+        'connconf' => 'conf,conflist,join,newcall,endcall,hold,vidmode,monitor',
         'ringout' => 'empty,endcall,transfer',
-        'offhookfeat' => 'resume,newcall,endcall',
-        'onhint' => 'redial,newcall,pickup,gpickup',
+        'offhookfeat' => 'redial,resume,newcall,endcall',
+        'onhint' => 'redial,newcall,barge,pickup,gpickup',
         'onstealable' => 'redial,newcall,barge,intrcpt,cfwdall,pickup,gpickup,dnd',
         'holdconf' => 'resume,newcall,endcall,join',
         'uriaction' => 'default');
