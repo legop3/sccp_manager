@@ -315,7 +315,7 @@ class phonevoicemail
         if ($cidNum === '') $cidNum = $line;
         return array(
             'Action'=>'Originate',
-            'Channel'=>'SCCP/' . $line . '/aa=1w',
+            'Channel'=>'SCCP/' . $line . '/aa=1w/ringer=silent',
             // AMI Application-based originate has no pre-dial hook. SCCP
             // keeps its *own* callingParty fields, so Asterisk's CallerID
             // alone does not reach the Cisco 7945G display.
