@@ -236,7 +236,7 @@ function build(tab){
  }
  function draw(){
   var keys=selected();preview.replaceChildren();list.replaceChildren();pick.replaceChildren();
-  var visible=keys.slice(0,4);
+  var visible=keys.slice(0,keys.length>4?3:4);
   visible.forEach(k=>preview.appendChild(node('span','',names[k]||k)));
   if(keys.length>4)preview.appendChild(node('span','','More'));
   if(!keys.length)preview.appendChild(node('span','','(No buttons)'));
