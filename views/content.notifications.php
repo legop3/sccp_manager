@@ -15,8 +15,8 @@ $palettes=[
 ];
 $colorLabels=['background'=>'Main background','header'=>'Header background','header_text'=>'Header text','name_text'=>'Caller name','secondary_text'=>'Phone number','details_background'=>'Details background','details_label'=>'Detail labels','details_text'=>'Detail values','accent'=>'Divider accent'];
 $samples=[
- 'voicemail'=>['caller'=>'Jane Smith','number'=>'555-0123','time'=>'2:35 PM','length'=>'0:42'],
- 'missed'=>['caller'=>'John Smith','number'=>'555-0199','when'=>'Oct 28 3:14 PM']
+ 'voicemail'=>\FreePBX\modules\Sccp_manager\phoneNotifications::previewFields($this,'voicemail'),
+ 'missed'=>\FreePBX\modules\Sccp_manager\phoneNotifications::previewFields($this,'missed')
 ];
 ?>
 <style>
