@@ -7,8 +7,8 @@ final class notificationConfig {
     public function __construct($module) { $this->module=$module; }
     public function all() {
         $defaults=[
-            'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8,'theme'=>'ocean','show_number'=>true,'show_details'=>true,'colors'=>[],'stripes'=>[],'stripe_position'=>'off'],
-            'missed'=>['enabled'=>false,'style'=>'text','title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>'','duration'=>8,'theme'=>'ocean','show_number'=>true,'show_details'=>true,'colors'=>[],'stripes'=>[],'stripe_position'=>'off'],
+            'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8,'theme'=>'cisco','show_number'=>true,'show_details'=>true,'colors'=>[],'stripes'=>[],'stripe_position'=>'off'],
+            'missed'=>['enabled'=>false,'style'=>'text','title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>'','duration'=>8,'theme'=>'cisco','show_number'=>true,'show_details'=>true,'colors'=>[],'stripes'=>[],'stripe_position'=>'off'],
             'scheduled'=>['enabled'=>false,'style'=>'text','title'=>'Hello','message'=>'A message for everyone','sound'=>'','duration'=>8,'interval'=>60,'time'=>'','title_url'=>'','message_url'=>'','image_url'=>'','source'=>'custom']
         ];
         $saved=$this->module->getConfig('phonecontent_notifications');
@@ -40,7 +40,7 @@ final class notificationConfig {
             $values[$kind]['duration']=max(2,min(60,(int)($post['duration']??8)));
             if ($kind!=='scheduled') {
                 $theme=(string)($post['theme']??$settings['theme']);
-                if (!in_array($theme,['ocean','charcoal','plum','forest','custom'],true)) throw new \InvalidArgumentException('Invalid notification theme');
+                if (!in_array($theme,['cisco','ocean','charcoal','plum','forest','custom'],true)) throw new \InvalidArgumentException('Invalid notification theme');
                 $values[$kind]['theme']=$theme;
                 $values[$kind]['show_number']=!empty($post['show_number']);
                 $values[$kind]['show_details']=!empty($post['show_details']);
