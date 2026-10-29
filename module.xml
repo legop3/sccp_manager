@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.68</version>
+	<version>17.1.69</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,8 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.69 * - Restore original Advanced Server softkey editor without replacement UI
+
 		 * Version 17.1.68 * - Restore state-specific softkey option lists while retaining visual editor load synchronization
 		 * Version 17.1.68 * - Refresh visual keysets from legacy modal selections and expand available palette across existing SCCP states
 		 * Version 17.1.68 * - Modernize original Advanced Server softkey editor with reorderable buttons and read-only visual preview while retaining current AJAX and saved sets
