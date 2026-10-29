@@ -3,7 +3,7 @@ name: VPN provisioning checks
 on:
   push:
     branches:
-      - feature/vpn-provisioning
+      - stable
   pull_request:
 
 jobs:
