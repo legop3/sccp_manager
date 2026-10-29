@@ -173,3 +173,105 @@ foreach ($keysetarray as $key => $value) {
         return  exp_model;
     }
 </script>
+
+<!-- SCCP modern keyset editor -->
+<style>
+.sccp-key-builder{border:1px solid #ccd3dc;border-radius:8px;margin:12px 0;padding:14px;background:var(--surface,#fafbfc)}
+.sccp-key-builder .skb-preview{display:flex;gap:4px;padding:12px;background:#273d53;border-radius:6px;margin-bottom:12px}
+.sccp-key-builder .skb-preview span{color:#21364d;background:#e7edf4;min-width:0;flex:1;text-align:center;border-radius:3px;padding:9px 2px;font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.sccp-key-builder .skb-items{list-style:none;padding:0;margin:10px 0;display:flex;flex-direction:column;gap:5px}
+.sccp-key-builder .skb-items li{display:flex;gap:5px;align-items:center;background:transparent;border:1px solid #cbd3dc;padding:6px;border-radius:4px}
+.sccp-key-builder .skb-items li.dragging{opacity:.4}
+.sccp-key-builder .skb-items li .skb-label{flex:1;min-width:0;overflow-wrap:anywhere}
+.sccp-key-builder .skb-items button{padding:2px 7px}
+.sccp-key-builder .skb-add{display:flex;gap:6px;flex-wrap:wrap}
+.sccp-key-builder .skb-add select{flex:1;min-width:150px}
+.sccp-key-builder .skb-note{color:#576779;font-size:12px;margin:7px 0}
+.sccp-key-builder .skb-handle{cursor:grab;color:#687b8b;padding:0 5px}
+.edit_new_keyset .skb-original{display:none!important}
+.edit_new_keyset .tab-pane .col-md-3:first-child{padding-bottom:6px}
+@media(max-width:600px){.sccp-key-builder{padding:8px}.sccp-key-builder .skb-preview span{font-size:10px;padding:8px 1px}}
+</style>
+<script>
+(function(){
+"use strict";
+var names={
+ redial:"Redial",newcall:"New Call",cfwdall:"Forward All",cfwdbusy:"Forward Busy",
+ cfwdnoanswer:"Forward No Answer",dnd:"Do Not Disturb",pickup:"Pickup",gpickup:"Group Pickup",
+ private:"Privacy",hold:"Hold",endcall:"End Call",transfer:"Transfer",park:"Park",
+ select:"Select",idivert:"Divert",resume:"Resume",answer:"Answer",transvm:"Transfer to Voicemail",
+ conf:"Conference",conflist:"Conference List",join:"Join",dirtrfr:"Direct Transfer",
+ back:"Backspace",dial:"Dial",empty:"Empty",barge:"Barge",cbarge:"Conference Barge",
+ monitor:"Monitor",vidmode:"Video Mode",intrcpt:"Intercept",meetme:"MeetMe"
+};
+var notes={dnd:"DND requires the DND feature to be enabled on the device.",
+ conf:"Conference behavior depends on driver and configured conferencing.",
+ meetme:"Only available if present in your installed driver's supported key list.",
+ empty:"Blank softkey position."};
+function node(tag,cls,label){var x=document.createElement(tag);if(cls)x.className=cls;if(label!==undefined)x.textContent=label;return x;}
+function build(tab){
+ var src=tab.querySelector('select[id^="source_"]'),dst=tab.querySelector('select[id^="destination_"]');
+ if(!src||!dst)return;
+ var existing=tab.querySelector('.sccp-key-builder');if(existing)return;
+ var available=Array.from(src.options).concat(Array.from(dst.options)).map(o=>o.value).filter(Boolean);
+ var master=Array.from(new Set(available));
+ // Preserve driver-defined choices. Never offer arbitrary guessed SCCP commands.
+ var group=node('section','sccp-key-builder');
+ var title=node('strong','', 'Button layout');group.appendChild(title);
+ var help=node('p','skb-note','Reorder with the arrows or drag a button. The first four positions are shown below; the phone may hide unavailable features.');group.appendChild(help);
+ var preview=node('div','skb-preview');group.appendChild(preview);
+ var list=node('ol','skb-items');group.appendChild(list);
+ var addRow=node('div','skb-add'),pick=node('select','form-control'),add=node('button','btn btn-default','Add button');
+ add.type='button';addRow.append(pick,add);group.appendChild(addRow);
+ var detail=node('p','skb-note');group.appendChild(detail);
+ src.closest('.row').after(group);
+ src.closest('.row').classList.add('skb-original');
+ function selected(){return Array.from(dst.options).map(o=>o.value);}
+ function sync(keys){
+  var lookup={};Array.from(src.options).concat(Array.from(dst.options)).forEach(o=>{lookup[o.value]=o.cloneNode(true);});
+  src.replaceChildren();dst.replaceChildren();
+  keys.forEach(k=>{if(lookup[k])dst.appendChild(lookup[k]);});
+  master.forEach(k=>{if(!keys.includes(k)&&lookup[k])src.appendChild(lookup[k]);});
+  draw();
+ }
+ function draw(){
+  var keys=selected();preview.replaceChildren();list.replaceChildren();pick.replaceChildren();
+  var visible=keys.slice(0,4);
+  visible.forEach(k=>preview.appendChild(node('span','',names[k]||k)));
+  if(keys.length>4)preview.appendChild(node('span','','More'));
+  if(!keys.length)preview.appendChild(node('span','','(No buttons)'));
+  keys.forEach((k,i)=>{
+   var li=node('li');li.draggable=true;li.dataset.index=String(i);
+   li.appendChild(node('span','skb-handle','☰'));
+   var label=node('span','skb-label',(names[k]||k)+' ('+k+')');li.appendChild(label);
+   function control(txt,tip,fn,disabled){var b=node('button','btn btn-default btn-xs',txt);b.type='button';b.title=tip;b.disabled=!!disabled;b.addEventListener('click',fn);li.appendChild(b);}
+   control('↑','Move up',()=>{var n=keys.slice();[n[i-1],n[i]]=[n[i],n[i-1]];sync(n);},i===0);
+   control('↓','Move down',()=>{var n=keys.slice();[n[i+1],n[i]]=[n[i],n[i+1]];sync(n);},i===keys.length-1);
+   control('×','Remove',()=>sync(keys.filter((_,j)=>j!==i)));
+   li.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',String(i));li.classList.add('dragging');});
+   li.addEventListener('dragend',()=>li.classList.remove('dragging'));
+   li.addEventListener('dragover',e=>e.preventDefault());
+   li.addEventListener('drop',e=>{e.preventDefault();var from=Number(e.dataTransfer.getData('text/plain'));if(!Number.isInteger(from)||from<0||from>=keys.length)return;var n=keys.slice();n.splice(i,0,n.splice(from,1)[0]);sync(n);});
+   list.appendChild(li);
+  });
+  var placeholder=node('option','', 'Choose an available button');placeholder.value='';pick.appendChild(placeholder);
+  master.forEach(k=>{if(!keys.includes(k)){var o=node('option','', (names[k]||k)+' ('+k+')');o.value=k;pick.appendChild(o);}});
+  var descriptions=keys.filter(k=>notes[k]).map(k=>k+': '+notes[k]);
+  detail.textContent=descriptions.join(' ');
+ }
+ add.addEventListener('click',()=>{if(pick.value&&!selected().includes(pick.value))sync(selected().concat(pick.value));});
+ // Existing load_oncliсk() populates the original select elements. Re-read them
+ // after the Bootstrap modal opens, so editing existing sets is faithfully shown.
+ tab.sccpRefreshKeyBuilder=draw;
+ draw();
+}
+function init(){
+ document.querySelectorAll('.edit_new_keyset .tab-pane').forEach(build);
+ var modal=document.querySelector('.edit_new_keyset');
+ if(modal&&window.jQuery){
+   jQuery(modal).on('shown.bs.modal',()=>modal.querySelectorAll('.tab-pane').forEach(t=>t.sccpRefreshKeyBuilder&&t.sccpRefreshKeyBuilder()));
+ }
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
