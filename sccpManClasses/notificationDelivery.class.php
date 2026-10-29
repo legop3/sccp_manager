@@ -52,11 +52,18 @@ final class notificationDelivery {
 
     private function forDevice($device,$extensions) {
         if ($extensions===null) return true;
-        $output=[];
-        exec('/usr/sbin/asterisk -rx '.escapeshellarg('sccp show device '.$device).' 2>/dev/null',$output);
-        $status=implode("\n",$output);
-        foreach ($extensions as $ext)
-            if (preg_match('/(?<!\d)'.preg_quote((string)$ext,'/').'(?!\d)/',$status)) return true;
+        // Only the handset's actual configured default line is a valid
+        // destination. Searching "sccp show device" text also matches
+        // unrelated fields, such as calling-party and call history data.
+        try {
+            $line=(new phonevoicemail($this->module))->mailboxForDevice($device);
+        } catch (\Throwable $e) {
+            error_log('SCCP notification destination lookup: '.$e->getMessage());
+            return false;
+        }
+        foreach ($extensions as $ext) {
+            if ($line===(string)$ext) return true;
+        }
         return false;
     }
 
