@@ -1,9 +1,6 @@
 name: SCCP Manager self-contained phone-content preview
 
 on:
-  push:
-    branches:
-      - feature/phone-notifications
   workflow_dispatch:
 
 permissions:
@@ -49,6 +46,6 @@ jobs:
           else
             gh release create "$TAG" --target "$GITHUB_SHA" \
               --title "SCCP Manager 17.1.71 Phone Content preview" \
-              --notes "Complete FreePBX module from feature/phone-notifications. Includes VPN, directories, voicemail, notifications and native softkey editor. Test build." \
+              --notes "Complete FreePBX module from stable. Includes VPN, directories, voicemail, notifications and native softkey editor. Test build." \
               --prerelease --latest=false sccp_manager.tar.gz
           fi
