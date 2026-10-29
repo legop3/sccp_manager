@@ -935,7 +935,14 @@ function load_oncliсk(e, data)
                 $('#source_' + dev_fld[i]).append($(opts).clone());
             }
             if (!add_btn) {
-                sv_data = datas[dev_fld[i]].split("<br>");
+                // The grid can render HTML line breaks in multiple forms,
+                // or return a comma-separated raw value. Normalize all of them.
+                var rawKeys = String((datas && datas[dev_fld[i]]) || '');
+                sv_data = rawKeys.replace(/&lt;br\s*\/?&gt;/gi, ',')
+                    .replace(/<br\s*\/?>/gi, ',')
+                    .split(',')
+                    .map(function (v) { return v.trim(); })
+                    .filter(Boolean);
                 opts = $('#source_' + dev_fld[i] + ' option');
                 for (var n = 0; n < sv_data.length; n++) {
                     opts_idx = -1;
