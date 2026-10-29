@@ -128,20 +128,28 @@ final class phoneNotifications
             imagecopyresized($im,$layer,10,42,0,0,$scaledWidth,31,$nameWidth,15);
             imagedestroy($layer);
         }
+        // Identical body geometry for missed calls and voicemail. Only the
+        // voicemail duration adds an extra field at the bottom.
         if (!isset($settings['show_number']) || $settings['show_number']) {
             $number=(string)($fields['number']??'');
-            if ($number!=='') {
+            if ($number!=='' && $number!=='Unknown') {
                 $ext=(bool)preg_match('/^[0-9]{1,6}$/D',$number);
-                imagestring($im,5,10,92,substr(($ext?'Ext. ':'').$number,0,19),$color($colors['secondary_text']));
+                imagestring($im,5,10,85,substr(($ext?'Ext. ':'').$number,0,34),$color($colors['secondary_text']));
             }
         }
         if (!isset($settings['show_details']) || $settings['show_details']) {
-            $when=(string)($fields['time']??$fields['when']??'');
-            imagestring($im,4,177,93,substr($when,0,17),$color($colors['details_text']));
+            $timestamp=(string)($fields['when']??$fields['received']??'');
+            if ($timestamp==='') {
+                $date=(string)($fields['date']??'');
+                $time=(string)($fields['time']??'');
+                $timestamp=trim($date.' '.$time);
+            }
+            // Date and time are absolute: never "Today" or "Yesterday".
+            // 5px font fits "Oct 28, 2026 at 11:42 PM" within 296px.
+            imagestring($im,5,10,111,substr($timestamp,0,34),$color($colors['details_text']));
             if ($kind==='voicemail') {
-                imagestring($im,3,10,134,substr((string)($fields['length']??''),0,32),$color($colors['details_label']));
-            } elseif ((string)($fields['date']??'')!=='') {
-                imagestring($im,3,10,134,substr((string)$fields['date'],0,32),$color($colors['details_label']));
+                $length=(string)($fields['length']??'');
+                if ($length!=='') imagestring($im,4,10,135,'Length: '.substr($length,0,19),$color($colors['details_label']));
             }
         }
         $id=bin2hex(random_bytes(12));
