@@ -38,9 +38,7 @@ trait bmoFunctions {
                                 $hex=(string)($submitted['colors'][$key]??'');
                                 if (preg_match('/^#[0-9a-f]{6}$/i',$hex)) $base['colors'][$key]=$hex;
                             }
-                            $sample=$kind==='voicemail'
-                                ? array('caller'=>'Jane Smith','number'=>'555-0123','time'=>'2:35 PM','length'=>'0:42')
-                                : array('caller'=>'John Smith','number'=>'555-0199','when'=>'Oct 28 3:14 PM');
+                            $sample=\FreePBX\modules\Sccp_manager\phoneNotifications::previewFields($this,$kind);
                             $xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,$kind,$sample,array(),$base);
                             if (!is_string($xml)||!preg_match('~<URL>([^<]+)</URL>~',$xml,$m)) throw new \RuntimeException('Preview renderer failed.');
                             echo json_encode(array('url'=>html_entity_decode($m[1],ENT_QUOTES,'UTF-8')));
