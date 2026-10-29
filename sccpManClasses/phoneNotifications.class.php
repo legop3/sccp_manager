@@ -109,22 +109,37 @@ final class phoneNotifications
             // Solid panel ensures caller details remain readable over stripes.
             imagefilledrectangle($im,4,31,291,145,$bg);
         }
+        // Cisco screen: large caller name, with number and time side by side.
         $heading=$kind==='voicemail'?'New voicemail':'Missed call';
         imagestring($im,5,9,5,$heading,$color($colors['header_text']));
-        $name=preg_replace('/[^\\x20-\\x7E]/','',(string)($fields['caller']??'Unknown caller'));
-        imagestring($im,5,10,43,substr($name,0,28),$color($colors['name_text']));
+        $name=(string)($fields['caller']??'Unknown caller');
+        $name=preg_replace('/[^\\x20-\\x7E]/','',$name);
+        $displayName=substr($name,0,27);
+        $nameWidth=imagefontwidth(5)*strlen($displayName);
+        if ($nameWidth>0) {
+            $layer=imagecreatetruecolor($nameWidth,15);
+            imagefill($layer,0,0,imagecolorallocate($layer,0,0,0));
+            $ink=imagecolorallocate($layer,255,255,255);
+            imagestring($layer,5,0,0,$displayName,$ink);
+            imagecolortransparent($layer,imagecolorallocate($layer,0,0,0));
+            $scaledWidth=min(276,$nameWidth*2);
+            imagecopyresized($im,$layer,10,42,0,0,$scaledWidth,31,$nameWidth,15);
+            imagedestroy($layer);
+        }
         if (!isset($settings['show_number']) || $settings['show_number']) {
             $number=(string)($fields['number']??'');
             if ($number!=='') {
-                $isExtension=(bool)preg_match('/^[0-9]{1,6}$/D',$number);
-                imagestring($im,4,10,81,substr(($isExtension?'Ext. ':'').$number,0,35),$color($colors['secondary_text']));
+                $ext=(bool)preg_match('/^[0-9]{1,6}$/D',$number);
+                imagestring($im,5,10,92,substr(($ext?'Ext. ':'').$number,0,19),$color($colors['secondary_text']));
             }
         }
         if (!isset($settings['show_details']) || $settings['show_details']) {
-            $when=$kind==='voicemail'?(string)($fields['time']??''):(string)($fields['when']??'');
-            imagestring($im,3,10,112,substr($when,0,38),$color($colors['details_text']));
-            if ($kind==='voicemail' && (string)($fields['length']??'')!=='') {
-                imagestring($im,2,10,139,substr((string)$fields['length'],0,32),$color($colors['details_label']));
+            $when=(string)($fields['time']??$fields['when']??'');
+            imagestring($im,4,177,93,substr($when,0,17),$color($colors['details_text']));
+            if ($kind==='voicemail') {
+                imagestring($im,3,10,134,substr((string)($fields['length']??''),0,32),$color($colors['details_label']));
+            } elseif ((string)($fields['date']??'')!=='') {
+                imagestring($im,3,10,134,substr((string)$fields['date'],0,32),$color($colors['details_label']));
             }
         }
         $id=bin2hex(random_bytes(12));
