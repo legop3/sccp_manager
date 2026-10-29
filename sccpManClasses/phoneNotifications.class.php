@@ -110,46 +110,69 @@ final class phoneNotifications
             imagefilledrectangle($im,4,31,291,145,$bg);
         }
         // Cisco screen: large caller name, with number and time side by side.
-        $heading=$kind==='voicemail'?'New voicemail':'Missed call';
-        imagestring($im,5,9,5,$heading,$color($colors['header_text']));
-        $name=(string)($fields['caller']??'Unknown caller');
-        $name=preg_replace('/[^\\x20-\\x7E]/','',$name);
-        $displayName=substr($name,0,27);
-        $nameWidth=imagefontwidth(5)*strlen($displayName);
-        if ($nameWidth>0) {
-            $layer=imagecreatetruecolor($nameWidth,15);
-            $transparent=imagecolorallocate($layer,255,0,255);
-            imagefill($layer,0,0,$transparent);
-            $hex=$colors['name_text'];
-            $ink=imagecolorallocate($layer,hexdec(substr($hex,1,2)),hexdec(substr($hex,3,2)),hexdec(substr($hex,5,2)));
-            imagestring($layer,5,0,0,$displayName,$ink);
-            imagecolortransparent($layer,$transparent);
-            $scaledWidth=min(276,$nameWidth*2);
-            imagecopyresized($im,$layer,10,42,0,0,$scaledWidth,31,$nameWidth,15);
-            imagedestroy($layer);
+        // Render directly in TrueType at native LCD resolution. Avoid scaling
+        // low-resolution GD bitmap glyphs into blocky text.
+        $font=null;
+        foreach ([
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf',
+            '/usr/share/fonts/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf'
+        ] as $candidate) {
+            if (is_readable($candidate)) { $font=$candidate; break; }
         }
-        // Identical body geometry for missed calls and voicemail. Only the
-        // voicemail duration adds an extra field at the bottom.
-        if (!isset($settings['show_number']) || $settings['show_number']) {
-            $number=(string)($fields['number']??'');
-            if ($number!=='' && $number!=='Unknown') {
-                $ext=(bool)preg_match('/^[0-9]{1,6}$/D',$number);
-                imagestring($im,5,10,85,substr(($ext?'Ext. ':'').$number,0,34),$color($colors['secondary_text']));
+        $draw=static function($text,$x,$baseline,$maxWidth,$size,$hex,$minSize=10) use($im,$font,$color) {
+            $text=trim((string)$text);
+            if ($text==='') return;
+            $ink=$color($hex);
+            if ($font!==null && function_exists('imagettftext')) {
+                for ($point=$size;$point>=$minSize;$point-=0.5) {
+                    $box=imagettfbbox($point,0,$font,$text);
+                    if ($box!==false && ($box[2]-$box[0])<=$maxWidth) {
+                        imagettftext($im,$point,0,$x,$baseline,$ink,$font,$text);
+                        return;
+                    }
+                }
+                // Shorten caller names when necessary, but never silently
+                // truncate the absolute timestamp.
+                if ($minSize>10) {
+                    while (strlen($text)>1) {
+                        $text=substr($text,0,-1);
+                        $box=imagettfbbox($minSize,0,$font,$text.'...');
+                        if ($box!==false && ($box[2]-$box[0])<=$maxWidth) break;
+                    }
+                    imagettftext($im,$minSize,0,$x,$baseline,$ink,$font,$text.'...');
+                    return;
+                }
+                imagettftext($im,$minSize,0,$x,$baseline,$ink,$font,$text);
+                return;
             }
+            // Safe fallback if FreePBX lacks GD FreeType or system fonts.
+            $chars=max(1,(int)floor($maxWidth/imagefontwidth(5)));
+            imagestring($im,5,$x,$baseline-15,substr($text,0,$chars),$ink);
+        };
+        $heading=$kind==='voicemail'?'New voicemail':'Missed call';
+        $draw($heading,9,22,278,15,$colors['header_text'],12);
+        $name=(string)($fields['caller']??'Unknown caller');
+        $draw($name,9,72,278,26,$colors['name_text'],15);
+        $number=(string)($fields['number']??'');
+        $showNumber=(!isset($settings['show_number']) || $settings['show_number'])
+            && $number!=='' && $number!=='Unknown';
+        if ($showNumber) {
+            $ext=(bool)preg_match('/^[0-9]{1,6}$/D',$number);
+            $draw(($ext?'Ext. ':'').$number,10,101,276,17,$colors['secondary_text'],10);
         }
         if (!isset($settings['show_details']) || $settings['show_details']) {
             $timestamp=(string)($fields['when']??$fields['received']??'');
             if ($timestamp==='') {
-                $date=(string)($fields['date']??'');
-                $time=(string)($fields['time']??'');
-                $timestamp=trim($date.' '.$time);
+                $timestamp=trim((string)($fields['date']??'').' '.(string)($fields['time']??''));
             }
-            // Date and time are absolute: never "Today" or "Yesterday".
-            // 5px font fits "Oct 28, 2026 at 11:42 PM" within 296px.
-            imagestring($im,5,10,111,substr($timestamp,0,34),$color($colors['details_text']));
+            // Both notifications use the same complete absolute timestamp.
+            $draw($timestamp,10,129,276,16,$colors['details_text'],10);
             if ($kind==='voicemail') {
                 $length=(string)($fields['length']??'');
-                if ($length!=='') imagestring($im,4,10,135,'Length: '.substr($length,0,19),$color($colors['details_label']));
+                if ($length!=='') $draw('Length: '.$length,10,150,276,14,$colors['details_label'],10);
             }
         }
         $id=bin2hex(random_bytes(12));
