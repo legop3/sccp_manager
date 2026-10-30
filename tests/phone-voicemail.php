@@ -18,7 +18,7 @@ verify($shared['Channel'] === 'SCCP/9111/aa=1w/ringer=silent',
 verify($shared['Variable'] === 'SCCP_VM_MAILBOX=111,SCCP_VM_ID=1782735000-00000123',
     'Playback reads the assigned voicemail mailbox rather than the phone line');
 $orig = phonevoicemail::originateFields('111', $m);
-verify($orig['Channel'] === 'SCCP/111/aa=1w', 'Muted auto-answer');
+verify($orig['Channel'] === 'SCCP/111/aa=1w/ringer=silent', 'Silent auto-answer');
 verify(!isset($orig['Application']) && !isset($orig['Data']), 'No application-mode originate: SCCP calling party predial requires extension mode');
 verify($orig['Context'] === 'sccp-manager-voicemail-play' && $orig['Exten'] === 's' &&
        $orig['Priority'] === '1', 'Playback uses isolated direct SCCP channel dialplan');
