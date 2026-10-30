@@ -17,7 +17,7 @@ verify($shared['Channel'] === 'SCCP/9111/aa=1w/ringer=silent',
     'Playback calls the actual SCCP phone line, not the mailbox');
 verify($shared['Variable'] === 'SCCP_VM_MAILBOX=111,SCCP_VM_ID=1782735000-00000123',
     'Playback reads the assigned voicemail mailbox rather than the phone line');
-$orig = phonevoicemail::originateFields('111', $m);
+$orig = phonevoicemail::originateFields('111', $m, '111');
 verify($orig['Channel'] === 'SCCP/111/aa=1w/ringer=silent', 'Silent auto-answer');
 verify(!isset($orig['Application']) && !isset($orig['Data']), 'No application-mode originate: SCCP calling party predial requires extension mode');
 verify($orig['Context'] === 'sccp-manager-voicemail-play' && $orig['Exten'] === 's' &&
@@ -34,9 +34,9 @@ verify(strpos($source, 'register_shutdown_function') !== false,
 verify($orig['CallerID'] === '"Alicia Q" <15005550124>', 'Dynamic caller ID preserved');
 verify($orig['Async'] === 'false', 'Synchronous extension originate is required for Asterisk 22.6 PreDialGoSub');
 $m['name'] = "Evil\r\nAction: Hangup";
-verify(strpos(phonevoicemail::originateFields('111',$m)['CallerID'],"\n")===false, 'No AMI field injection');
+verify(strpos(phonevoicemail::originateFields('111',$m,'111')['CallerID'],"\n")===false, 'No AMI field injection');
 try {
-    phonevoicemail::originateFields('111/../../../', $m);
+    phonevoicemail::originateFields('111/../../../', $m, '111');
     throw new RuntimeException('Invalid SCCP device line accepted');
 } catch (InvalidArgumentException $expected) { }
 verify(phonevoicemail::validDevice('SEP00AABBCCDDEE')===true, 'Valid phone ID');
@@ -180,7 +180,7 @@ verify(strpos($source, "stream_set_timeout(\$stream, \$replyTimeout)") !== false
     'Synchronous origination tolerates the configured answer timeout');
 $unsafe = $m;
 $unsafe['name'] = "Weird (test), \r\nName";
-$fields = phonevoicemail::originateFields('111', $unsafe);
+$fields = phonevoicemail::originateFields('111', $unsafe, '111');
 verify(strpos($fields['PreDialGoSub'], '(Weird test Name,') !== false,
     'Gosub name cannot inject comma or parentheses into Asterisk argument delimiters');
 verify(!str_contains($fields['PreDialGoSub'], "\r") && !str_contains($fields['PreDialGoSub'], "\n"),
