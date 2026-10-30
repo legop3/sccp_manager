@@ -12,6 +12,11 @@ verify($m['number']==='15005550124', 'Caller number');
 verify($m['duration']===47 && $m['folder']==='INBOX', 'Duration and folder');
 verify(phonevoicemail::parseMessage($raw, 'INBOX', '../foo') === null, 'Invalid metadata filename');
 
+$shared = phonevoicemail::originateFields('9111', $m, '111');
+verify($shared['Channel'] === 'SCCP/9111/aa=1w/ringer=silent',
+    'Playback calls the actual SCCP phone line, not the mailbox');
+verify($shared['Variable'] === 'SCCP_VM_MAILBOX=111,SCCP_VM_ID=1782735000-00000123',
+    'Playback reads the assigned voicemail mailbox rather than the phone line');
 $orig = phonevoicemail::originateFields('111', $m);
 verify($orig['Channel'] === 'SCCP/111/aa=1w', 'Muted auto-answer');
 verify(!isset($orig['Application']) && !isset($orig['Data']), 'No application-mode originate: SCCP calling party predial requires extension mode');
