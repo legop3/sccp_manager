@@ -57,7 +57,7 @@ class phonemenus
     public function serviceFlags()
     {
         $saved = $this->parent->getConfig('phonecontent_builtin_services');
-        $defaults = array('weather' => true, 'messages' => false, 'alarms' => false,
+        $defaults = array('weather' => true, 'messages' => true, 'alarms' => true,
             'news' => false, 'games' => false);
         if (!is_array($saved)) return $defaults;
         foreach ($defaults as $id => $enabled) {
@@ -71,7 +71,7 @@ class phonemenus
         if (!is_array($posted)) throw new \InvalidArgumentException('Invalid service settings.');
         $flags = array();
         foreach ($this->serviceFlags() as $id => $unused) {
-            $flags[$id] = !in_array($id, array('messages', 'alarms'), true) && isset($posted[$id]) && $posted[$id] === '1';
+            $flags[$id] = isset($posted[$id]) && $posted[$id] === '1';
         }
         $old = $this->parent->getConfig('phonecontent_builtin_services');
         $this->parent->setConfig('phonecontent_builtin_services', $flags);
@@ -300,7 +300,7 @@ class phonemenus
             array('type' => '1', 'name' => $labels['contacts_title'],
                 'url' => $base . '/phone.php?doc=contacts-1'),
             array('type' => '0', 'name' => 'Services',
-                'url' => $base . '/phone.php?doc=services'),
+                'url' => $this->parent->phoneservices->url($deviceId)),
             array('type' => '2', 'name' => 'Voicemail',
                 'url' => $this->parent->phonevoicemail->serviceUrl($deviceId))
         );
