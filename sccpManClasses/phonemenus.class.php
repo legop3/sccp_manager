@@ -249,8 +249,8 @@ class phonemenus
     public function publish()
     {
         $config = $this->config();
-        $base = $this->parent->phonecontent->baseUrl();
-        if ($base === '') throw new \RuntimeException('Set the Phone Content PBX IPv4 address first.');
+        $base = '__SCCP_MANAGED_BASE__';
+        if ($this->parent->phonecontent->baseUrl() === '') throw new \RuntimeException('Set the Phone Content PBX IPv4 address first.');
         $labels = $this->parent->phonecontent->directoryLabels();
         $files = array();
         $files['services.xml'] = $this->menuXml($config['services'], $labels['services_title'], $labels['services_prompt'], 'services', $base);
