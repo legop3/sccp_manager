@@ -86,10 +86,24 @@ class phoneservices {
         return $status===200 && is_string($body) && strpos($body,'CiscoIPPhoneError')===false;
     }
     private function fetch($url) {
+        // Cache public forecast and RSS data so multiple phones do not
+        // re-fetch it for each menu navigation.
+        $cache='/var/spool/asterisk/sccp-svc-'.hash('sha256',$url).'.cache';
+        $ttl=strpos($url,'open-meteo.com')!==false?900:600;
+        if(is_file($cache) && !is_link($cache) && filemtime($cache)>time()-$ttl) {
+            $cached=@file_get_contents($cache);
+            if($cached!==false && $cached!=='')return $cached;
+        }
         $context=stream_context_create(['http'=>['timeout'=>5,'follow_location'=>0,
             'user_agent'=>'SCCP-Manager/17.1.84']]);
         $raw=@file_get_contents($url,false,$context,0,180000);
-        return $raw===false?'':$raw;
+        if($raw!==false && $raw!=='') {
+            if(!is_link($cache))@file_put_contents($cache,$raw,LOCK_EX);
+            return $raw;
+        }
+        // Stale data is preferable to a blank phone when an external API fails.
+        $cached=(!is_link($cache) && is_file($cache))?@file_get_contents($cache):false;
+        return $cached===false?'':$cached;
     }
     public function handle($q) {
         header('Content-Type: text/xml; charset=UTF-8');
