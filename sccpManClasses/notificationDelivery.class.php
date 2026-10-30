@@ -114,7 +114,7 @@ final class notificationDelivery {
             if (!$this->forDevice($device,$extensions,$kind)) continue;
             // Every handset needs its own authenticated voicemail links.
             // Do not publish the bearer token in a shared document.
-            $deviceUrl=$url ? $this->module->phonecontent->baseUrl($device) . (string)parse_url($url, PHP_URL_PATH) . '?' . (string)parse_url($url, PHP_URL_QUERY) : null;
+            $deviceUrl=$url ? $this->module->phonecontent->baseUrl($device) . '/notification-display.php?' . (string)parse_url($url, PHP_URL_QUERY) : null;
             // A shared document is hosted once, but the recipient must fetch it
             // through its own LAN/VPN address.
             if ($kind==='voicemail' && $options['style']==='text') {
