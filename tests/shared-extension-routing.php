@@ -32,4 +32,15 @@ $missed=notificationWorker::classifyMissedCallRows([$source],$now);
 checkIdentity(count($missed)===1,'One unanswered SCCP destination');
 checkIdentity($missed[0]['src']==='111','Keep CDR originating caller number');
 checkIdentity($missed[0]['clid']==='"Carpet" <111>','Preserve presentation caller name');
+$child=$source;
+$child['channel']='SCCP/150-00000002';
+$child['src']='150';
+$child['clid']='"Recipient" <150>';
+$child['lastapp']='AppDial2';
+$child['lastdata']='(Outgoing Line)';
+$child['dstchannel']='SCCP/150-00000002';
+$multi=notificationWorker::classifyMissedCallRows([$child,$source],$now);
+checkIdentity(count($multi)===1,'Linked outgoing SCCP leg yields one missed call');
+checkIdentity($multi[0]['src']==='111' && $multi[0]['clid']==='"Carpet" <111>',
+    'Originating Dial leg wins over destination CDR row ordering');
 echo "Shared extension routing tests passed.\n";
