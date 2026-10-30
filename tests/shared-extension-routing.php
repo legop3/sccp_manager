@@ -53,4 +53,16 @@ $multi=notificationWorker::classifyMissedCallRows([$child,$source],$now);
 checkIdentity(count($multi)===1,'Linked outgoing SCCP leg yields one missed call');
 checkIdentity($multi[0]['src']==='111' && $multi[0]['clid']==='"Carpet" <111>',
     'Originating Dial leg wins over destination CDR row ordering');
+$presented=$source;
+$presented['src']='9111'; // CDR channel identity differs from the presented number
+$presented['clid']='"Carpet" <111>';
+$display=notificationWorker::classifyMissedCallRows([$presented],$now);
+checkIdentity(count($display)===1 && $display[0]['src']==='111',
+    'Missed call uses the presented caller number rather than channel identity');
+$blankSrc=$source;
+$blankSrc['src']='';
+$blankSrc['clid']='"Cisco 150" <150>';
+$display=notificationWorker::classifyMissedCallRows([$blankSrc],$now);
+checkIdentity(count($display)===1 && $display[0]['src']==='150',
+    'Missed call retains extension from caller ID when CDR source is empty');
 echo "Shared extension routing tests passed.\n";
