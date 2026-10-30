@@ -17,27 +17,32 @@ class phonevoicemail
         return is_string($id) && preg_match('/^SEP[0-9A-F]{12}$/D', $id);
     }
 
-    /** Resolve the physical SCCP line and its configured mailbox once. */
+    /** SCCP identity: device line, voicemail storage and presented caller ID are independent. */
+    public static function identityForLine($line)
+    {
+        if (!is_string($line) || !preg_match('/^[0-9]{1,16}$/D', $line))
+            throw new \InvalidArgumentException('Invalid SCCP line.');
+        $stmt=\FreePBX::Database()->prepare('SELECT mailbox, cid_num FROM sccpline WHERE name = ?');
+        $stmt->execute([$line]);
+        $row=$stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!is_array($row)) throw new \RuntimeException('SCCP line is not configured: '.$line);
+        $configured=trim((string)($row['mailbox'] ?? ''));
+        if ($configured==='') $configured=$line;
+        if (!preg_match('/^([0-9]{1,16})(?:@default)?$/D',$configured,$matches))
+            throw new \RuntimeException('Unsupported voicemail mailbox for SCCP line '.$line.': '.$configured);
+        $caller=trim((string)($row['cid_num'] ?? ''));
+        // Never substitute mailbox for a caller ID. An unset caller ID is
+        // reported as the physical line rather than guessing a public alias.
+        if (!preg_match('/^[0-9]{1,16}$/D',$caller)) $caller=$line;
+        return ['line'=>$line,'mailbox'=>$matches[1],'extension'=>$caller];
+    }
+
     public function destinationForDevice($device)
     {
         if (!self::validDevice($device)) throw new \InvalidArgumentException('Invalid phone identifier.');
-        $data = $this->parent->dbinterface->getSccpDeviceTableData('getDefaultLine', array('id' => $device));
-        $line = is_array($data) ? (string) ($data['name'] ?? '') : '';
-        if (!preg_match('/^[0-9]{1,16}$/D', $line)) {
-            throw new \RuntimeException('Phone ' . $device . ' needs a numeric default SCCP line before visual voicemail can be enabled.');
-        }
-        $db = \FreePBX::Database();
-        $stmt = $db->prepare('SELECT mailbox FROM sccpline WHERE name = ?');
-        $stmt->execute(array($line));
-        $configured = $stmt->fetchColumn();
-        // SCCP mailboxes can include an Asterisk context, e.g. 111@default.
-        // The visual voicemail service currently supports the default context.
-        $mailbox = trim((string) ($configured === false ? '' : $configured));
-        if ($mailbox === '') $mailbox = $line;
-        if (!preg_match('/^([0-9]{1,16})(?:@default)?$/D', $mailbox, $matches)) {
-            throw new \RuntimeException('Unsupported voicemail mailbox for SCCP line ' . $line . ': ' . $mailbox);
-        }
-        return array('line' => $line, 'mailbox' => $matches[1], 'extension' => $matches[1]);
+        $data=$this->parent->dbinterface->getSccpDeviceTableData('getDefaultLine',['id'=>$device]);
+        $line=is_array($data) ? (string)($data['name'] ?? '') : '';
+        return self::identityForLine($line);
     }
 
     public function lineForDevice($device) { return $this->destinationForDevice($device)['line']; }
