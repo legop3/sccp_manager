@@ -46,7 +46,7 @@ if($app==='news'){
         outputText((string)$items[$index]->title, trim(strip_tags((string)$items[$index]->description)));
     }
     $rows=array();$i=0;
-    foreach($rss->channel->item as $item){if($i>=12)break;$rows[mb_substr((string)$item->title,0,60)]=$base.'?app=news&amp;action=story&amp;id='.$i;$i++;}
+    foreach($rss->channel->item as $item){if($i>=12)break;$rows[mb_substr((string)$item->title,0,60)]=$base.'?app=news&action=story&id='.$i;$i++;}
     outputMenu('News',$rows);
 }
 if($app==='games'){
@@ -56,7 +56,7 @@ if($app==='games'){
         $answers=array('Yes','No','Probably','Ask again later','Definitely','Unlikely','Outlook good','Cannot predict now');
         outputText('Magic 8 Ball',$answers[random_int(0,count($answers)-1)]);
     }
-    outputMenu('Games',array('Flip a Coin'=>$base.'?app=games&amp;action=coin','Roll a Die'=>$base.'?app=games&amp;action=dice','Magic 8 Ball'=>$base.'?app=games&amp;action=eight'));
+    outputMenu('Games',array('Flip a Coin'=>$base.'?app=games&action=coin','Roll a Die'=>$base.'?app=games&action=dice','Magic 8 Ball'=>$base.'?app=games&action=eight'));
 }
 if($app==='messages') outputText('Messages','Phone-to-phone text messaging is not available in this build.');
 if($app==='alarms') outputText('Alarms','Scheduled wake-up calls are not available in this build.');
