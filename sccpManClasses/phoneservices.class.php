@@ -288,40 +288,85 @@ class phoneservices {
             if($op==='set'){
                 $this->form('New Alarm',$route(['app'=>'alarms','op'=>'save']),'Time HHMM (24h)','time','N');return;
             }
+            if($op==='reminder'){
+                $this->form('New Reminder',$route(['app'=>'alarms','op'=>'reminder-time']),
+                    'Reminder text','note','A');return;
+            }
+            if($op==='reminder-time') {
+                $note=trim((string)($q['note']??''));
+                if($note==='' || strlen($note)>120 || preg_match('/[\x00-\x1F\x7F]/',$note)){
+                    $this->xml('Reminder','Text must be 1-120 characters.');return;
+                }
+                $this->form('Reminder Time',$route(['app'=>'alarms','op'=>'save','note'=>$note]),
+                    'Time HHMM (24h)','time','N');return;
+            }
             if($op==='save'){
                 $time=(string)($q['time']??'');
-                if(!preg_match('/^([01][0-9]|2[0-3])([0-5][0-9])$/D',$time)){$this->xml('Alarm','Use HHMM, e.g. 0730.');return;}
+                $note=trim((string)($q['note']??'Wake-up alarm'));
+                if(!preg_match('/^([01][0-9]|2[0-3])([0-5][0-9])$/D',$time) ||
+                    $note==='' || strlen($note)>120 || preg_match('/[\x00-\x1F\x7F]/',$note)){
+                    $this->xml('Alarm','Invalid time or reminder. Use HHMM.');return;
+                }
                 $when=strtotime('today '.substr($time,0,2).':'.substr($time,2,2));
                 if($when<=time())$when=strtotime('tomorrow '.substr($time,0,2).':'.substr($time,2,2));
-                $this->transact(function(&$s)use($device,$line,$when){$s['alarms'][$device]=['line'=>$line,'when'=>$when];});
-                $this->xml('Alarm','Scheduled for '.date('M j g:i A',$when));return;
+                $id=bin2hex(random_bytes(6));
+                $ok=$this->transact(function(&$s)use($device,$line,$when,$note,$id){
+                    if(!isset($s['alarms'][$device]) || !is_array($s['alarms'][$device]))
+                        $s['alarms'][$device]=[];
+                    if(count($s['alarms'][$device])>=15)return false;
+                    $s['alarms'][$device][$id]=['line'=>$line,'when'=>$when,'note'=>$note,'id'=>$id];
+                    return true;
+                });
+                $this->xml('Alarm',$ok?'Scheduled for '.date('M j g:i A',$when):'Maximum of 15 alarms.');return;
+            }
+            if($op==='notice'){
+                $this->xml('Reminder',substr((string)($q['note']??'Alarm'),0,120));return;
             }
             if($op==='cancel') {
-                $this->transact(function(&$s)use($device){unset($s['alarms'][$device]);});
+                $id=(string)($q['id']??'');
+                $this->transact(function(&$s)use($device,$id){
+                    if(preg_match('/^[a-f0-9]{12}$/D',$id))unset($s['alarms'][$device][$id]);
+                });
                 $this->xml('Alarms','Alarm cancelled.');return;
             }
-            $alarm=$this->transact(function(&$s)use($device){return $s['alarms'][$device]??null;});
-            $entries=[['Set Alarm',$route(['app'=>'alarms','op'=>'set'])]];
-            if($alarm)$entries[]=['Cancel '.date('M j g:i A',$alarm['when']),$route(['app'=>'alarms','op'=>'cancel'])];
-            $this->menu('Alarms',$entries);return;
+            $alarms=$this->transact(function(&$s)use($device){return $s['alarms'][$device]??[];});
+            $entries=[
+                ['Set Alarm',$route(['app'=>'alarms','op'=>'set'])],
+                ['Set Reminder',$route(['app'=>'alarms','op'=>'reminder'])]
+            ];
+            foreach(array_slice((array)$alarms,0,15) as $id=>$alarm) {
+                if(!is_array($alarm)||!isset($alarm['when']))continue;
+                $entries[]=['Cancel '.date('M j g:i A',$alarm['when']).' '.substr((string)($alarm['note']??''),0,14),
+                    $route(['app'=>'alarms','op'=>'cancel','id'=>$id])];
+            }
+            $this->menu('Alarms & Reminders',$entries);return;
         }
         $this->xml('Services','Unknown service.');
     }
     public function tick() {
         $due=$this->transact(function(&$s){
             $due=[];
-            foreach(($s['alarms']??[]) as $device=>$alarm){
-                if(($alarm['when']??PHP_INT_MAX)<=time()){
-                    if(($alarm['when']??0)>=time()-600)$due[]=$alarm;
-                    unset($s['alarms'][$device]);
+            foreach(($s['alarms']??[]) as $device=>$alarms) {
+                if(!phonevoicemail::validDevice($device)||!is_array($alarms))continue;
+                foreach($alarms as $id=>$alarm){
+                    if(($alarm['when']??PHP_INT_MAX)<=time()){
+                        if(($alarm['when']??0)>=time()-600)$due[]=array_merge($alarm,['device'=>$device]);
+                        unset($s['alarms'][$device][$id]);
+                    }
                 }
             }
             return $due;
         });
-        foreach($due as $alarm){
+        foreach($due as $alarm) {
             $line=(string)($alarm['line']??'');
             if(!preg_match('/^[0-9]{1,16}$/D',$line))continue;
-            // Asterisk rings the extension; once answered it plays the built-in beep.
+            try {
+                $device=$alarm['device'];
+                $message=(string)($alarm['note']??'Wake-up alarm');
+                $this->push($device,$this->url($device).'&app=alarms&op=notice&note='.rawurlencode($message));
+            } catch(\Throwable $e) {
+                error_log('SCCP alarm notification: '.$e->getMessage());
+            }
             $cmd='/usr/sbin/asterisk -rx '.escapeshellarg(
                 'channel originate Local/'.$line.'@from-internal extension s@sccp-manager-services-alarm');
             $out=[];$status=0;exec($cmd.' 2>&1',$out,$status);
