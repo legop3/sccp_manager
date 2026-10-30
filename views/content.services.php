@@ -10,7 +10,7 @@ $names = array('weather' => 'Weather', 'messages' => 'Messages',
 <input type="hidden" name="content_action" value="services_save">
 <?php foreach ($names as $id => $label): ?>
 <div class="checkbox"><label><input type="checkbox" name="services[<?php echo $id; ?>]" value="1" <?php echo !empty($flags[$id]) ? 'checked' : ''; ?>>
-<?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></label></div>
+<?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?><?php if ($id === 'messages' || $id === 'alarms'): ?> <small>(backend not yet available)</small><?php endif; ?></label></div>
 <?php endforeach; ?>
 <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> Save Services</button>
 </form>
