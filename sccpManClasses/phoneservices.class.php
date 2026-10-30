@@ -374,19 +374,18 @@ class phoneservices {
         foreach($due as $alarm) {
             $device=$alarm['device'];
             try {
-                // Alarms are handset-specific. Never dial the shared public
-                // extension (which may ring several phones).
+                // Alarms target the physical handset, not a shared public number.
                 $line=$this->module->phonevoicemail->lineForDevice($device);
                 if(!preg_match('/^[0-9]{1,16}$/D',$line))continue;
                 $message=(string)($alarm['note']??'Wake-up alarm');
                 $this->push($device,$this->url($device).'&app=alarms&op=notice&note='.rawurlencode($message));
+                $cmd='/usr/sbin/asterisk -rx '.escapeshellarg(
+                    'channel originate Local/'.$line.'@from-internal extension s@sccp-manager-services-alarm');
+                $out=[];$status=0;exec($cmd.' 2>&1',$out,$status);
+                if($status!==0)error_log('SCCP alarm originate failed for '.$line.': '.implode(' ',array_slice($out,-3)));
             } catch(\Throwable $e) {
                 error_log('SCCP alarm notification: '.$e->getMessage());
             }
-            $cmd='/usr/sbin/asterisk -rx '.escapeshellarg(
-                'channel originate Local/'.$line.'@from-internal extension s@sccp-manager-services-alarm');
-            $out=[];$status=0;exec($cmd.' 2>&1',$out,$status);
-            if($status!==0)error_log('SCCP alarm originate failed for '.$line.': '.implode(' ',array_slice($out,-3)));
         }
     }
 }
