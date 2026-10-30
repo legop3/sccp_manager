@@ -310,7 +310,7 @@ class phoneservices {
             if(!preg_match('/^[0-9]{1,16}$/D',$line))continue;
             // Asterisk rings the extension; once answered it plays the built-in beep.
             $cmd='/usr/sbin/asterisk -rx '.escapeshellarg(
-                'channel originate Local/'.$line.'@from-internal application Playback beep');
+                'channel originate Local/'.$line.'@from-internal extension s@sccp-manager-services-alarm');
             $out=[];$status=0;exec($cmd.' 2>&1',$out,$status);
             if($status!==0)error_log('SCCP alarm originate failed for '.$line.': '.implode(' ',array_slice($out,-3)));
         }
