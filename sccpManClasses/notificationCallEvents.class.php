@@ -22,6 +22,14 @@ final class notificationCallEvents {
         return false;
     }
 
+    /** Prefer the actual CDR presented number, preserving caller names separately. */
+    public static function presentedNumber(array $row) {
+        $clid=trim((string)($row['clid'] ?? ''));
+        if (preg_match('/<([+0-9*#]{1,32})>$/D',$clid,$m)) return $m[1];
+        $src=trim((string)($row['src'] ?? ''));
+        return preg_match('/^[+0-9*#]{1,32}$/D',$src) ? $src : '';
+    }
+
     public static function classifyMissedCallRows(array $rows, $now) {
         $calls=[];
         foreach ($rows as $row) {
@@ -61,8 +69,8 @@ final class notificationCallEvents {
             $origin='';
             $originClid='';
             foreach ($group as $entry) {
-                $source=(string)($entry['src']??'');
-                if (!preg_match('/^[+0-9*#]{1,32}$/D',$source)) continue;
+                $source=self::presentedNumber($entry);
+                if ($source==='') continue;
                 if (strcasecmp((string)($entry['lastapp']??''),'Dial')!==0) continue;
                 if (!preg_match('~SCCP/[0-9]{1,16}(?=[^0-9]|$)~i',(string)($entry['lastdata']??''))) continue;
                 $origin=$source;
@@ -71,8 +79,8 @@ final class notificationCallEvents {
             }
             if ($origin==='') {
                 foreach ($group as $entry) {
-                    $source=(string)($entry['src']??'');
-                    if (!preg_match('/^[+0-9*#]{1,32}$/D',$source)) continue;
+                    $source=self::presentedNumber($entry);
+                    if ($source==='') continue;
                     // Prefer original call legs, not an SCCP outgoing line.
                     if (stripos((string)($entry['lastdata']??''),'(Outgoing Line)')!==false) continue;
                     $origin=$source;
@@ -89,7 +97,7 @@ final class notificationCallEvents {
                 // Use CDR caller identity, not the originating SCCP channel
                 // number: those can be different (e.g. 9111 presents 111).
                 // Prefer the actual source CDR leg for linked calls.
-                $row['src']=$origin;
+                if ($origin!=='') $row['src']=$origin;
                 $sourceClid=trim($originClid);
                 if ($sourceClid!=='') $row['clid']=$sourceClid;
                 $row['dst']=$ext;
