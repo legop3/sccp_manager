@@ -81,8 +81,15 @@ $detail->invoke($vm, $baseUrl, $m, true);
 $xml = simplexml_load_string(ob_get_clean());
 verify((string)$xml->MenuItem[0]->Name === 'Play Again (47 sec)',
     'After playback, remain on selected message details');
-verify((string)$xml->MenuItem[0]->URL === $baseUrl . '&op=play&id=1782735000-00000123',
-    'Replay points to same stable voicemail ID');
+verify(str_starts_with((string)$xml->MenuItem[0]->URL,
+    $baseUrl . '&op=play&id=1782735000-00000123&request='),
+    'Replay retains the stable voicemail ID while using a fresh request URL');
+$firstPlayUrl = (string)$xml->MenuItem[0]->URL;
+ob_start();
+$detail->invoke($vm, $baseUrl, $m, true);
+$nextXml = simplexml_load_string(ob_get_clean());
+verify((string)$nextXml->MenuItem[0]->URL !== $firstPlayUrl,
+    'Consecutive Play Again actions use different URLs to avoid Cisco browser reuse');
 // A separate 'Delete Message?' Cisco menu failed with XML Error 4 on CP-7945G.
 // Confirmation now reuses the verified detail menu template, changing only
 // the actions. No voicemail can be removed on the first Delete press.
