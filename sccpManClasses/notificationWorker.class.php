@@ -210,18 +210,28 @@ final class notificationWorker {
                         $targets[$ext]['candidate']=$row;
                 }
             }
-            // Pick the originating leg's CDR caller ID. Never infer the
-            // caller from SCCP/<line>, which is a device address, not CID.
+            // Select the *calling* side of the Dial() operation, not the
+            // SCCP destination leg. CDR rows may arrive newest-first.
             $origin='';
             $originClid='';
             foreach ($group as $entry) {
                 $source=(string)($entry['src']??'');
-                $channel=(string)($entry['channel']??'');
-                if ($source==='' || !preg_match('/^[+0-9*#]{1,32}$/D',$source)) continue;
-                if ($origin==='' || preg_match('~^(SCCP|PJSIP|SIP)/~i',$channel)) {
+                if (!preg_match('/^[+0-9*#]{1,32}$/D',$source)) continue;
+                if (strcasecmp((string)($entry['lastapp']??''),'Dial')!==0) continue;
+                if (!preg_match('~SCCP/[0-9]{1,16}(?=[^0-9]|$)~i',(string)($entry['lastdata']??''))) continue;
+                $origin=$source;
+                $originClid=(string)($entry['clid']??'');
+                break;
+            }
+            if ($origin==='') {
+                foreach ($group as $entry) {
+                    $source=(string)($entry['src']??'');
+                    if (!preg_match('/^[+0-9*#]{1,32}$/D',$source)) continue;
+                    // Prefer original call legs, not an SCCP outgoing line.
+                    if (stripos((string)($entry['lastdata']??''),'(Outgoing Line)')!==false) continue;
                     $origin=$source;
                     $originClid=(string)($entry['clid']??'');
-                    if (preg_match('~^(SCCP|PJSIP|SIP)/~i',$channel)) break;
+                    break;
                 }
             }
             // Wait until all CDR legs have finished. This avoids declaring
