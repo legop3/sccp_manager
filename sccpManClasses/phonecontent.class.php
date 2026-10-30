@@ -274,7 +274,7 @@ class phonecontent
     public function lanBaseUrl()
     {
         $vpn = $this->parent->vpnSettings();
-        $host = trim((string) ($vpn['pbx_ip'] ?? ''));
+        $host = trim((string) ($this->parent->getConfig('phonecontent_lan_host') ?: ($vpn['pbx_ip'] ?? '')));
         if ($host === '' && method_exists($this->parent, 'vpnDetectedPbxIp')) {
             $host = $this->parent->vpnDetectedPbxIp();
         }
@@ -289,13 +289,6 @@ class phonecontent
         if ($deviceId !== null && $this->parent->vpnprovisioning->enabledFor($deviceId) &&
             $vpnHost !== '') {
             return 'http://' . $vpnHost . '/sccp-manager';
-        }
-        // Legacy Phone Content override is LAN-specific. An old value equal
-        // to the VPN address must not redirect VPN-disabled phones into VPN.
-        $manual = trim((string) ($this->parent->getConfig('phonecontent_host') ?: ''));
-        if ($manual !== '' && $manual !== $vpnHost &&
-            filter_var($manual, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            return 'http://' . $manual . '/sccp-manager';
         }
         return $this->lanBaseUrl();
     }
@@ -317,7 +310,7 @@ class phonecontent
         if (!filter_var($value, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             throw new \InvalidArgumentException('Enter a reachable PBX IPv4 address (for example 192.168.0.25).');
         }
-        $this->parent->setConfig('phonecontent_host', $value);
+        $this->parent->setConfig('phonecontent_lan_host', $value);
         $this->publishDirectory();
         $this->syncUrls(true);
     }
@@ -387,38 +380,26 @@ if (!is_file($path) || is_link($path)) {
     http_response_code(404);
     exit;
 }
+$host = strtolower(preg_replace('/:[0-9]+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? '')));
+$lanHost = __LAN_HOST__;
+$vpnHost = __VPN_HOST__;
+if ($host !== $lanHost && ($vpnHost === '' || $host !== $vpnHost)) {
+    http_response_code(400);
+    exit;
+}
 header('Content-Type: text/xml; charset=UTF-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 $body = file_get_contents($path);
-$lanBase = __SCCP_LAN_BASE__;
-$vpnBase = __SCCP_VPN_BASE__;
-$publishedBase = __SCCP_PUBLISHED_BASE__;
-$host = strtolower(preg_replace('/:[0-9]+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? '')));
-$target = '';
-if ($lanBase !== '' && $host === parse_url($lanBase, PHP_URL_HOST)) {
-    $target = $lanBase;
-} elseif ($vpnBase !== '' && $host === parse_url($vpnBase, PHP_URL_HOST)) {
-    $target = $vpnBase;
-}
-if ($target !== '') {
-    foreach (array_unique(array_filter(array($lanBase, $vpnBase, $publishedBase))) as $source) {
-        if ($source !== $target) {
-            $body = str_replace($source . '/', $target . '/', $body);
-        }
-    }
-}
-echo $body;
+// Shared XML files contain a single explicit placeholder, not an address
+// copied from a different handset. Resolve it only at the HTTP boundary.
+$base = 'http://' . $host . '/sccp-manager';
+echo str_replace('__SCCP_MANAGED_BASE__', $base, $body);
 PHP;
-        // Published menus contain absolute managed URLs. Rewrite only our own
-        // LAN base when the phone actually fetched the page via the VPN address.
-        // This keeps the very same shared menu files usable by LAN-only phones.
         $script = str_replace(
-            array('__SCCP_LAN_BASE__', '__SCCP_VPN_BASE__', '__SCCP_PUBLISHED_BASE__'),
-            array(var_export($this->lanBaseUrl(), true),
-                var_export($this->vpnServiceHost() !== ''
-                    ? 'http://' . $this->vpnServiceHost() . '/sccp-manager' : '', true),
-                var_export($this->baseUrl(), true)),
+            array('__LAN_HOST__', '__VPN_HOST__'),
+            array(var_export((string) parse_url($this->lanBaseUrl(), PHP_URL_HOST), true),
+                var_export((string) $this->vpnServiceHost(), true)),
             $script
         );
         $this->publishFile($this->public . '/phone.php', $script . "\n");
@@ -567,8 +548,8 @@ PHP;
 
     public function publishDirectory()
     {
-        $base = $this->baseUrl();
-        if ($base === '') throw new \RuntimeException('Set the PBX address in Phone Content before publishing the directory.');
+        $base = '__SCCP_MANAGED_BASE__';
+        if ($this->baseUrl() === '') throw new \RuntimeException('Configure the PBX LAN address before publishing the directory.');
         $this->publishPhoneEndpoint();
         $this->publishVoicemailEndpoint();
         $this->publishServiceEndpoint();
