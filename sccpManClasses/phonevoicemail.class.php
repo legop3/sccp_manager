@@ -44,7 +44,7 @@ class phonevoicemail
     public function serviceUrl($device)
     {
         $this->mailboxForDevice($device);
-        $base = $this->parent->phonecontent->baseUrl();
+        $base = $this->parent->phonecontent->baseUrl($device);
         if (!$base) throw new \RuntimeException('Set the Phone Content PBX address first.');
         return $base . '/voicemail.php?phone=' . $device . '&key=' . $this->tokenForDevice($device);
     }
