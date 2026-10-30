@@ -8,6 +8,7 @@ on:
   push:
     tags: ['v*']
     branches: ['stable']
+    paths-ignore: ['.github/workflows/build-release.yml']
   workflow_dispatch:
     inputs:
       tag:
@@ -24,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.82') || github.ref_name }}
+      TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.85') || github.ref_name }}
     steps:
       - name: Create the release from the tag unless it exists
         run: |
@@ -65,12 +66,11 @@ jobs:
           path: sccp_manager
           # Bundle the source the release tag actually points at, not
           # whatever the default branch happens to be at dispatch time.
-          ref: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.82') || github.ref_name }}
+          ref: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.85') || github.ref_name }}
 
       - name: Validate PHP module syntax
         run: |
-          php -l sccp_manager/Sccp_manager.class.php
-          php -l sccp_manager/sccpManClasses/phonecontent.class.php
+          find sccp_manager -type f -name '*.php' -print0 | xargs -0 -n1 php -l
 
       - name: Fetch precompiled driver binaries from chan-sccp's latest release
         env:
@@ -111,7 +111,7 @@ jobs:
       - name: Attach to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.82') || github.ref_name }}
+          TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.85') || github.ref_name }}
         run: |
           # --repo is required, not optional: gh normally infers it from the
           # git remote of the working directory, but the checkout lives in a
