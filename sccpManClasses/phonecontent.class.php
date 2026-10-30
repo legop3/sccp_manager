@@ -407,7 +407,7 @@ PHP;
     private function publishServiceEndpoint()
     {
         $src = __DIR__ . '/../services/service-entry.php';
-        if (!is_file($src)) throw new \\RuntimeException('Built-in services endpoint missing.');
+        if (!is_file($src)) throw new \RuntimeException('Built-in services endpoint missing.');
         $this->publishFile($this->public . '/service.php', file_get_contents($src));
     }
 
