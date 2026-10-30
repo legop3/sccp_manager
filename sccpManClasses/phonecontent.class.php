@@ -285,14 +285,17 @@ class phonecontent
     /** Resolve the effective network for a specific handset only. */
     public function baseUrl($deviceId = null)
     {
-        $manual = trim((string) ($this->parent->getConfig('phonecontent_host') ?: ''));
-        if ($manual !== '') {
-            return filter_var($manual, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
-                ? 'http://' . $manual . '/sccp-manager' : '';
+        $vpnHost = $this->vpnServiceHost();
+        if ($deviceId !== null && $this->parent->vpnprovisioning->enabledFor($deviceId) &&
+            $vpnHost !== '') {
+            return 'http://' . $vpnHost . '/sccp-manager';
         }
-        if ($deviceId !== null && $this->parent->vpnprovisioning->enabledFor($deviceId)) {
-            $vpnHost = $this->vpnServiceHost();
-            if ($vpnHost !== '') return 'http://' . $vpnHost . '/sccp-manager';
+        // Legacy Phone Content override is LAN-specific. An old value equal
+        // to the VPN address must not redirect VPN-disabled phones into VPN.
+        $manual = trim((string) ($this->parent->getConfig('phonecontent_host') ?: ''));
+        if ($manual !== '' && $manual !== $vpnHost &&
+            filter_var($manual, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return 'http://' . $manual . '/sccp-manager';
         }
         return $this->lanBaseUrl();
     }
