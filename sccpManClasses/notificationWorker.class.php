@@ -65,7 +65,8 @@ final class notificationWorker {
                 $seen[$key]=$now;
                 // Compare against both new and heard recordings: a voicemail
                 // can be moved from INBOX to Old before this polling pass.
-                if (self::hasRecordedVoicemail($call,$recordings,$this->mailboxForLine((string)$call['dst']))) continue;
+                $mailbox=$this->mailboxForLine((string)$call['dst']);
+                if ($mailbox !== null && self::hasRecordedVoicemail($call,$recordings,$mailbox)) continue;
                 // Do not send previously unseen historical missed calls on first enable.
                 if (strtotime((string)$call['calldate'])<$now-240) continue;
                 $when=strtotime((string)$call['calldate']) ?: $now;
@@ -103,18 +104,15 @@ final class notificationWorker {
      * for this extension and caller during the same call. Merely reaching
      * VoiceMail() does not mean the caller actually left a message.
      */
-    /** CDR targets identify the SCCP line; recordings live in its mailbox. */
+    /** Use the same SCCP configuration resolver as menus and delivery. */
     private function mailboxForLine($line) {
-        if (!preg_match('/^[0-9]{1,16}$/D',$line)) return $line;
         try {
-            $stmt=\FreePBX::Database()->prepare('SELECT mailbox FROM sccpline WHERE name = ?');
-            $stmt->execute([$line]);
-            $raw=trim((string)($stmt->fetchColumn() ?: ''));
-            if (preg_match('/^([0-9]{1,16})(?:@default)?$/D',$raw,$m)) return $m[1];
+            return phonevoicemail::identityForLine((string)$line)['mailbox'];
         } catch (\Throwable $e) {
             error_log('SCCP missed-call mailbox lookup: '.$e->getMessage());
+            // An unresolved line must not be silently treated as its mailbox.
+            return null;
         }
-        return $line;
     }
 
     public static function hasRecordedVoicemail(array $call,array $inbox,$mailbox=null) {
