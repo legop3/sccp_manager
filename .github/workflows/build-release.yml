@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.93') || github.ref_name }}
+      TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.94') || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
       - name: Validate module metadata and PHP before creating a release tag
@@ -33,8 +33,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          grep -q '<version>17.1.93</version>' module.xml
-          for file in Sccp_manager.class.php page.sccp_content.php sccpManClasses/phonecontent.class.php sccpManClasses/phonemenus.class.php sccpManClasses/phoneservices.class.php views/content.services.php services/service-entry.php scripts/phone-services-tick.php install.php uninstall.php; do
+          grep -q '<version>17.1.94</version>' module.xml
+          for file in Sccp_manager.class.php page.sccp_content.php sccpManClasses/phonecontent.class.php sccpManClasses/phonemenus.class.php sccpManClasses/phoneservices.class.php sccpManClasses/phonevoicemail.class.php sccpManClasses/notificationDelivery.class.php sccpManClasses/notificationWorker.class.php views/content.services.php services/service-entry.php scripts/phone-services-tick.php install.php uninstall.php; do
             if ! php -l "$file"; then
               gh api "repos/${{ github.repository }}/statuses/${{ github.sha }}" -f state=failure -f context="sccp/lint/$file" -f description="PHP lint failed" >/dev/null
               exit 1
@@ -42,6 +42,11 @@ jobs:
           done
       - name: Test LAN/VPN handset address routing
         run: php tests/address-routing.php
+
+      - name: Test shared extension and voicemail behavior
+        run: |
+          php tests/shared-extension-routing.php
+          php tests/phone-voicemail.php
 
       - name: Record source validation result
         if: always()
@@ -93,11 +98,11 @@ jobs:
           path: sccp_manager
           # Bundle the source the release tag actually points at, not
           # whatever the default branch happens to be at dispatch time.
-          ref: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.93') || github.ref_name }}
+          ref: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.94') || github.ref_name }}
 
       - name: Validate PHP module syntax
         run: |
-          for file in Sccp_manager.class.php page.sccp_content.php sccpManClasses/phonecontent.class.php sccpManClasses/phonemenus.class.php sccpManClasses/phoneservices.class.php views/content.services.php services/service-entry.php scripts/phone-services-tick.php install.php uninstall.php; do
+          for file in Sccp_manager.class.php page.sccp_content.php sccpManClasses/phonecontent.class.php sccpManClasses/phonemenus.class.php sccpManClasses/phoneservices.class.php sccpManClasses/phonevoicemail.class.php sccpManClasses/notificationDelivery.class.php sccpManClasses/notificationWorker.class.php views/content.services.php services/service-entry.php scripts/phone-services-tick.php install.php uninstall.php; do
             php -l "sccp_manager/$file"
           done
 
@@ -141,7 +146,7 @@ jobs:
         id: upload
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.93') || github.ref_name }}
+          TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.94') || github.ref_name }}
         run: |
           # --repo is required, not optional: gh normally infers it from the
           # git remote of the working directory, but the checkout lives in a
