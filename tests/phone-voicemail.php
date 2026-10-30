@@ -12,6 +12,12 @@ verify($m['number']==='15005550124', 'Caller number');
 verify($m['duration']===47 && $m['folder']==='INBOX', 'Duration and folder');
 verify(phonevoicemail::parseMessage($raw, 'INBOX', '../foo') === null, 'Invalid metadata filename');
 
+verify(!phonevoicemail::blocksVoicemailPlayback(array('ChannelStateDesc'=>'Down',
+    'Context'=>'sccp-manager-voicemail-play')), 'Finished voicemail channel must not block replay');
+verify(phonevoicemail::blocksVoicemailPlayback(array('ChannelStateDesc'=>'Up',
+    'Context'=>'sccp-manager-voicemail-play')), 'Active playback must block replay');
+verify(phonevoicemail::blocksVoicemailPlayback(array('ChannelStateDesc'=>'Down',
+    'Context'=>'from-internal')), 'Other channel contexts remain protected');
 $shared = phonevoicemail::originateFields('9111', $m, '111');
 verify($shared['Channel'] === 'SCCP/9111/aa=1w/ringer=silent',
     'Playback calls the actual SCCP phone line, not the mailbox');
