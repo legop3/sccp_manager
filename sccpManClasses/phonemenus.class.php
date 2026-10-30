@@ -286,7 +286,7 @@ class phonemenus
     /** Inject into final per-phone SEP document BEFORE the existing signing step. */
     public function applyProvisioning(\SimpleXMLElement $phone, $deviceId = '')
     {
-        $base = $this->parent->phonecontent->baseUrl();
+        $base = $this->parent->phonecontent->baseUrl($deviceId);
         if ($base === '') throw new \RuntimeException('Phone Content PBX address required.');
         $root = dom_import_simplexml($phone);
         $doc = $root->ownerDocument;
