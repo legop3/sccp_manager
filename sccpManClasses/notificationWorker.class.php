@@ -63,7 +63,7 @@ final class notificationWorker {
                 if (isset($seen[$key])) continue;
                 $seen[$key]=$now;
                 // A stored voicemail takes precedence over the missed-call popup.
-                if (self::hasRecordedVoicemail($call,$inbox)) continue;
+                if (self::hasRecordedVoicemail($call,$inbox,$this->mailboxForLine((string)$call['dst']))) continue;
                 // Do not send previously unseen historical missed calls on first enable.
                 if (strtotime((string)$call['calldate'])<$now-240) continue;
                 $when=strtotime((string)$call['calldate']) ?: $now;
@@ -101,8 +101,22 @@ final class notificationWorker {
      * for this extension and caller during the same call. Merely reaching
      * VoiceMail() does not mean the caller actually left a message.
      */
-    public static function hasRecordedVoicemail(array $call,array $inbox) {
-        $extension=(string)($call['dst']??'');
+    /** CDR targets identify the SCCP line; recordings live in its mailbox. */
+    private function mailboxForLine($line) {
+        if (!preg_match('/^[0-9]{1,16}$/D',$line)) return $line;
+        try {
+            $stmt=\FreePBX::Database()->prepare('SELECT mailbox FROM sccpline WHERE name = ?');
+            $stmt->execute([$line]);
+            $raw=trim((string)($stmt->fetchColumn() ?: ''));
+            if (preg_match('/^([0-9]{1,16})(?:@default)?$/D',$raw,$m)) return $m[1];
+        } catch (\Throwable $e) {
+            error_log('SCCP missed-call mailbox lookup: '.$e->getMessage());
+        }
+        return $line;
+    }
+
+    public static function hasRecordedVoicemail(array $call,array $inbox,$mailbox=null) {
+        $extension=$mailbox===null?(string)($call['dst']??''):(string)$mailbox;
         $started=strtotime((string)($call['calldate']??'')) ?: 0;
         if (!$started || !isset($inbox[$extension])) return false;
         $ended=$started+max(0,(int)($call['duration']??0));
