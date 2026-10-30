@@ -19,4 +19,17 @@ checkIdentity(notificationWorker::hasRecordedVoicemail($call,['111'=>[$recording
     'Shared mailbox recording suppresses duplicate missed call');
 checkIdentity(!notificationWorker::hasRecordedVoicemail($call,['111'=>[$recording]],'9111'),
     'A different empty mailbox does not falsely suppress missed call');
+
+// Linked CDR source identity must override the SCCP hardware line name.
+$now=strtotime('2026-10-30 15:30:00');
+$source=[
+  'uniqueid'=>'123','linkedid'=>'123','calldate'=>'2026-10-30 15:28:00',
+  'duration'=>10,'channel'=>'SCCP/9111-00000001','dstchannel'=>'',
+  'src'=>'111','clid'=>'"Carpet" <111>','dst'=>'150','disposition'=>'NO ANSWER',
+  'lastapp'=>'Dial','lastdata'=>'SCCP/150'
+];
+$missed=notificationWorker::classifyMissedCallRows([$source],$now);
+checkIdentity(count($missed)===1,'One unanswered SCCP destination');
+checkIdentity($missed[0]['src']==='111','Keep CDR originating caller number');
+checkIdentity($missed[0]['clid']==='"Carpet" <111>','Preserve presentation caller name');
 echo "Shared extension routing tests passed.\n";
