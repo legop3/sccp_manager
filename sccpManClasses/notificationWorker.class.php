@@ -62,11 +62,6 @@ final class notificationWorker {
                 $key=(string)$call['uniqueid'].'/'.(string)$call['dst'];
                 if (isset($seen[$key])) continue;
                 $seen[$key]=$now;
-                // A stored voicemail takes precedence over the missed-call popup.
-                if (self::hasRecordedVoicemail($call,$inbox,$this->mailboxForLine((string)$call['dst']))) continue;
-                // Do not send previously unseen historical missed calls on first enable.
-                if (strtotime((string)$call['calldate'])<$now-240) continue;
-                $when=strtotime((string)$call['calldate']) ?: $now;
                 // CDR src can remain the internal SCCP line even when its
                 // configured caller identity is the shared public extension.
                 if (!empty($call['origin_sccp_line'])) {
@@ -76,6 +71,11 @@ final class notificationWorker {
                         $call['clid']=$public;
                     }
                 }
+                // A stored voicemail takes precedence over the missed-call popup.
+                if (self::hasRecordedVoicemail($call,$inbox,$this->mailboxForLine((string)$call['dst']))) continue;
+                // Do not send previously unseen historical missed calls on first enable.
+                if (strtotime((string)$call['calldate'])<$now-240) continue;
+                $when=strtotime((string)$call['calldate']) ?: $now;
                 $number=(string)$call['src'];
                 $caller=$this->formatCaller((string)($call['clid']??''),$number);
                 $this->delivery->send('missed',self::missedNotificationFields($call,$when),[(string)$call['dst']]);
