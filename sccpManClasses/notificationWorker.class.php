@@ -67,6 +67,15 @@ final class notificationWorker {
                 // Do not send previously unseen historical missed calls on first enable.
                 if (strtotime((string)$call['calldate'])<$now-240) continue;
                 $when=strtotime((string)$call['calldate']) ?: $now;
+                // CDR src can remain the internal SCCP line even when its
+                // configured caller identity is the shared public extension.
+                if (!empty($call['origin_sccp_line'])) {
+                    $public=$this->mailboxForLine((string)$call['origin_sccp_line']);
+                    if ($public!=='' && $public!==(string)$call['origin_sccp_line']) {
+                        $call['src']=$public;
+                        $call['clid']=$public;
+                    }
+                }
                 $number=(string)$call['src'];
                 $caller=$this->formatCaller((string)($call['clid']??''),$number);
                 $this->delivery->send('missed',self::missedNotificationFields($call,$when),[(string)$call['dst']]);
@@ -201,10 +210,12 @@ final class notificationWorker {
             // Preserve the original caller from the linked call, not an
             // internal Dial/VoiceMail leg that may have an empty src.
             $origin='';
+            $originSccp='';
             foreach ($group as $entry) {
                 $from=(string)($entry['channel']??'');
                 if (preg_match('~^SCCP/([0-9]{1,16})(?=[^0-9]|$)~i',$from,$m)) {
                     $origin=$m[1];
+                    $originSccp=$m[1];
                     break;
                 }
             }
@@ -228,6 +239,7 @@ final class notificationWorker {
                     if (trim((string)($row['clid']??''))==='') $row['clid']=$origin;
                 }
                 $row['dst']=$ext;
+                if ($originSccp!=='') $row['origin_sccp_line']=$originSccp;
                 $row['uniqueid']=$linked;
                 $row['disposition']='NO ANSWER';
                 $found[]=$row;
