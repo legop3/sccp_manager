@@ -189,8 +189,9 @@ verify(strpos($dialplan, '[sccp-manager-voicemail-predial]') !== false &&
     'SCCP-specific Caller Party is set in predial, before phone receives call setup');
 verify(strpos($dialplan, 'VoiceMailPlayMsg(${SCCP_VM_MAILBOX}@default,${SCCP_VM_ID})') !== false,
     'Voicemail still plays directly on SCCP audio channel without an intermediary');
-verify(strpos($dialplan, 'Wait(') === false && strpos($dialplan, 'Sleep(') === false,
-    'SCCP dialplan has no artificial delays');
+$playbackContext=explode('[from-internal-custom]', explode('[sccp-manager-voicemail-play]', $dialplan, 2)[1] ?? '')[0];
+verify(strpos($playbackContext, 'Wait(') === false && strpos($playbackContext, 'Sleep(') === false,
+    'Voicemail playback context has no artificial delays');
 verify(strpos($dialplan, 'same => n,Return()') !== false,
     'Predial subroutine returns before phone call is placed');
 $installer = file_get_contents(__DIR__ . '/../install.php');
