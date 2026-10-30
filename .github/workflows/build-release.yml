@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  statuses: write
 
 jobs:
   release:
@@ -28,11 +29,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate module metadata and PHP before creating a release tag
+        id: syntax
         run: |
           grep -q '<version>17.1.85</version>' module.xml
           for file in Sccp_manager.class.php page.sccp_content.php sccpManClasses/phonecontent.class.php sccpManClasses/phonemenus.class.php sccpManClasses/phoneservices.class.php views/content.services.php services/service-entry.php scripts/phone-services-tick.php install.php uninstall.php; do
             php -l "$file"
           done
+      - name: Record source validation result
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.syntax.outcome }}" = success ]; then
+            RESULT=success
+          else
+            RESULT=failure
+          fi
+          gh api "repos/${{ github.repository }}/statuses/${{ github.sha }}" -f state="$RESULT" -f context="sccp/module-syntax" -f description="Release source syntax validation: $RESULT" >/dev/null
       - name: Create the release from the tag unless it exists
         run: |
           REPO="${{ github.repository }}"
@@ -117,6 +130,7 @@ jobs:
           ls -lh sccp_manager.tar.gz
 
       - name: Attach to the release
+        id: upload
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.85') || github.ref_name }}
@@ -127,3 +141,15 @@ jobs:
           # tarball, so there's nothing for gh to infer from.
           gh release upload "$TAG" sccp_manager.tar.gz \
             --repo "${{ github.repository }}" --clobber
+
+      - name: Record release packaging result
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.upload.outcome }}" = success ]; then
+            RESULT=success
+          else
+            RESULT=failure
+          fi
+          gh api "repos/${{ github.repository }}/statuses/${{ github.sha }}" -f state="$RESULT" -f context="sccp/release-tarball" -f description="Release tarball upload: $RESULT" >/dev/null
