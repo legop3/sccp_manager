@@ -67,7 +67,7 @@ class phoneservices {
         foreach ((new notificationDelivery($this->module))->devices() as $device=>$ip) {
             try {
                 $line=$this->module->phonevoicemail->mailboxForDevice($device);
-                if($device!==$me)$found[$device]=['line'=>$line,'ip'=>$ip];
+                $found[$device]=['line'=>$line,'ip'=>$ip];
             } catch(\Throwable $e){}
         }
         return $found;
@@ -245,7 +245,7 @@ class phoneservices {
             if($op==='compose'){
                 $entries=[];
                 foreach($this->recipients($device) as $target=>$info)
-                    $entries[]=['Ext '.$info['line'],$route(['app'=>'messages','op'=>'write','target'=>$target])];
+                    $entries[]=[$target===$device?'My Phone ('.$info['line'].')':'Ext '.$info['line'],$route(['app'=>'messages','op'=>'write','target'=>$target])];
                 if(!$entries){$this->xml('Messages','No other SCCP phones connected.');return;}
                 $this->menu('Send to', $entries);return;
             }
