@@ -1091,8 +1091,22 @@ PHP;
         $action = (string) ($post['content_action'] ?? '');
         switch ($action) {
             case 'address': $this->setAddress($post['pbx_address'] ?? ''); return 'Directory URL updated.';
-            case 'services_save': $this->parent->phonemenus->saveServices($post['services'] ?? array());
-                return 'Enabled services saved; phone menu updated immediately.';
+            case 'services_save':
+                $this->parent->phonemenus->saveServices($post['services'] ?? array());
+                if (isset($post['weather_name'], $post['weather_lat'], $post['weather_lon'])) {
+                    $name = trim((string) $post['weather_name']);
+                    $lat = filter_var($post['weather_lat'], FILTER_VALIDATE_FLOAT);
+                    $lon = filter_var($post['weather_lon'], FILTER_VALIDATE_FLOAT);
+                    if ($name === '' || strlen($name) > 64 ||
+                        $lat === false || $lat < -90 || $lat > 90 ||
+                        $lon === false || $lon < -180 || $lon > 180) {
+                        throw new \InvalidArgumentException('Invalid weather location or coordinates.');
+                    }
+                    $this->parent->setConfig('phonecontent_weather',
+                        array('name' => $name, 'lat' => $lat, 'lon' => $lon));
+                }
+                $this->parent->phoneContentRegenerate(false);
+                return 'Services updated; signed phone configurations refreshed (reboot phones to load new button destinations).';
             case 'save_menus': $this->parent->phonemenus->save($post['menu_config'] ?? '');
                 return 'Services and Messages menus published.';
             case 'directory_text': $this->saveDirectoryLabels($post['directory_text'] ?? null);
