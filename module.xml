@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.84</version>
+	<version>17.1.85</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -13,7 +13,7 @@
 		<sccp_phone	sort="3">Phones Manager</sccp_phone>
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
-	<changelog>\n\t\t * Version 17.1.84 * - Add authenticated Cisco phone messaging, alarms and dynamic built-in service endpoints\n\t\t * Version 17.1.83 * - Built-in Cisco Services catalog, fixed Messages/Services buttons and interactive service endpoints\n\t\t * Version 17.1.82 * - Prefer VPN-side HTTP service addresses for VPN phones while preserving LAN and manual URL defaults
+	<changelog>\n\t\t * Version 17.1.85 * - Complete built-in services: phone messaging, multiple alarms and reminders, configurable weather and news, trivia and two-player games\n\t\t * Version 17.1.84 * - Add authenticated Cisco phone messaging, alarms and dynamic built-in service endpoints\n\t\t * Version 17.1.83 * - Built-in Cisco Services catalog, fixed Messages/Services buttons and interactive service endpoints\n\t\t * Version 17.1.82 * - Prefer VPN-side HTTP service addresses for VPN phones while preserving LAN and manual URL defaults
 		 * Version 17.1.81 * - Prevent duplicate missed-call popups when voicemail is recorded; silence automatic voicemail playback ringing
 		 * Version 17.1.80 * - Use real production field formatters for both initial and live notification previews
 		 * Version 17.1.79 * - Native TrueType notification text, larger secondary information, unified compact date layout and horizontal voicemail duration
