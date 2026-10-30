@@ -18,23 +18,29 @@ class phonevoicemail
     }
 
     /** SCCP identity: device line, voicemail storage and presented caller ID are independent. */
-    public static function identityForLine($line)
+    public static function identityFromConfig($line, array $row)
     {
-        if (!is_string($line) || !preg_match('/^[0-9]{1,16}$/D', $line))
+        if (!is_string($line) || !preg_match('/^[0-9]{1,16}$/D',$line))
             throw new \InvalidArgumentException('Invalid SCCP line.');
-        $stmt=\FreePBX::Database()->prepare('SELECT mailbox, cid_num FROM sccpline WHERE name = ?');
-        $stmt->execute([$line]);
-        $row=$stmt->fetch(\PDO::FETCH_ASSOC);
-        if (!is_array($row)) throw new \RuntimeException('SCCP line is not configured: '.$line);
         $configured=trim((string)($row['mailbox'] ?? ''));
         if ($configured==='') $configured=$line;
         if (!preg_match('/^([0-9]{1,16})(?:@default)?$/D',$configured,$matches))
             throw new \RuntimeException('Unsupported voicemail mailbox for SCCP line '.$line.': '.$configured);
         $caller=trim((string)($row['cid_num'] ?? ''));
-        // Never substitute mailbox for a caller ID. An unset caller ID is
-        // reported as the physical line rather than guessing a public alias.
         if (!preg_match('/^[0-9]{1,16}$/D',$caller)) $caller=$line;
         return ['line'=>$line,'mailbox'=>$matches[1],'extension'=>$caller];
+    }
+
+    /** Read one SCCP line record; never infer the public identity from mailbox. */
+    public static function identityForLine($line)
+    {
+        if (!is_string($line) || !preg_match('/^[0-9]{1,16}$/D',$line))
+            throw new \InvalidArgumentException('Invalid SCCP line.');
+        $stmt=\FreePBX::Database()->prepare('SELECT mailbox, cid_num FROM sccpline WHERE name = ?');
+        $stmt->execute([$line]);
+        $row=$stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!is_array($row)) throw new \RuntimeException('SCCP line is not configured: '.$line);
+        return self::identityFromConfig($line,$row);
     }
 
     public function destinationForDevice($device)
