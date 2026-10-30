@@ -601,7 +601,7 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
         }
         $this->pagedata = array(
             'general' => array('name' => _('Address Book'), 'page' => 'views/content.contacts.php'),
-            'menus' => array('name' => _('Menus'), 'page' => 'views/content.menus.php'),
+            'services' => array('name' => _('Services'), 'page' => 'views/content.services.php'),
             'wallpapers' => array('name' => _('Wallpapers'), 'page' => 'views/content.wallpapers.php'),
             'ringtones' => array('name' => _('Ringtones'), 'page' => 'views/content.ringtones.php'),
             'notifications' => array('name' => _('Notifications'), 'page' => 'views/content.notifications.php')
