@@ -1105,6 +1105,16 @@ PHP;
                     $this->parent->setConfig('phonecontent_weather',
                         array('name' => $name, 'lat' => $lat, 'lon' => $lon));
                 }
+                $feeds = array(
+                    'bbc' => 'https://feeds.bbci.co.uk/news/rss.xml',
+                    'bbc-world' => 'https://feeds.bbci.co.uk/news/world/rss.xml',
+                    'bbc-technology' => 'https://feeds.bbci.co.uk/news/technology/rss.xml',
+                    'bbc-sport' => 'https://feeds.bbci.co.uk/sport/rss.xml',
+                    'npr' => 'https://feeds.npr.org/1001/rss.xml'
+                );
+                $feedId = (string) ($post['news_feed'] ?? 'bbc');
+                if (!isset($feeds[$feedId])) throw new \InvalidArgumentException('Invalid news feed selection.');
+                $this->parent->setConfig('phonecontent_news_feed', $feeds[$feedId]);
                 $this->parent->phoneContentRegenerate(false);
                 return 'Services updated; signed phone configurations refreshed (reboot phones to load new button destinations).';
             case 'save_menus': $this->parent->phonemenus->save($post['menu_config'] ?? '');
