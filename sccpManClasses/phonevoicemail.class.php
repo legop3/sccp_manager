@@ -17,8 +17,8 @@ class phonevoicemail
         return is_string($id) && preg_match('/^SEP[0-9A-F]{12}$/D', $id);
     }
 
-    /** The SCCP line to call is independent of its configured voicemail mailbox. */
-    public function lineForDevice($device)
+    /** Resolve the physical SCCP line and its configured mailbox once. */
+    public function destinationForDevice($device)
     {
         if (!self::validDevice($device)) throw new \InvalidArgumentException('Invalid phone identifier.');
         $data = $this->parent->dbinterface->getSccpDeviceTableData('getDefaultLine', array('id' => $device));
@@ -26,12 +26,6 @@ class phonevoicemail
         if (!preg_match('/^[0-9]{1,16}$/D', $line)) {
             throw new \RuntimeException('Phone ' . $device . ' needs a numeric default SCCP line before visual voicemail can be enabled.');
         }
-        return $line;
-    }
-
-    public function mailboxForDevice($device)
-    {
-        $line = $this->lineForDevice($device);
         $db = \FreePBX::Database();
         $stmt = $db->prepare('SELECT mailbox FROM sccpline WHERE name = ?');
         $stmt->execute(array($line));
@@ -39,10 +33,15 @@ class phonevoicemail
         // SCCP mailboxes can include an Asterisk context, e.g. 111@default.
         // The visual voicemail service currently supports the default context.
         $mailbox = trim((string) ($configured === false ? '' : $configured));
-        if ($mailbox === '') return $line;
-        if (preg_match('/^([0-9]{1,16})(?:@default)?$/D', $mailbox, $matches)) return $matches[1];
-        throw new \RuntimeException('Unsupported voicemail mailbox for SCCP line ' . $line . ': ' . $mailbox);
+        if ($mailbox === '') $mailbox = $line;
+        if (!preg_match('/^([0-9]{1,16})(?:@default)?$/D', $mailbox, $matches)) {
+            throw new \RuntimeException('Unsupported voicemail mailbox for SCCP line ' . $line . ': ' . $mailbox);
+        }
+        return array('line' => $line, 'mailbox' => $matches[1]);
     }
+
+    public function lineForDevice($device) { return $this->destinationForDevice($device)['line']; }
+    public function mailboxForDevice($device) { return $this->destinationForDevice($device)['mailbox']; }
 
     public function tokenForDevice($device)
     {
@@ -80,7 +79,7 @@ class phonevoicemail
             ($settings['messages'][0]['type'] ?? '') !== 'visualvoicemail') {
             throw new \RuntimeException('Visual voicemail is disabled.');
         }
-        return array($device, $this->mailboxForDevice($device), $token);
+        return array($device, $this->destinationForDevice($device), $token);
     }
 
     public static function parseMessage($raw, $folder, $file)
@@ -311,13 +310,12 @@ class phonevoicemail
         }
     }
 
-    public static function originateFields($line, array $message, $mailbox = null)
+    public static function originateFields($line, array $message, $mailbox)
     {
         if (!preg_match('/^[0-9]{1,16}$/D', $line) ||
             !preg_match('/^[A-Za-z0-9_.-]{1,120}$/D', $message['id'] ?? '')) {
             throw new \InvalidArgumentException('Invalid voicemail playback target.');
         }
-        if ($mailbox === null) $mailbox = $line;
         if (!preg_match('/^[0-9]{1,16}$/D', $mailbox)) throw new \InvalidArgumentException('Invalid voicemail mailbox.');
         // Caller ID comes from the actual voicemail, not the mailbox owner.
         $display = $message['name'] !== '' ? $message['name'] :
@@ -350,7 +348,7 @@ class phonevoicemail
         );
     }
 
-    public function playback($line, array $message, $mailbox = null)
+    public function playback($line, array $message, $mailbox)
     {
         // These contexts must be installed and loaded before originating.
         // Refuse silent caller-ID regressions if installation was incomplete.
@@ -358,7 +356,6 @@ class phonevoicemail
         if (!is_file($dialplan)) {
             throw new \RuntimeException('SCCP voicemail dialplan is missing; reinstall SCCP Manager as root.');
         }
-        if ($mailbox === null) $mailbox = $line;
         $this->assertNotOnCall($line);
         $this->ami(self::originateFields($line, $message, $mailbox));
         // Originate succeeded: record this voicemail as heard via the same
@@ -379,9 +376,8 @@ class phonevoicemail
      * sometimes cancels its HTTP request as auto-answer steals screen focus,
      * producing an intermittent XML Error 4.
      */
-    public function queuePlayback($line, array $message, $mailbox = null)
+    public function queuePlayback($line, array $message, $mailbox)
     {
-        if ($mailbox === null) $mailbox = $line;
         $this->assertNotOnCall($line);
         ignore_user_abort(true);
         register_shutdown_function(function () use ($line, $message, $mailbox) {
@@ -453,7 +449,7 @@ class phonevoicemail
         } else {
             $entries = array(
                 array(($afterPlayback ? 'Play Again' : 'Play') . ' (' . $msg['duration'] . ' sec)',
-                    $base . '&op=play&id=' . rawurlencode($id))
+                    $base . '&op=play&id=' . rawurlencode($id) . '&request=' . bin2hex(random_bytes(6)))
             );
             // Playback may automatically move a new message to Old.
             if ($folder === 'INBOX' && !$afterPlayback) {
@@ -518,7 +514,8 @@ class phonevoicemail
     public function handle(array $get)
     {
         try {
-            list($device, $line, $token) = $this->authenticate($get);
+            list($device, $destination, $token) = $this->authenticate($get);
+            $line = $destination['mailbox'];
             $base = $this->serviceUrl($device);
             $this->serviceContext = (string)($get['service'] ?? '') === '1';
             $this->singleMessage = $this->serviceContext && (string)($get['single'] ?? '') === '1';
@@ -542,7 +539,7 @@ class phonevoicemail
             $folder = $msg['folder'];
             $from = $msg['name'] ?: ($msg['number'] ?: 'Unknown Caller');
             if ($op === 'notification' || $op === 'notification-play') {
-                if ($op === 'notification-play') $this->queuePlayback($this->lineForDevice($device), $msg, $line);
+                if ($op === 'notification-play') $this->queuePlayback($destination['line'], $msg, $destination['mailbox']);
                 $this->showMessageDetail($base, $msg, $op === 'notification-play');
                 return;
             }
@@ -583,7 +580,7 @@ class phonevoicemail
             if ($op === 'play') {
                 // The call starts ONLY after the full XML response has been
                 // flushed. This avoids racing the phone's XML parser.
-                $this->queuePlayback($this->lineForDevice($device), $msg, $line);
+                $this->queuePlayback($destination['line'], $msg, $destination['mailbox']);
                 $this->showMessageDetail($base, $msg, true);
                 return;
             }
