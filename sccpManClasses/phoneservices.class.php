@@ -59,15 +59,14 @@ class phoneservices {
             throw new \RuntimeException('Invalid handset credentials.');
         if(!hash_equals($this->module->phonevoicemail->tokenForDevice($device),$key))
             throw new \RuntimeException('Invalid handset credentials.');
-        $line=$this->module->phonevoicemail->mailboxForDevice($device);
-        return [$device,$line];
+        return [$device,$this->module->phonevoicemail->destinationForDevice($device)];
     }
     private function recipients($me) {
         $found=[];
         foreach ((new notificationDelivery($this->module))->devices() as $device=>$ip) {
             try {
-                $line=$this->module->phonevoicemail->mailboxForDevice($device);
-                $found[$device]=['line'=>$line,'ip'=>$ip];
+                $identity=$this->module->phonevoicemail->destinationForDevice($device);
+                $found[$device]=['line'=>$identity['extension'],'ip'=>$ip];
             } catch(\Throwable $e){}
         }
         return $found;
@@ -109,7 +108,8 @@ class phoneservices {
         header('Content-Type: text/xml; charset=UTF-8');
         header('Cache-Control: no-store');header('Expires: Thu, 01 Jan 1970 00:00:01 GMT');
         header('X-Content-Type-Options: nosniff');
-        [$device,$line]=$this->auth($q);
+        [$device,$identity]=$this->auth($q);
+        $line=$identity['extension'];
         $root=['phone'=>$device,'key'=>(string)$q['key']];
         $route=function($fields)use($root){return $this->requestUrl(array_merge($root,$fields));};
         $flags=$this->module->phonemenus->serviceFlags();
@@ -372,10 +372,12 @@ class phoneservices {
             return $due;
         });
         foreach($due as $alarm) {
-            $line=(string)($alarm['line']??'');
-            if(!preg_match('/^[0-9]{1,16}$/D',$line))continue;
+            $device=$alarm['device'];
             try {
-                $device=$alarm['device'];
+                // Alarms are handset-specific. Never dial the shared public
+                // extension (which may ring several phones).
+                $line=$this->module->phonevoicemail->lineForDevice($device);
+                if(!preg_match('/^[0-9]{1,16}$/D',$line))continue;
                 $message=(string)($alarm['note']??'Wake-up alarm');
                 $this->push($device,$this->url($device).'&app=alarms&op=notice&note='.rawurlencode($message));
             } catch(\Throwable $e) {
