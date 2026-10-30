@@ -50,19 +50,19 @@ final class notificationDelivery {
         return $base.'/notification-display.php?id='.substr($name,13,24);
     }
 
-    private function forDevice($device,$extensions) {
-        if ($extensions===null) return true;
-        // Only the handset's actual configured default line is a valid
-        // destination. Searching "sccp show device" text also matches
-        // unrelated fields, such as calling-party and call history data.
+    private function forDevice($device, $extensions, $kind) {
+        if ($extensions === null) return true;
         try {
-            $line=(new phonevoicemail($this->module))->mailboxForDevice($device);
+            $identity = (new phonevoicemail($this->module))->destinationForDevice($device);
         } catch (\Throwable $e) {
             error_log('SCCP notification destination lookup: '.$e->getMessage());
             return false;
         }
+        // CDR missed calls are addressed to the SCCP line; voicemail events
+        // are addressed to the mailbox. Neither substitutes for the other.
+        $target = $kind === 'missed' ? $identity['line'] : $identity['mailbox'];
         foreach ($extensions as $ext) {
-            if ($line===(string)$ext) return true;
+            if ($target === (string)$ext) return true;
         }
         return false;
     }
@@ -108,7 +108,7 @@ final class notificationDelivery {
         if (!$devices) throw new \RuntimeException('No connected SCCP phones were detected from Asterisk session/device output.');
         $errors=[];
         foreach ($devices as $device=>$ip) {
-            if (!$this->forDevice($device,$extensions)) continue;
+            if (!$this->forDevice($device,$extensions,$kind)) continue;
             // Every handset needs its own authenticated voicemail links.
             // Do not publish the bearer token in a shared document.
             $deviceUrl=$url;
@@ -136,6 +136,9 @@ final class notificationDelivery {
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->publicDocument($graphic);
             } elseif ($kind==='missed' && $options['style']==='text') {
+                // Present the user's public number, not the SCCP-only line.
+                $identity=(new phonevoicemail($this->module))->destinationForDevice($device);
+                $fields['extension']=$identity['extension'];
                 $actions=[];
                 $number=(string)($fields['number']??'');
                 if (preg_match('/^[+0-9*#]{1,32}$/D',$number)) $actions['Call Back']='Dial:'.$number;
