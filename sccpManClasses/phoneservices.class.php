@@ -41,7 +41,7 @@ class phoneservices {
         } finally {fclose($handle);}
     }
     private function requestUrl($query) {
-        $base=$this->module->phonecontent->baseUrl();
+        $base=$this->module->phonecontent->requestBaseUrl();
         return $base.'/service.php?'.http_build_query($query,'','&',PHP_QUERY_RFC3986);
     }
     public function url($device) {
