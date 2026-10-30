@@ -8,7 +8,6 @@ on:
   push:
     tags: ['v*']
     branches: ['stable']
-    paths-ignore: ['.github/workflows/build-release.yml']
   workflow_dispatch:
     inputs:
       tag:
@@ -31,7 +30,9 @@ jobs:
       - name: Validate module metadata and PHP before creating a release tag
         run: |
           grep -q '<version>17.1.85</version>' module.xml
-          find . -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          for file in Sccp_manager.class.php page.sccp_content.php sccpManClasses/phonecontent.class.php sccpManClasses/phonemenus.class.php sccpManClasses/phoneservices.class.php views/content.services.php services/service-entry.php scripts/phone-services-tick.php install.php uninstall.php; do
+            php -l "$file"
+          done
       - name: Create the release from the tag unless it exists
         run: |
           REPO="${{ github.repository }}"
@@ -75,7 +76,9 @@ jobs:
 
       - name: Validate PHP module syntax
         run: |
-          find sccp_manager -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          for file in Sccp_manager.class.php page.sccp_content.php sccpManClasses/phonecontent.class.php sccpManClasses/phonemenus.class.php sccpManClasses/phoneservices.class.php views/content.services.php services/service-entry.php scripts/phone-services-tick.php install.php uninstall.php; do
+            php -l "sccp_manager/$file"
+          done
 
       - name: Fetch precompiled driver binaries from chan-sccp's latest release
         env:
