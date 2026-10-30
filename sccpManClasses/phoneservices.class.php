@@ -247,8 +247,9 @@ class phoneservices {
                 if(!isset($others[$target]) || $message==='' || strlen($message)>160 ||
                     preg_match('/[\x00-\x1F\x7F]/',$message)){$this->xml('Messages','Invalid recipient or message.');return;}
                 $id=bin2hex(random_bytes(8));$now=time();
-                $this->transact(function(&$s)use($id,$now,$device,$line,$target,$message){
-                    $s['messages'][]=['id'=>$id,'time'=>$now,'from'=>$device,'line'=>$line,'to'=>$target,'text'=>$message];
+                $recipientLine=$others[$target]['line'];
+                $this->transact(function(&$s)use($id,$now,$device,$line,$target,$message,$recipientLine){
+                    $s['messages'][]=['id'=>$id,'time'=>$now,'from'=>$device,'line'=>$line,'to'=>$target,'toLine'=>$recipientLine,'text'=>$message];
                     $s['messages']=array_slice($s['messages'],-500);
                 });
                 $this->push($target,$this->url($target).'&app=messages&op=read&id='.$id);
@@ -271,7 +272,7 @@ class phoneservices {
                 if(!$messages){$this->xml('Messages','No messages here.');return;}
                 $rows=[];
                 foreach(array_slice($messages,0,20) as $m) {
-                    $label=$op==='sent'?'To '.$m['to']:'From ext '.$m['line'];
+                    $label=$op==='sent'?'To ext '.($m['toLine']??'?'):'From ext '.$m['line'];
                     $rows[]=[$label.': '.substr($m['text'],0,20),
                         $route(['app'=>'messages','op'=>'read','id'=>$m['id']])];
                 }
