@@ -12,7 +12,7 @@ class FakeModule {
     public $manual = '';
     public function __construct() { $this->vpnprovisioning = new FakeVpn(); }
     public function vpnSettings() { return $this->settings; }
-    public function getConfig($key) { return $key === 'phonecontent_host' ? $this->manual : null; }
+    public function getConfig($key) { return $key === 'phonecontent_lan_host' ? $this->manual : null; }
     public function vpnDetectedPbxIp() { return '192.168.0.25'; }
 }
 function expectUrl($actual, $expected, $description) {
@@ -31,7 +31,7 @@ expectUrl($c->requestBaseUrl(), $vpn, 'VPN request');
 $_SERVER['HTTP_HOST'] = '192.168.0.25';
 expectUrl($c->requestBaseUrl(), $lan, 'LAN request');
 $p->manual = '10.254.77.1';
-expectUrl($c->baseUrl('SEP00EBD5CA227A'), $lan, 'Legacy global VPN value does not affect VPN Off');
+expectUrl($c->baseUrl('SEP00EBD5CA227A'), $vpn, 'Explicit LAN override applies only to LAN phones');
 expectUrl($c->baseUrl('SEP00EBD5CA2776'), $vpn, 'VPN On remains correct');
 $p->manual = '192.168.0.40';
 expectUrl($c->baseUrl('SEP00EBD5CA227A'), 'http://192.168.0.40/sccp-manager', 'LAN override');
