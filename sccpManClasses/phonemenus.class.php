@@ -71,7 +71,7 @@ class phonemenus
         if (!is_array($posted)) throw new \InvalidArgumentException('Invalid service settings.');
         $flags = array();
         foreach ($this->serviceFlags() as $id => $unused) {
-            $flags[$id] = isset($posted[$id]) && $posted[$id] === '1';
+            $flags[$id] = !in_array($id, array('messages', 'alarms'), true) && isset($posted[$id]) && $posted[$id] === '1';
         }
         $old = $this->parent->getConfig('phonecontent_builtin_services');
         $this->parent->setConfig('phonecontent_builtin_services', $flags);
