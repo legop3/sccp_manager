@@ -5,6 +5,16 @@ use FreePBX\modules\Sccp_manager\phonevoicemail;
 function verify($ok, $message) { if (!$ok) throw new RuntimeException($message); }
 
 $raw = "[message]\norigtime=1782735000\ncallerid=\"Alicia Q\" <15005550124>\nduration=47\nmsg_id=1782735000-00000123\n";
+$callbackSamples=[
+    ['number'=>'111','name'=>'Carpet','expected'=>'111'],
+    ['number'=>'','name'=>'150','expected'=>'150'],
+    ['number'=>'','name'=>'Anonymous','expected'=>''],
+    ['number'=>'9111','name'=>'Carpet','expected'=>'9111']
+];
+foreach ($callbackSamples as $sample) {
+    verify(phonevoicemail::callbackNumber($sample)===$sample['expected'],
+        'Voicemail callback uses a validated caller number');
+}
 $m = phonevoicemail::parseMessage($raw, 'INBOX', 'msg0002.txt');
 verify($m !== null, 'Message parsing');
 verify($m['name']==='Alicia Q', 'Caller name');
