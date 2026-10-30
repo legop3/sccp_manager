@@ -404,6 +404,13 @@ PHP;
         $this->publishFile($this->public . '/phone.php', $script . "\n");
     }
 
+    private function publishServiceEndpoint()
+    {
+        $src = __DIR__ . '/../services/phone-service.php';
+        if (!is_file($src)) throw new \\RuntimeException('Built-in services endpoint missing.');
+        $this->publishFile($this->public . '/service.php', file_get_contents($src));
+    }
+
     private function publishVoicemailEndpoint()
     {
         $script = <<<'PHP'
@@ -544,6 +551,7 @@ PHP;
         if ($base === '') throw new \RuntimeException('Set the PBX address in Phone Content before publishing the directory.');
         $this->publishPhoneEndpoint();
         $this->publishVoicemailEndpoint();
+        $this->publishServiceEndpoint();
         $labels = $this->directoryLabels();
         $choices = $this->extensionChoices();
         $extensions = $this->extensions();
@@ -1083,6 +1091,8 @@ PHP;
         $action = (string) ($post['content_action'] ?? '');
         switch ($action) {
             case 'address': $this->setAddress($post['pbx_address'] ?? ''); return 'Directory URL updated.';
+            case 'services_save': $this->parent->phonemenus->saveServices($post['services'] ?? array());
+                return 'Enabled services saved; phone menu updated immediately.';
             case 'save_menus': $this->parent->phonemenus->save($post['menu_config'] ?? '');
                 return 'Services and Messages menus published.';
             case 'directory_text': $this->saveDirectoryLabels($post['directory_text'] ?? null);
