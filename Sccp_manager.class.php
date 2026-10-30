@@ -1428,45 +1428,51 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             }
         }
 
-        // Per-device managed URLs must follow the VPN profile, not the
-        // FreePBX LAN address. Never overwrite explicitly customized URLs.
+        // One effective address for each module-managed XML endpoint.
         if ($sccp_native) {
-            $phoneBase = $this->phonecontent->baseUrl($dev_id);
+            $base = $this->phonecontent->baseUrl($dev_id);
+            $lanBase = $this->phonecontent->lanBaseUrl();
+            $vpnHost = $this->phonecontent->vpnServiceHost();
+            $vpnBase = $vpnHost !== '' ? 'http://' . $vpnHost . '/sccp-manager' : '';
             $globalBase = $this->phonecontent->baseUrl();
-            if ($phoneBase !== '') {
+            $knownBases = array_values(array_unique(array_filter(array(
+                $lanBase, $vpnBase, $globalBase
+            ))));
+            if ($base !== '') {
                 foreach (array(
                     'dev_directoryURL' => '/phone.php?doc=contacts-1',
                     'dev_servicesURL' => '/phone.php?doc=services'
                 ) as $key => $suffix) {
+                    $known = array('');
+                    foreach ($knownBases as $candidate) $known[] = $candidate . $suffix;
+                    $saved = (string) $this->getConfig('phonecontent_managed_' . $key);
+                    if ($saved !== '') $known[] = $saved;
                     $globalUrl = (string) ($data_value[$key] ?? '');
                     $deviceUrl = (string) ($dev_config[$key] ?? '');
-                    $isManaged = $globalUrl === '' ||
-                        $globalUrl === $this->getConfig('phonecontent_managed_' . $key) ||
-                        $globalUrl === $globalBase . $suffix;
-                    if ($isManaged && ($deviceUrl === '' || $deviceUrl === $globalUrl)) {
-                        $dev_config[$key] = $phoneBase . $suffix;
+                    if (in_array($globalUrl, $known, true) &&
+                        in_array($deviceUrl, $known, true)) {
+                        $dev_config[$key] = $base . $suffix;
                     }
                 }
-            }
-        }
 
-        // When notification pushes are configured, provision their Cisco XML
-        // authentication endpoint. Preserve an explicitly configured URL.
-        if ($sccp_native && $this->getConfig('phonecontent_push_secret') &&
-            $this->phonecontent->baseUrl() !== '') {
-            $managedAuth = $this->phonecontent->baseUrl() . '/notification-auth.php';
-            $deviceAuth = (string)($dev_config['dev_authenticationURL'] ?? '');
-            $globalAuth = (string)($data_value['dev_authenticationURL'] ?? '');
-            // Upgrade only URLs previously installed by this module; leave
-            // administrator-specified authentication endpoints untouched.
-            $isManaged = static function ($value) use ($managedAuth) {
-                return $value === '' || $value === $managedAuth ||
-                    strpos($value, $managedAuth . '?token=') === 0;
-            };
-            if ($isManaged($deviceAuth) && $isManaged($globalAuth)) {
-                $dev_config['dev_authenticationURL'] = $managedAuth . '?token=' .
-                    hash_hmac('sha256', strtoupper((string)$dev_id),
-                        (string)$this->getConfig('phonecontent_push_secret'));
+                if ($this->getConfig('phonecontent_push_secret')) {
+                    $authSuffix = '/notification-auth.php';
+                    $managedAuth = static function ($value) use ($knownBases, $authSuffix) {
+                        if ($value === '') return true;
+                        foreach ($knownBases as $candidate) {
+                            if ($value === $candidate . $authSuffix ||
+                                strpos($value, $candidate . $authSuffix . '?token=') === 0) return true;
+                        }
+                        return false;
+                    };
+                    $deviceAuth = (string) ($dev_config['dev_authenticationURL'] ?? '');
+                    $globalAuth = (string) ($data_value['dev_authenticationURL'] ?? '');
+                    if ($managedAuth($deviceAuth) && $managedAuth($globalAuth)) {
+                        $dev_config['dev_authenticationURL'] = $base . $authSuffix . '?token=' .
+                            hash_hmac('sha256', strtoupper((string) $dev_id),
+                                (string) $this->getConfig('phonecontent_push_secret'));
+                    }
+                }
             }
         }
 
