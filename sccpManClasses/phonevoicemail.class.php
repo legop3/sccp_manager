@@ -299,12 +299,19 @@ class phonevoicemail
         return $first;
     }
 
+    /** A finished playback channel may linger in CoreShowChannels after hangup. */
+    public static function blocksVoicemailPlayback(array $event)
+    {
+        return !(strcasecmp((string)($event['ChannelStateDesc'] ?? ''), 'Down') === 0 &&
+            (string)($event['Context'] ?? '') === 'sccp-manager-voicemail-play');
+    }
+
     private function assertNotOnCall($line)
     {
         $r = $this->ami(array('Action'=>'CoreShowChannels'), true);
         foreach ($r['__events'] as $event) {
             if (($event['Event'] ?? '') !== 'CoreShowChannel') continue;
-            if (preg_match('/^SCCP\/' . preg_quote($line, '/') . '(?:-|$|\/)/i', $event['Channel'] ?? '')) {
+            if (preg_match('/^SCCP\/' . preg_quote($line, '/') . '(?:-|$|\/)/i', $event['Channel'] ?? '') && self::blocksVoicemailPlayback($event)) {
                 throw new \RuntimeException('Phone is already on a call. Finish the call before playing voicemail.');
             }
         }
