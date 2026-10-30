@@ -58,12 +58,15 @@ final class notificationDelivery {
             error_log('SCCP notification destination lookup: '.$e->getMessage());
             return false;
         }
-        // CDR missed calls are addressed to the SCCP line; voicemail events
-        // are addressed to the mailbox. Neither substitutes for the other.
-        $target = $kind === 'missed' ? $identity['line'] : $identity['mailbox'];
-        foreach ($extensions as $ext) {
-            if ($target === (string)$ext) return true;
-        }
+        return self::matchesDestination($identity, $kind, $extensions);
+    }
+
+    public static function matchesDestination(array $identity, $kind, array $extensions) {
+        // CDR missed calls address the SCCP line; voicemail addresses the mailbox.
+        $target = $kind === 'missed' ? (string)($identity['line'] ?? '') :
+            (string)($identity['mailbox'] ?? '');
+        if ($target === '') return false;
+        foreach ($extensions as $ext) if ($target === (string)$ext) return true;
         return false;
     }
 
