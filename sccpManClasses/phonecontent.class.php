@@ -271,35 +271,41 @@ class phonecontent
         return long2ip(($network & $mask) + 1);
     }
 
+    public function lanBaseUrl()
+    {
+        $vpn = $this->parent->vpnSettings();
+        $host = trim((string) ($vpn['pbx_ip'] ?? ''));
+        if ($host === '' && method_exists($this->parent, 'vpnDetectedPbxIp')) {
+            $host = $this->parent->vpnDetectedPbxIp();
+        }
+        return filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
+            ? 'http://' . $host . '/sccp-manager' : '';
+    }
+
+    /** Resolve the effective network for a specific handset only. */
     public function baseUrl($deviceId = null)
     {
-        // Explicit overrides remain authoritative for all phones.
         $manual = trim((string) ($this->parent->getConfig('phonecontent_host') ?: ''));
         if ($manual !== '') {
-            $host = $manual;
-        } else {
-            $vpn = $this->parent->vpnSettings();
-            $vpnHost = $this->vpnServiceHost();
-            $vpnPhone = $deviceId !== null &&
-                $this->parent->vpnprovisioning->enabledFor($deviceId);
-
-            // For dynamic Cisco XML pages (voicemail, menus), use the same
-            // address on which the phone reached us. Do not trust arbitrary
-            // Host headers or change admin-initiated publishing defaults.
-            $requestHost = (string) ($_SERVER['HTTP_HOST'] ?? '');
-            $phonePath = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
-            $vpnRequest = $deviceId === null && $vpnHost !== '' &&
-                $requestHost === $vpnHost &&
-                strpos($phonePath, '/sccp-manager/') !== false;
-
-            $host = ($vpnPhone || $vpnRequest) && $vpnHost !== ''
-                ? $vpnHost : (string) ($vpn['pbx_ip'] ?? '');
-            if ($host === '' && method_exists($this->parent, 'vpnDetectedPbxIp')) {
-                $host = $this->parent->vpnDetectedPbxIp();
-            }
+            return filter_var($manual, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
+                ? 'http://' . $manual . '/sccp-manager' : '';
         }
-        if (!filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) return '';
-        return 'http://' . $host . '/sccp-manager';
+        if ($deviceId !== null && $this->parent->vpnprovisioning->enabledFor($deviceId)) {
+            $vpnHost = $this->vpnServiceHost();
+            if ($vpnHost !== '') return 'http://' . $vpnHost . '/sccp-manager';
+        }
+        return $this->lanBaseUrl();
+    }
+
+    /** Subsequent XML navigation uses the same known interface as the request. */
+    public function requestBaseUrl()
+    {
+        $host = strtolower(preg_replace('/:[0-9]+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? '')));
+        $vpnHost = $this->vpnServiceHost();
+        if ($vpnHost !== '' && $host === $vpnHost) {
+            return 'http://' . $vpnHost . '/sccp-manager';
+        }
+        return $this->baseUrl();
     }
 
     public function setAddress($value)
@@ -384,10 +390,20 @@ header('X-Content-Type-Options: nosniff');
 $body = file_get_contents($path);
 $lanBase = __SCCP_LAN_BASE__;
 $vpnBase = __SCCP_VPN_BASE__;
-$host = (string) ($_SERVER['HTTP_HOST'] ?? '');
-if ($vpnBase !== '' && $host === parse_url($vpnBase, PHP_URL_HOST) &&
-    $lanBase !== '' && $lanBase !== $vpnBase) {
-    $body = str_replace($lanBase . '/', $vpnBase . '/', $body);
+$publishedBase = __SCCP_PUBLISHED_BASE__;
+$host = strtolower(preg_replace('/:[0-9]+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? '')));
+$target = '';
+if ($lanBase !== '' && $host === parse_url($lanBase, PHP_URL_HOST)) {
+    $target = $lanBase;
+} elseif ($vpnBase !== '' && $host === parse_url($vpnBase, PHP_URL_HOST)) {
+    $target = $vpnBase;
+}
+if ($target !== '') {
+    foreach (array_unique(array_filter(array($lanBase, $vpnBase, $publishedBase))) as $source) {
+        if ($source !== $target) {
+            $body = str_replace($source . '/', $target . '/', $body);
+        }
+    }
 }
 echo $body;
 PHP;
@@ -395,10 +411,11 @@ PHP;
         // LAN base when the phone actually fetched the page via the VPN address.
         // This keeps the very same shared menu files usable by LAN-only phones.
         $script = str_replace(
-            array('__SCCP_LAN_BASE__', '__SCCP_VPN_BASE__'),
-            array(var_export($this->baseUrl(), true),
+            array('__SCCP_LAN_BASE__', '__SCCP_VPN_BASE__', '__SCCP_PUBLISHED_BASE__'),
+            array(var_export($this->lanBaseUrl(), true),
                 var_export($this->vpnServiceHost() !== ''
-                    ? 'http://' . $this->vpnServiceHost() . '/sccp-manager' : '', true)),
+                    ? 'http://' . $this->vpnServiceHost() . '/sccp-manager' : '', true),
+                var_export($this->baseUrl(), true)),
             $script
         );
         $this->publishFile($this->public . '/phone.php', $script . "\n");
