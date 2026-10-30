@@ -69,6 +69,27 @@ if (!function_exists('sccp_manager_content_install')) {
         @chgrp($dir, 'asterisk');
         @chmod($dir, 0755);
         outn('<li>Phone Content: static Cisco directory/preview path ready.</li>');
+        // Persist message inboxes and wake-up call schedules under Asterisk state.
+        $store='/var/spool/asterisk/sccp-manager-services.json';
+        if (!file_exists($store) && !is_link($store)) {
+            @file_put_contents($store, json_encode(array('messages'=>array(), 'alarms'=>array())), LOCK_EX);
+        }
+        if (is_file($store) && !is_link($store)) {
+            @chown($store,'asterisk'); @chgrp($store,'asterisk'); @chmod($store,0600);
+        }
+        // Root-only scheduled registration. This does not start a new daemon.
+        $tick=__DIR__.'/scripts/phone-services-tick.php';
+        $cron='/etc/cron.d/sccp-manager-services';
+        if (is_file($tick) && !is_link($cron)) {
+            $line="* * * * * asterisk /usr/bin/php ". $tick ." >/dev/null 2>&1\n";
+            if (@file_put_contents($cron,$line,LOCK_EX)!==false) {
+                @chmod($cron,0644);
+                outn('<li>Built-in phone services: message storage and wake-up call scheduler ready.</li>');
+            } else {
+                outn('<li>Phone services: unable to install scheduled wake-up call check.</li>');
+            }
+        }
+
 
         // FreePBX 17 keeps extensions_custom.conf across fwconsole reloads.
         // Install an isolated, module-owned dialplan file and a single include.
