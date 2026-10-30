@@ -45,7 +45,12 @@ class phoneservices {
         return $base.'/service.php?'.http_build_query($query,'','&',PHP_QUERY_RFC3986);
     }
     public function url($device) {
-        return $this->requestUrl(['phone'=>$device,'key'=>$this->module->phonevoicemail->tokenForDevice($device)]);
+        // Provision with the VPN-facing address for Cisco VPN handsets.
+        $base=$this->module->phonecontent->baseUrl($device);
+        if($base==='') throw new \RuntimeException('Phone Content address is not configured.');
+        return $base.'/service.php?'.http_build_query([
+            'phone'=>$device,'key'=>$this->module->phonevoicemail->tokenForDevice($device)
+        ],'','&',PHP_QUERY_RFC3986);
     }
     private function auth($query) {
         $device=(string)($query['phone']??'');
