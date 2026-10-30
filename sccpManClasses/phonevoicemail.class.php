@@ -37,7 +37,7 @@ class phonevoicemail
         if (!preg_match('/^([0-9]{1,16})(?:@default)?$/D', $mailbox, $matches)) {
             throw new \RuntimeException('Unsupported voicemail mailbox for SCCP line ' . $line . ': ' . $mailbox);
         }
-        return array('line' => $line, 'mailbox' => $matches[1]);
+        return array('line' => $line, 'mailbox' => $matches[1], 'extension' => $matches[1]);
     }
 
     public function lineForDevice($device) { return $this->destinationForDevice($device)['line']; }
