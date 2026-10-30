@@ -2,11 +2,21 @@
 error_reporting(E_ALL);
 require __DIR__ . '/../sccpManClasses/notificationDelivery.class.php';
 require __DIR__ . '/../sccpManClasses/notificationWorker.class.php';
+require __DIR__ . '/../sccpManClasses/phonevoicemail.class.php';
+use FreePBX\modules\Sccp_manager\phonevoicemail;
 use FreePBX\modules\Sccp_manager\notificationDelivery;
 use FreePBX\modules\Sccp_manager\notificationWorker;
 function checkIdentity($condition,$message) { if (!$condition) throw new RuntimeException($message); }
-$shared=['line'=>'9111','mailbox'=>'111','extension'=>'111'];
-$normal=['line'=>'150','mailbox'=>'150','extension'=>'150'];
+$shared=phonevoicemail::identityFromConfig('9111',['mailbox'=>'111@default','cid_num'=>'111']);
+$normal=phonevoicemail::identityFromConfig('150',['mailbox'=>'150','cid_num'=>'150']);
+$independent=phonevoicemail::identityFromConfig('825',['mailbox'=>'900@default','cid_num'=>'175']);
+checkIdentity($shared['line']==='9111' && $shared['mailbox']==='111' && $shared['extension']==='111',
+    'SCCP line, voicemail mailbox and presented caller ID are independent');
+checkIdentity($independent['mailbox']==='900' && $independent['extension']==='175',
+    'Public caller ID never comes from voicemail mailbox');
+checkIdentity(phonevoicemail::identityFromConfig('150',['mailbox'=>'','cid_num'=>''])['extension']==='150',
+    'Unconfigured caller ID falls back to physical line, not mailbox');
+
 checkIdentity(notificationDelivery::matchesDestination($shared,'missed',['9111']),'Missed call is delivered to physical SCCP line');
 checkIdentity(!notificationDelivery::matchesDestination($shared,'missed',['111']),'Missed call is not routed by mailbox');
 checkIdentity(notificationDelivery::matchesDestination($shared,'voicemail',['111']),'Shared voicemail is delivered by mailbox');
