@@ -53,6 +53,35 @@ class phonemenus
         return $saved;
     }
 
+    /** Shared service flags. Existing installs start with only weather enabled. */
+    public function serviceFlags()
+    {
+        $saved = $this->parent->getConfig('phonecontent_builtin_services');
+        $defaults = array('weather' => true, 'messages' => false, 'alarms' => false,
+            'news' => false, 'games' => false);
+        if (!is_array($saved)) return $defaults;
+        foreach ($defaults as $id => $enabled) {
+            if (array_key_exists($id, $saved)) $defaults[$id] = $saved[$id] === true;
+        }
+        return $defaults;
+    }
+
+    public function saveServices($posted)
+    {
+        if (!is_array($posted)) throw new \\InvalidArgumentException('Invalid service settings.');
+        $flags = array();
+        foreach ($this->serviceFlags() as $id => $unused) {
+            $flags[$id] = isset($posted[$id]) && $posted[$id] === '1';
+        }
+        $old = $this->parent->getConfig('phonecontent_builtin_services');
+        $this->parent->setConfig('phonecontent_builtin_services', $flags);
+        try { $this->parent->phonecontent->publishDirectory(); }
+        catch (\\Throwable $e) {
+            $this->parent->setConfig('phonecontent_builtin_services', $old);
+            throw $e;
+        }
+    }
+
     private function label($text, $max = 48)
     {
         if (!is_string($text)) throw new \InvalidArgumentException('Expected text.');
@@ -255,12 +284,10 @@ class phonemenus
     }
 
     /** Inject into final per-phone SEP document BEFORE the existing signing step. */
-    public function applyProvisioning(\SimpleXMLElement $phone, $deviceId = '')
+    public function applyProvisioning(\\SimpleXMLElement $phone, $deviceId = '')
     {
-        $config = $this->config();
-        if (empty($config['enabled'])) return;
         $base = $this->parent->phonecontent->baseUrl();
-        if ($base === '') throw new \RuntimeException('Phone Content PBX address is required for custom menus.');
+        if ($base === '') throw new \\RuntimeException('Phone Content PBX address required.');
         $root = dom_import_simplexml($phone);
         $doc = $root->ownerDocument;
         foreach (iterator_to_array($root->getElementsByTagName('phoneServices')) as $existing) {
@@ -268,27 +295,22 @@ class phonemenus
         }
         $services = $root->appendChild($doc->createElement('phoneServices'));
         $this->child($doc, $services, 'provisioning', '0');
-        // Exactly one direct entry for the physical Directories button.
-        // The 7945G receives a CiscoIPPhoneDirectory directly, with an All softkey.
-        $directory = $services->appendChild($doc->createElement('phoneService'));
-        $directory->setAttribute('type', '1');
-        $directory->setAttribute('category', '0');
         $labels = $this->parent->phonecontent->directoryLabels();
-        $this->child($doc, $directory, 'name', $labels['contacts_title']);
-        $this->child($doc, $directory, 'url', $base . '/phone.php?doc=contacts-1');
-        $this->child($doc, $directory, 'vendor', '');
-        $this->child($doc, $directory, 'version', '');
-        foreach (array('services' => '0', 'messages' => '2') as $section => $type) {
-            foreach ($config[$section] as $i => $item) {
-                $entry = $services->appendChild($doc->createElement('phoneService'));
-                $entry->setAttribute('type', $type);
-                $entry->setAttribute('category', '0');
-                $this->child($doc, $entry, 'name', $item['name']);
-                $this->child($doc, $entry, 'url', $item['type'] === 'visualvoicemail' ?
-                    $this->parent->phonevoicemail->serviceUrl($deviceId) :
-                    $this->urlFor($item, $section, $i, $base));
-                $this->child($doc, $entry, 'vendor', '');
-                $this->child($doc, $entry, 'version', '');
+        $entries = array(
+            array('type' => '1', 'name' => $labels['contacts_title'],
+                'url' => $base . '/phone.php?doc=contacts-1'),
+            array('type' => '0', 'name' => 'Services',
+                'url' => $base . '/phone.php?doc=services'),
+            array('type' => '2', 'name' => 'Voicemail',
+                'url' => $this->parent->phonevoicemail->serviceUrl($deviceId))
+        );
+        foreach ($entries as $item) {
+            $entry = $services->appendChild($doc->createElement('phoneService'));
+            $entry->setAttribute('type', $item['type']);
+            $entry->setAttribute('category', '0');
+            foreach (array('name' => $item['name'], 'url' => $item['url'],
+                'vendor' => '', 'version' => '') as $name => $value) {
+                $this->child($doc, $entry, $name, $value);
             }
         }
     }
