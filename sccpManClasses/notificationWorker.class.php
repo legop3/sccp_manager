@@ -19,6 +19,7 @@ final class notificationWorker {
         $now=time();
         $vm=new phonevoicemail($this->module);
         $inbox=$this->voicemailInbox($vm);
+        $recordings=$this->allVoicemail($vm);
         if (!isset($state['initialized'])) {
             $state=['initialized'=>$now, 'vm_ids'=>$this->inboxIds($inbox), 'seen'=>[], 'scheduled_at'=>$now];
             $this->module->setConfig('phonecontent_notification_state',$state);
@@ -62,17 +63,9 @@ final class notificationWorker {
                 $key=(string)$call['uniqueid'].'/'.(string)$call['dst'];
                 if (isset($seen[$key])) continue;
                 $seen[$key]=$now;
-                // CDR src can remain the internal SCCP line even when its
-                // configured caller identity is the shared public extension.
-                if (!empty($call['origin_sccp_line'])) {
-                    $public=$this->mailboxForLine((string)$call['origin_sccp_line']);
-                    if ($public!=='' && $public!==(string)$call['origin_sccp_line']) {
-                        $call['src']=$public;
-                        $call['clid']=$public;
-                    }
-                }
-                // A stored voicemail takes precedence over the missed-call popup.
-                if (self::hasRecordedVoicemail($call,$inbox,$this->mailboxForLine((string)$call['dst']))) continue;
+                // Compare against both new and heard recordings: a voicemail
+                // can be moved from INBOX to Old before this polling pass.
+                if (self::hasRecordedVoicemail($call,$recordings,$this->mailboxForLine((string)$call['dst']))) continue;
                 // Do not send previously unseen historical missed calls on first enable.
                 if (strtotime((string)$call['calldate'])<$now-240) continue;
                 $when=strtotime((string)$call['calldate']) ?: $now;
@@ -141,6 +134,16 @@ final class notificationWorker {
         return false;
     }
 
+    private function allVoicemail(phonevoicemail $vm) {
+        $result=[];
+        foreach (glob('/var/spool/asterisk/voicemail/default/*',GLOB_ONLYDIR)?:[] as $dir) {
+            $mailbox=basename($dir);
+            if (!preg_match('/^[0-9]{1,16}$/D',$mailbox)) continue;
+            $result[$mailbox]=$vm->listMessages($mailbox);
+        }
+        return $result;
+    }
+
     private function voicemailInbox(phonevoicemail $vm) {
         $result=[];
         foreach (glob('/var/spool/asterisk/voicemail/default/*/INBOX',GLOB_ONLYDIR)?:[] as $dir) {
@@ -207,25 +210,18 @@ final class notificationWorker {
                         $targets[$ext]['candidate']=$row;
                 }
             }
-            // Preserve the original caller from the linked call, not an
-            // internal Dial/VoiceMail leg that may have an empty src.
+            // Pick the originating leg's CDR caller ID. Never infer the
+            // caller from SCCP/<line>, which is a device address, not CID.
             $origin='';
-            $originSccp='';
+            $originClid='';
             foreach ($group as $entry) {
-                $from=(string)($entry['channel']??'');
-                if (preg_match('~^SCCP/([0-9]{1,16})(?=[^0-9]|$)~i',$from,$m)) {
-                    $origin=$m[1];
-                    $originSccp=$m[1];
-                    break;
-                }
-            }
-            if ($origin==='') {
-                foreach ($group as $entry) {
-                    $source=(string)($entry['src']??'');
-                    if (preg_match('/^[+0-9*#]{1,32}$/D',$source)) {
-                        $origin=$source;
-                        break;
-                    }
+                $source=(string)($entry['src']??'');
+                $channel=(string)($entry['channel']??'');
+                if ($source==='' || !preg_match('/^[+0-9*#]{1,32}$/D',$source)) continue;
+                if ($origin==='' || preg_match('~^(SCCP|PJSIP|SIP)/~i',$channel)) {
+                    $origin=$source;
+                    $originClid=(string)($entry['clid']??'');
+                    if (preg_match('~^(SCCP|PJSIP|SIP)/~i',$channel)) break;
                 }
             }
             // Wait until all CDR legs have finished. This avoids declaring
@@ -234,12 +230,13 @@ final class notificationWorker {
             foreach ($targets as $ext=>$state) {
                 if ($state['answered'] || !$state['candidate']) continue;
                 $row=$state['candidate'];
-                if ($origin!=='' && $origin!==$ext) {
-                    $row['src']=$origin;
-                    if (trim((string)($row['clid']??''))==='') $row['clid']=$origin;
-                }
+                // Use CDR caller identity, not the originating SCCP channel
+                // number: those can be different (e.g. 9111 presents 111).
+                // Prefer the actual source CDR leg for linked calls.
+                $row['src']=$origin;
+                $sourceClid=trim($originClid);
+                if ($sourceClid!=='') $row['clid']=$sourceClid;
                 $row['dst']=$ext;
-                if ($originSccp!=='') $row['origin_sccp_line']=$originSccp;
                 $row['uniqueid']=$linked;
                 $row['disposition']='NO ANSWER';
                 $found[]=$row;
