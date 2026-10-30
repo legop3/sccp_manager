@@ -35,9 +35,9 @@ final class notificationDelivery {
         return null;
     }
 
-    private function publicDocument($xml) {
+    private function publicDocument($xml, $device=null) {
         $dir=$this->module->phonecontent->publicPath();
-        $base=$this->module->phonecontent->baseUrl();
+        $base=$this->module->phonecontent->baseUrl($device);
         if (!is_dir($dir) || is_link($dir) || $base==='') return null;
         $name='notification-'.bin2hex(random_bytes(12)).'.xml';
         if (file_put_contents($dir.'/'.$name,$xml,LOCK_EX)===false) return null;
@@ -114,7 +114,9 @@ final class notificationDelivery {
             if (!$this->forDevice($device,$extensions,$kind)) continue;
             // Every handset needs its own authenticated voicemail links.
             // Do not publish the bearer token in a shared document.
-            $deviceUrl=$url;
+            $deviceUrl=$url ? $this->module->phonecontent->baseUrl($device) . (string)parse_url($url, PHP_URL_PATH) . '?' . (string)parse_url($url, PHP_URL_QUERY) : null;
+            // A shared document is hosted once, but the recipient must fetch it
+            // through its own LAN/VPN address.
             if ($kind==='voicemail' && $options['style']==='text') {
                 $actions=[];
                 try {
@@ -139,9 +141,9 @@ final class notificationDelivery {
                     error_log('SCCP notification voicemail actions: '.$e->getMessage());
                 }
                 $actions['Dismiss']='SoftKey:Exit';
-                $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,$actions,$options);
+                $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,$actions,$options,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
-                $deviceUrl=$this->publicDocument($graphic);
+                $deviceUrl=$this->publicDocument($graphic,$device);
             } elseif ($kind==='missed' && $options['style']==='text') {
                 // Present the user's public number, not the SCCP-only line.
                 $identity=(new phonevoicemail($this->module))->destinationForDevice($device);
@@ -150,7 +152,7 @@ final class notificationDelivery {
                 $number=(string)($fields['number']??'');
                 if (preg_match('/^[+0-9*#]{1,32}$/D',$number)) $actions['Call Back']='Dial:'.$number;
                 $actions['Dismiss']='SoftKey:Exit';
-                $graphic=phoneNotifications::graphic($this->module,'missed',$fields,$actions,$options);
+                $graphic=phoneNotifications::graphic($this->module,'missed',$fields,$actions,$options,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->publicDocument($graphic);
             }
