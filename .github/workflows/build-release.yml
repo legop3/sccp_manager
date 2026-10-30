@@ -36,7 +36,7 @@ jobs:
           grep -q '<version>17.1.85</version>' module.xml
           for file in Sccp_manager.class.php page.sccp_content.php sccpManClasses/phonecontent.class.php sccpManClasses/phonemenus.class.php sccpManClasses/phoneservices.class.php views/content.services.php services/service-entry.php scripts/phone-services-tick.php install.php uninstall.php; do
             if ! php -l "$file"; then
-              gh api "repos/${{ github.repository }}/statuses/${{ github.sha }}" -f state=failure -f context="sccp/lint-file" -f description="Failed PHP lint: $file" >/dev/null
+              gh api "repos/${{ github.repository }}/statuses/${{ github.sha }}" -f state=failure -f context="sccp/lint/$file" -f description="PHP lint failed" >/dev/null
               exit 1
             fi
           done
