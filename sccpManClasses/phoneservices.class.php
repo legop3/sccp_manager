@@ -262,14 +262,26 @@ class phoneservices {
                 });
                 $this->xml('Message',$record?'From '.$record['line']."\n".$record['text']:'Message unavailable.');return;
             }
-            $rows=[['Compose',$route(['app'=>'messages','op'=>'compose'])]];
-            $messages=$this->transact(function(&$s)use($device){
-                return array_reverse(array_values(array_filter($s['messages']??[],
-                    function($m)use($device){return ($m['to']??'')===$device;})));
-            });
-            foreach(array_slice($messages,0,20) as $m)$rows[]=['Ext '.$m['line'].': '.substr($m['text'],0,24),
-                $route(['app'=>'messages','op'=>'read','id'=>$m['id']])];
-            $this->menu('Messages',$rows);return;
+            if($op==='inbox' || $op==='sent') {
+                $messages=$this->transact(function(&$s)use($device,$op){
+                    $key=$op==='sent'?'from':'to';
+                    return array_reverse(array_values(array_filter($s['messages']??[],
+                        function($m)use($device,$key){return ($m[$key]??'')===$device;})));
+                });
+                if(!$messages){$this->xml('Messages','No messages here.');return;}
+                $rows=[];
+                foreach(array_slice($messages,0,20) as $m) {
+                    $label=$op==='sent'?'To '.$m['to']:'From ext '.$m['line'];
+                    $rows[]=[$label.': '.substr($m['text'],0,20),
+                        $route(['app'=>'messages','op'=>'read','id'=>$m['id']])];
+                }
+                $this->menu($op==='sent'?'Sent Messages':'Inbox',$rows);return;
+            }
+            $this->menu('Messages',[
+                ['Compose',$route(['app'=>'messages','op'=>'compose'])],
+                ['Inbox',$route(['app'=>'messages','op'=>'inbox'])],
+                ['Sent',$route(['app'=>'messages','op'=>'sent'])]
+            ]);return;
         }
         if($app==='alarms'){
             if($op==='set'){
