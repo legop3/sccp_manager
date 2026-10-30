@@ -1422,6 +1422,28 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
             }
         }
 
+        // Per-device managed URLs must follow the VPN profile, not the
+        // FreePBX LAN address. Never overwrite explicitly customized URLs.
+        if ($sccp_native) {
+            $phoneBase = $this->phonecontent->baseUrl($dev_id);
+            $globalBase = $this->phonecontent->baseUrl();
+            if ($phoneBase !== '') {
+                foreach (array(
+                    'dev_directoryURL' => '/phone.php?doc=contacts-1',
+                    'dev_servicesURL' => '/phone.php?doc=services'
+                ) as $key => $suffix) {
+                    $globalUrl = (string) ($data_value[$key] ?? '');
+                    $deviceUrl = (string) ($dev_config[$key] ?? '');
+                    $isManaged = $globalUrl === '' ||
+                        $globalUrl === $this->getConfig('phonecontent_managed_' . $key) ||
+                        $globalUrl === $globalBase . $suffix;
+                    if ($isManaged && ($deviceUrl === '' || $deviceUrl === $globalUrl)) {
+                        $dev_config[$key] = $phoneBase . $suffix;
+                    }
+                }
+            }
+        }
+
         // When notification pushes are configured, provision their Cisco XML
         // authentication endpoint. Preserve an explicitly configured URL.
         if ($sccp_native && $this->getConfig('phonecontent_push_secret') &&

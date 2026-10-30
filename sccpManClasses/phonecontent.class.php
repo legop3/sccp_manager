@@ -251,16 +251,54 @@ class phonecontent
         }
     }
 
-    public function baseUrl()
+    /**
+     * ocserv assigns the host side of its VPN pool to the first usable IPv4
+     * address. Use it for VPN handsets, independently of a possibly overlapping
+     * LAN subnet. A manual Phone Content host always wins.
+     */
+    public function vpnServiceHost()
     {
-        $vpn = method_exists($this->parent, 'vpnSettings') ? $this->parent->vpnSettings() : array();
-        $host = trim((string) ($this->parent->getConfig('phonecontent_host') ?: ($vpn['pbx_ip'] ?? '')));
-        if ($host === '' && method_exists($this->parent, 'vpnDetectedPbxIp')) {
-            $host = $this->parent->vpnDetectedPbxIp();
+        $vpn = $this->parent->vpnSettings();
+        if (empty($vpn['enabled'])) return '';
+        $subnet = explode('/', (string) ($vpn['vpn_subnet'] ?? ''), 2);
+        if (count($subnet) !== 2 || !ctype_digit($subnet[1])) return '';
+        $bits = (int) $subnet[1];
+        if ($bits < 1 || $bits > 30 ||
+            !filter_var($subnet[0], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) return '';
+        $network = ip2long($subnet[0]);
+        if ($network === false) return '';
+        $mask = (-1 << (32 - $bits)) & 0xffffffff;
+        return long2ip(($network & $mask) + 1);
+    }
+
+    public function baseUrl($deviceId = null)
+    {
+        // Explicit overrides remain authoritative for all phones.
+        $manual = trim((string) ($this->parent->getConfig('phonecontent_host') ?: ''));
+        if ($manual !== '') {
+            $host = $manual;
+        } else {
+            $vpn = $this->parent->vpnSettings();
+            $vpnHost = $this->vpnServiceHost();
+            $vpnPhone = $deviceId !== null &&
+                $this->parent->vpnprovisioning->enabledFor($deviceId);
+
+            // For dynamic Cisco XML pages (voicemail, menus), use the same
+            // address on which the phone reached us. Do not trust arbitrary
+            // Host headers or change admin-initiated publishing defaults.
+            $requestHost = (string) ($_SERVER['HTTP_HOST'] ?? '');
+            $phonePath = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+            $vpnRequest = $deviceId === null && $vpnHost !== '' &&
+                $requestHost === $vpnHost &&
+                strpos($phonePath, '/sccp-manager/') !== false;
+
+            $host = ($vpnPhone || $vpnRequest) && $vpnHost !== ''
+                ? $vpnHost : (string) ($vpn['pbx_ip'] ?? '');
+            if ($host === '' && method_exists($this->parent, 'vpnDetectedPbxIp')) {
+                $host = $this->parent->vpnDetectedPbxIp();
+            }
         }
-        if (!filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            return '';
-        }
+        if (!filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) return '';
         return 'http://' . $host . '/sccp-manager';
     }
 
@@ -343,8 +381,26 @@ if (!is_file($path) || is_link($path)) {
 header('Content-Type: text/xml; charset=UTF-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
-readfile($path);
+$body = file_get_contents($path);
+$lanBase = __SCCP_LAN_BASE__;
+$vpnBase = __SCCP_VPN_BASE__;
+$host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+if ($vpnBase !== '' && $host === parse_url($vpnBase, PHP_URL_HOST) &&
+    $lanBase !== '' && $lanBase !== $vpnBase) {
+    $body = str_replace($lanBase . '/', $vpnBase . '/', $body);
+}
+echo $body;
 PHP;
+        // Published menus contain absolute managed URLs. Rewrite only our own
+        // LAN base when the phone actually fetched the page via the VPN address.
+        // This keeps the very same shared menu files usable by LAN-only phones.
+        $script = str_replace(
+            array('__SCCP_LAN_BASE__', '__SCCP_VPN_BASE__'),
+            array(var_export($this->baseUrl(), true),
+                var_export($this->vpnServiceHost() !== ''
+                    ? 'http://' . $this->vpnServiceHost() . '/sccp-manager' : '', true)),
+            $script
+        );
         $this->publishFile($this->public . '/phone.php', $script . "\n");
     }
 
