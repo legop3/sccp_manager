@@ -68,7 +68,7 @@ class phonemenus
 
     public function saveServices($posted)
     {
-        if (!is_array($posted)) throw new \\InvalidArgumentException('Invalid service settings.');
+        if (!is_array($posted)) throw new \InvalidArgumentException('Invalid service settings.');
         $flags = array();
         foreach ($this->serviceFlags() as $id => $unused) {
             $flags[$id] = isset($posted[$id]) && $posted[$id] === '1';
@@ -76,7 +76,7 @@ class phonemenus
         $old = $this->parent->getConfig('phonecontent_builtin_services');
         $this->parent->setConfig('phonecontent_builtin_services', $flags);
         try { $this->parent->phonecontent->publishDirectory(); }
-        catch (\\Throwable $e) {
+        catch (\Throwable $e) {
             $this->parent->setConfig('phonecontent_builtin_services', $old);
             throw $e;
         }
@@ -284,10 +284,10 @@ class phonemenus
     }
 
     /** Inject into final per-phone SEP document BEFORE the existing signing step. */
-    public function applyProvisioning(\\SimpleXMLElement $phone, $deviceId = '')
+    public function applyProvisioning(\SimpleXMLElement $phone, $deviceId = '')
     {
         $base = $this->parent->phonecontent->baseUrl();
-        if ($base === '') throw new \\RuntimeException('Phone Content PBX address required.');
+        if ($base === '') throw new \RuntimeException('Phone Content PBX address required.');
         $root = dom_import_simplexml($phone);
         $doc = $root->ownerDocument;
         foreach (iterator_to_array($root->getElementsByTagName('phoneServices')) as $existing) {
