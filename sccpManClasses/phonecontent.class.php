@@ -384,10 +384,22 @@ header('X-Content-Type-Options: nosniff');
 $body = file_get_contents($path);
 $lanBase = __SCCP_LAN_BASE__;
 $vpnBase = __SCCP_VPN_BASE__;
+$publishedBase = __SCCP_PUBLISHED_BASE__;
 $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
-if ($vpnBase !== '' && $host === parse_url($vpnBase, PHP_URL_HOST) &&
-    $lanBase !== '' && $lanBase !== $vpnBase) {
-    $body = str_replace($lanBase . '/', $vpnBase . '/', $body);
+// The same XML files serve both LAN and VPN phones. Only rewrite the
+// module-managed links when the request arrived on a known PBX address.
+$target = '';
+if ($lanBase !== '' && $host === parse_url($lanBase, PHP_URL_HOST)) {
+    $target = $lanBase;
+} elseif ($vpnBase !== '' && $host === parse_url($vpnBase, PHP_URL_HOST)) {
+    $target = $vpnBase;
+}
+if ($target !== '') {
+    foreach (array_unique(array_filter(array($lanBase, $vpnBase, $publishedBase))) as $source) {
+        if ($source !== $target) {
+            $body = str_replace($source . '/', $target . '/', $body);
+        }
+    }
 }
 echo $body;
 PHP;
@@ -395,10 +407,14 @@ PHP;
         // LAN base when the phone actually fetched the page via the VPN address.
         // This keeps the very same shared menu files usable by LAN-only phones.
         $script = str_replace(
-            array('__SCCP_LAN_BASE__', '__SCCP_VPN_BASE__'),
-            array(var_export($this->baseUrl(), true),
+            array('__SCCP_LAN_BASE__', '__SCCP_VPN_BASE__', '__SCCP_PUBLISHED_BASE__'),
+            array(
+                var_export(filter_var((string) ($this->parent->vpnSettings()['pbx_ip'] ?? ''), FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
+                    ? 'http://' . $this->parent->vpnSettings()['pbx_ip'] . '/sccp-manager'
+                    : $this->baseUrl(), true),
                 var_export($this->vpnServiceHost() !== ''
-                    ? 'http://' . $this->vpnServiceHost() . '/sccp-manager' : '', true)),
+                    ? 'http://' . $this->vpnServiceHost() . '/sccp-manager' : '', true),
+                var_export($this->baseUrl(), true)),
             $script
         );
         $this->publishFile($this->public . '/phone.php', $script . "\n");
