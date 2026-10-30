@@ -82,6 +82,15 @@ class phonevoicemail
         return array($device, $this->destinationForDevice($device), $token);
     }
 
+    /** Only emit Dial actions for a caller number actually present in metadata. */
+    public static function callbackNumber(array $message)
+    {
+        $number=(string)($message['number'] ?? '');
+        if ($number==='' && preg_match('/^[+0-9*#]{1,32}$/D',(string)($message['name']??'')))
+            $number=(string)$message['name'];
+        return preg_match('/^[+0-9*#]{1,32}$/D',$number) ? $number : '';
+    }
+
     public static function parseMessage($raw, $folder, $file)
     {
         if (!preg_match('/^msg[0-9]{4}\.txt$/D', $file)) return null;
@@ -464,8 +473,8 @@ class phonevoicemail
             }
             // Dial URI uses the same verified caller number as voicemail
             // metadata, and works for internal SCCP extensions too.
-            $callback=(string)($msg['number']??'');
-            if (preg_match('/^[+0-9*#]{1,32}$/D',$callback))
+            $callback=self::callbackNumber($msg);
+            if ($callback!=='')
                 $entries[] = array('Call Back ' . $callback, 'Dial:' . $callback);
             $entries[] = array('Delete Message', $base . '&op=delete&id=' . rawurlencode($id));
         }
