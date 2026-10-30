@@ -573,6 +573,12 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                 // are picked up without changing signed SEP provisioning.
                 $this->phonecontent->publishDirectory();
                 $this->phonecontent->syncUrls();
+                // One-time signed provisioning migration: fixed Services and
+                // Messages button URLs require a fresh SEP XML, but no reset.
+                if (!$this->getConfig('phonecontent_services_signed_17184')) {
+                    $this->phoneContentRegenerate(false);
+                    $this->setConfig('phonecontent_services_signed_17184', true);
+                }
                 // The provisioned Directories button now points straight to
                 // the Favorites Directory XML. Publish each phone's signed
                 // configuration through the existing automatic path once on
