@@ -125,6 +125,9 @@ final class notificationDelivery {
                             $item=phonevoicemail::resolveMessage($vm->listMessages((string)$fields['extension']),$id);
                             $actions['Listen']=$base.'&single=1&op=play&id='.rawurlencode($item['id']);
                             $actions['Details']=$base.'&single=1&op=detail&id='.rawurlencode($item['id']);
+                            $callback=(string)($item['number']??'');
+                            if (preg_match('/^[+0-9*#]{1,32}$/D',$callback))
+                                $actions['Call Back']='Dial:'.$callback;
                         }
                         $actions['Messages']=$base;
                     }
