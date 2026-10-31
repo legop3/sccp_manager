@@ -122,6 +122,12 @@ final class notificationDelivery {
             // Every handset needs its own authenticated voicemail links.
             // Do not publish the bearer token in a shared document.
             $deviceUrl=$documentId ? $this->displayUrl($device,$documentId) : null;
+            if ($documentId && strpos($xml,'__SCCP_NOTIFICATION_BASE__')!==false) {
+                // Scheduled images use the same network base as their recipient.
+                $perDeviceXml=str_replace('__SCCP_NOTIFICATION_BASE__',
+                    $this->module->phonecontent->baseUrl($device),$xml);
+                $deviceUrl=$this->displayUrl($device,$this->publicDocument($perDeviceXml));
+            }
             if ($kind==='voicemail' && $options['style']==='text') {
                 $actions=[];
                 try {
