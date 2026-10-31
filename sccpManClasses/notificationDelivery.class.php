@@ -35,10 +35,9 @@ final class notificationDelivery {
         return null;
     }
 
-    private function publicDocument($xml, $device=null) {
+    private function publicDocument($xml) {
         $dir=$this->module->phonecontent->publicPath();
-        $base=$this->module->phonecontent->baseUrl($device);
-        if (!is_dir($dir) || is_link($dir) || $base==='') return null;
+        if (!is_dir($dir) || is_link($dir)) return null;
         $name='notification-'.bin2hex(random_bytes(12)).'.xml';
         if (file_put_contents($dir.'/'.$name,$xml,LOCK_EX)===false) return null;
         chmod($dir.'/'.$name,0644);
@@ -47,7 +46,15 @@ final class notificationDelivery {
         // The 7945G XML browser expects text/xml. Apache serves .xml as
         // application/xml on some FreePBX hosts, causing "HTTP file error".
         // Serve through a fixed, read-only endpoint with the proper MIME type.
-        return $base.'/notification-display.php?id='.substr($name,13,24);
+        return substr($name,13,24);
+    }
+
+    /** All notification display links require a recipient; never fall back to LAN. */
+    private function displayUrl($device, $id) {
+        if ($id === null) return null;
+        $base=$this->module->phonecontent->baseUrl($device);
+        if ($base==='') throw new \RuntimeException('No HTTP address configured for '.$device);
+        return $base.'/notification-display.php?id='.$id;
     }
 
     private function forDevice($device, $extensions, $kind) {
@@ -94,16 +101,16 @@ final class notificationDelivery {
         $url=null;
         if ($options['style']!=='sound') {
             if ($kind==='scheduled' && $options['style']==='image' && ($builtIn!==null || $options['image_url']!=='')) {
-                $image=notificationSources::image($builtIn!==null ? $builtIn['image_url'] : $options['image_url'],$this->module,$message);
+                $image=notificationSources::image($builtIn!==null ? $builtIn['image_url'] : $options['image_url'],$this->module,$message,null);
                 $xml=$image?'<CiscoIPPhoneImageFile><Title>'.htmlspecialchars(substr($title,0,32),ENT_XML1).'</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>'.htmlspecialchars($image,ENT_XML1).'</URL></CiscoIPPhoneImageFile>':phoneNotifications::text($title,$message);
             } else {
                 $xml=$options['style']==='status'
                     ? phoneNotifications::status($message,$options['duration'])
                     : phoneNotifications::text($title,$message);
             }
-            $url=$this->publicDocument($xml);
+            $documentId=$this->publicDocument($xml);
         }
-        if (!$url && !$sound) return 0;
+        if (!$documentId && !$sound) return 0;
         $secret=(string)$this->module->getConfig('phonecontent_push_secret');
         if ($secret==='') throw new \RuntimeException('Push authentication is not configured. Save notification settings first.');
         $sent=0;
@@ -114,9 +121,7 @@ final class notificationDelivery {
             if (!$this->forDevice($device,$extensions,$kind)) continue;
             // Every handset needs its own authenticated voicemail links.
             // Do not publish the bearer token in a shared document.
-            $deviceUrl=$url ? $this->module->phonecontent->baseUrl($device) . '/notification-display.php?' . (string)parse_url($url, PHP_URL_QUERY) : null;
-            // A shared document is hosted once, but the recipient must fetch it
-            // through its own LAN/VPN address.
+            $deviceUrl=$documentId ? $this->displayUrl($device,$documentId) : null;
             if ($kind==='voicemail' && $options['style']==='text') {
                 $actions=[];
                 try {
@@ -143,7 +148,7 @@ final class notificationDelivery {
                 $actions['Dismiss']='SoftKey:Exit';
                 $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,$actions,$options,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
-                $deviceUrl=$this->publicDocument($graphic,$device);
+                $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
             } elseif ($kind==='missed' && $options['style']==='text') {
                 // Present the user's public number, not the SCCP-only line.
                 $identity=(new phonevoicemail($this->module))->destinationForDevice($device);
@@ -154,7 +159,7 @@ final class notificationDelivery {
                 $actions['Dismiss']='SoftKey:Exit';
                 $graphic=phoneNotifications::graphic($this->module,'missed',$fields,$actions,$options,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
-                $deviceUrl=$this->publicDocument($graphic);
+                $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
             }
             $xml='<CiscoIPPhoneExecute>';
             if ($sound) $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1).'"/>';
