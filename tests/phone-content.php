@@ -131,7 +131,7 @@ try {
     $content->saveContact('', 'Garage', '*80');
     $xml = simplexml_load_file($base . '/web/contacts-1.xml');
     check(count($xml->MenuItem) === 2, 'Directory entries');
-    check($xml->getName() === 'CiscoIPPhoneMenu' && !isset($xml->MenuItem),
+    check($xml->getName() === 'CiscoIPPhoneMenu' && !isset($xml->DirectoryEntry),
         'Pressing Directories opens the Favorites entries, never a chooser');
     $keys = $xml->SoftKeyItem;
     check(count($keys) === 3, 'Select, All, and Exit softkeys');
