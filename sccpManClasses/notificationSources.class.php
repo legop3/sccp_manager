@@ -75,7 +75,7 @@ final class notificationSources {
         return substr($content,0,2048);
     }
     /** Returns a phone-accessible PNG URL, or null. Source image is never sent to the phone directly. */
-    public static function image($url,$module,$message='') {
+    public static function image($url,$module,$message='', $device=null) {
         $body=self::fetch($url,1048576,['image/png','image/jpeg','image/gif']);
         if ($body===null || !function_exists('imagecreatefromstring')) return null;
         $src=@imagecreatefromstring($body);
@@ -93,7 +93,7 @@ final class notificationSources {
         $lines=explode("\n",wordwrap(strip_tags((string)$message),47,"\n",true));
         foreach (array_slice($lines,0,3) as $index=>$line) imagestring($dst,2,3,113+$index*14,substr($line,0,47),$black);
         $dir=$module->phonecontent->publicPath();
-        $base=$module->phonecontent->baseUrl();
+        $base=$module->phonecontent->baseUrl($device);
         if (!is_dir($dir)||is_link($dir)||$base==='') {imagedestroy($dst);return null;}
         $file='notification-'.bin2hex(random_bytes(12)).'.png';
         $ok=imagepng($dst,$dir.'/'.$file);
