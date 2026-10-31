@@ -480,18 +480,19 @@ PHP;
     }
 
 
-    /** Add phone-native dialing and one shortcut between the two directories. */
+    /** Native menu selection dials the highlighted contact; other keys navigate. */
     private function directorySoftkeys(\DOMDocument $doc, \DOMElement $root, $base, $otherDoc, $otherLabel, $pageIndex = null)
     {
         $items = array(
-            array('Dial', 'SoftKey:Dial', 1),
+            array('Select', 'SoftKey:Select', 1),
             $pageIndex === null
-                ? array('EditDial', 'SoftKey:EditDial', 2)
+                ? null
                 : array('Pages', $base . '/phone.php?doc=' . $pageIndex, 2),
             array($otherLabel, $base . '/phone.php?doc=' . $otherDoc, 3),
             array('Exit', 'SoftKey:Exit', 4)
         );
         foreach ($items as $item) {
+            if ($item === null) continue;
             $key = $root->appendChild($doc->createElement('SoftKeyItem'));
             $this->element($doc, $key, 'Name', $item[0]);
             $this->element($doc, $key, 'URL', $item[1]);
@@ -510,13 +511,13 @@ PHP;
         $pageIndex = $prefix === 'contacts' ? 'favorites-pages' : 'extensions-pages';
         $paged = count($chunks) > 1;
         foreach ($chunks as $i=>$chunk) {
-            list($doc, $root) = $this->xml('CiscoIPPhoneDirectory');
+            list($doc, $root) = $this->xml('CiscoIPPhoneMenu');
             $this->element($doc, $root, 'Title', $title);
             $this->element($doc, $root, 'Prompt', $prompt);
             foreach ($chunk as $entry) {
-                $row = $root->appendChild($doc->createElement('DirectoryEntry'));
+                $row = $root->appendChild($doc->createElement('MenuItem'));
                 $this->element($doc, $row, 'Name', $entry['name']);
-                $this->element($doc, $row, 'Telephone', $entry['number']);
+                $this->element($doc, $row, 'URL', 'Dial:' . $entry['number']);
             }
             $this->directorySoftkeys($doc, $root, $base, $otherDoc, $otherLabel,
                 $paged ? $pageIndex : null);
