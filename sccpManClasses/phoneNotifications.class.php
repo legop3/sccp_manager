@@ -75,7 +75,7 @@ final class phoneNotifications
     }
 
     /** Render a compact graphical notification for the 7945G screen. */
-    public static function graphic($module, $kind, $fields, array $actions, array $settings = [], $device=null)
+    public static function graphic($module, $kind, $fields, array $actions, array $settings, $device)
     {
         if (!function_exists('imagecreatetruecolor')) return null;
         $dir=$module->phonecontent->publicPath();
