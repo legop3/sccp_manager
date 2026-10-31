@@ -73,7 +73,7 @@ try {
     check(strpos($vmEndpoint, "header('Connection: close');") !== false,
         'Phone can complete XML response before playback starts');
     check(strpos(file_get_contents($base . '/web/phone.php'), 'Content-Type: text/xml') !== false, 'Cisco XML MIME type');
-    check(strpos(file_get_contents($base . '/web/contacts-1.xml'), 'CiscoIPPhoneDirectory') !== false &&
+    check(strpos(file_get_contents($base . '/web/contacts-1.xml'), 'CiscoIPPhoneMenu') !== false &&
         !is_file($base . '/web/directory.xml'), 'Directories opens native Favorites list; no chooser generated');
     // Reproduce the real Cisco 7945G XML Error [4] report: the HTTP body
     // contains ten valid FreePBX extensions but a >32 character prompt.
@@ -99,9 +99,9 @@ try {
     ));
     $content->publishDirectory();
     $phoneXml = simplexml_load_file($base . '/web/extensions-1.xml');
-    check($phoneXml !== false && $phoneXml->getName() === 'CiscoIPPhoneDirectory',
+    check($phoneXml !== false && $phoneXml->getName() === 'CiscoIPPhoneMenu',
         'All Extensions produces a Cisco directory object');
-    check(count($phoneXml->DirectoryEntry) === 10,
+    check(count($phoneXml->MenuItem) === 10,
         'Every real extension is present without needing a separate SCCP lookup');
     check((string)$phoneXml->Title === 'All numbers show heres',
         'Custom All Extensions title is retained');
@@ -130,22 +130,23 @@ try {
     $content->saveContact('', 'Alice & Bob', '150');
     $content->saveContact('', 'Garage', '*80');
     $xml = simplexml_load_file($base . '/web/contacts-1.xml');
-    check(count($xml->DirectoryEntry) === 2, 'Directory entries');
-    check($xml->getName() === 'CiscoIPPhoneDirectory' && !isset($xml->MenuItem),
+    check(count($xml->MenuItem) === 2, 'Directory entries');
+    check($xml->getName() === 'CiscoIPPhoneMenu' && !isset($xml->MenuItem),
         'Pressing Directories opens the Favorites entries, never a chooser');
     $keys = $xml->SoftKeyItem;
-    check(count($keys) === 4, 'Four phone-native directory softkeys');
-    check((string)$keys[0]->URL === 'SoftKey:Dial' &&
-          (string)$keys[1]->URL === 'SoftKey:EditDial' &&
-          (string)$keys[2]->Name === 'All' &&
-          (string)$keys[2]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=extensions-1' &&
-          (string)$keys[3]->URL === 'SoftKey:Exit',
-          'Dial/EditDial are preserved and All opens the full extension list');
+    check(count($keys) === 3, 'Select, All, and Exit softkeys');
+    check((string)$keys[0]->URL === 'SoftKey:Select' &&
+          (string)$keys[1]->Name === 'All' &&
+          (string)$keys[1]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=extensions-1' &&
+          (string)$keys[2]->URL === 'SoftKey:Exit',
+          'Select dials the highlighted contact; All opens the full extension list');
 
-    check((string) $xml->DirectoryEntry[0]->Name === 'Alice & Bob', 'XML escaping');
+    check((string) $xml->MenuItem[0]->Name === 'Alice & Bob' &&
+          (string) $xml->MenuItem[0]->URL === 'Dial:150' &&
+          (string) $xml->MenuItem[1]->URL === 'Dial:*80', 'One-line entries dial their original numbers');
     $id = $content->contacts()[0]['id'];
     $content->saveContact($id, 'Alice', '151');
-    check((string) simplexml_load_file($base . '/web/contacts-1.xml')->DirectoryEntry[0]->Telephone === '151',
+    check((string) simplexml_load_file($base . '/web/contacts-1.xml')->MenuItem[0]->URL === 'Dial:151',
         'Edit contacts');
     try {
         $content->saveContact('', 'Unsafe', '123</Telephone>');
@@ -155,8 +156,8 @@ try {
     check(count($content->contacts()) === 1, 'Delete contacts');
     for ($i=0;$i<33;$i++) $content->saveContact('', 'Person ' . $i, (string) (200 + $i));
     $pageOne = simplexml_load_file($base . '/web/contacts-1.xml');
-    check($pageOne->getName() === 'CiscoIPPhoneDirectory' &&
-          count($pageOne->DirectoryEntry) === 30, 'Even many Favorites open directly to the first 30 contacts');
+    check($pageOne->getName() === 'CiscoIPPhoneMenu' &&
+          count($pageOne->MenuItem) === 30, 'Even many Favorites open directly to the first 30 contacts');
     check(file_exists($base . '/web/contacts-2.xml'), 'Second Favorites page exists');
     check(!file_exists($base . '/web/directory.xml') &&
           !file_exists($base . '/web/phonebook.xml'), 'No redundant directory chooser exists');
@@ -175,14 +176,15 @@ try {
     );
     $content->publishDirectory();
     $extensions = simplexml_load_file($base . '/web/extensions-1.xml');
-    check(count($extensions->DirectoryEntry) === 3, 'FreePBX extensions appear exactly once');
-    check((string)$extensions->DirectoryEntry[0]->Name === 'Desk Phone (111)',
+    check(count($extensions->MenuItem) === 3, 'FreePBX extensions appear exactly once');
+    check((string)$extensions->MenuItem[0]->Name === 'Desk Phone (111)' &&
+          (string)$extensions->MenuItem[0]->URL === 'Dial:111',
         'FreePBX extension display names are used');
     $content->saveExtensionChoices(array('111'=>'favorite','150'=>'hidden','170'=>'directory'));
     check($content->extensionChoices() === array('111'=>'favorite','150'=>'hidden'),
         'Shared favorite and hidden settings are persisted');
     $extensions = simplexml_load_file($base . '/web/extensions-1.xml');
-    check(count($extensions->DirectoryEntry) === 2, 'Hidden extensions do not appear in All Extensions');
+    check(count($extensions->MenuItem) === 2, 'Hidden extensions do not appear in All Extensions');
     check(strpos($extensions->asXML(), '150') === false, 'Hidden extension excluded from XML');
     $favoritePages = file_get_contents($base . '/web/contacts-1.xml') .
         file_get_contents($base . '/web/contacts-2.xml');
@@ -277,12 +279,12 @@ try {
           (string)$all->Title === 'Everyone on PBX' &&
           (string)$all->Prompt === 'Choose who to call',
           'Both directory lists use their own configured labels');
-    check((string)$favorites->SoftKeyItem[2]->Name === 'All' &&
-          (string)$favorites->SoftKeyItem[2]->URL ===
+    check((string)$favorites->SoftKeyItem[1]->Name === 'All' &&
+          (string)$favorites->SoftKeyItem[1]->URL ===
           'http://192.168.0.25/sccp-manager/phone.php?doc=extensions-1',
           'Favorites has an All shortcut without a preceding menu');
-    check((string)$all->SoftKeyItem[2]->Name === 'Favs' &&
-          (string)$all->SoftKeyItem[2]->URL ===
+    check((string)$all->SoftKeyItem[1]->Name === 'Favs' &&
+          (string)$all->SoftKeyItem[1]->URL ===
           'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1',
           'All Extensions has the reverse Favorites shortcut');
     $content->saveDirectoryLabels(array('services_title'=>'My Services'));
