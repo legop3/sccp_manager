@@ -90,7 +90,7 @@ final class notificationCallEvents {
             }
             // Wait until all CDR legs have finished. This avoids declaring
             // a call missed while a phone is still ringing or in voicemail.
-            if ($lastEnd===0 || $lastEnd>$now-15 || $lastEnd<$now-240) continue;
+            if ($lastEnd===0 || $lastEnd>$now-3 || $lastEnd<$now-240) continue;
             foreach ($targets as $ext=>$state) {
                 if ($state['answered'] || !$state['candidate']) continue;
                 $row=$state['candidate'];
