@@ -27,4 +27,18 @@ if ($method->invoke($delivery, 'SEP00EBD5CA2776', null) !== null) throw new Runt
 $source = file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
 if (substr_count($source, 'displayUrl($device,$this->publicDocument($graphic))') !== 2)
     throw new RuntimeException('Both missed-call and voicemail branches must use the same URL resolver');
+foreach (['SEP00EBD5CA227A' => 'http://192.168.0.25/sccp-manager',
+          'SEP00EBD5CA2776' => 'http://10.254.77.1/sccp-manager'] as $device => $base) {
+    $imageUrl=$base.'/notification-test.png';
+    $xml=\FreePBX\modules\Sccp_manager\notificationDelivery::scheduledImageXml('Random Dog',$imageUrl);
+    $doc=new DOMDocument();
+    if (!$doc->loadXML($xml)) throw new RuntimeException('Invalid generated image XML');
+    if ($doc->getElementsByTagName('URL')->item(0)->textContent!==$imageUrl)
+        throw new RuntimeException('Image URL mismatch for '.$device);
+    if (strpos($xml,'__SCCP_NOTIFICATION_BASE__')!==false)
+        throw new RuntimeException('Unresolved image URL placeholder');
+}
+$deliverySource=file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
+if (strpos($deliverySource,'__SCCP_NOTIFICATION_BASE__')!==false)
+    throw new RuntimeException('Scheduled notification source must not use address placeholders');
 echo "Notification address tests passed\n";
