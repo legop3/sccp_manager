@@ -75,7 +75,7 @@ final class notificationSources {
         return substr($content,0,2048);
     }
     /** Returns a phone-accessible PNG URL, or null. Source image is never sent to the phone directly. */
-    public static function image($url,$module,$message='', $device=null) {
+    public static function image($url,$module,$message='') {
         $body=self::fetch($url,1048576,['image/png','image/jpeg','image/gif']);
         if ($body===null || !function_exists('imagecreatefromstring')) return null;
         $src=@imagecreatefromstring($body);
@@ -93,8 +93,8 @@ final class notificationSources {
         $lines=explode("\n",wordwrap(strip_tags((string)$message),47,"\n",true));
         foreach (array_slice($lines,0,3) as $index=>$line) imagestring($dst,2,3,113+$index*14,substr($line,0,47),$black);
         $dir=$module->phonecontent->publicPath();
-        $base=$device===null ? '__SCCP_NOTIFICATION_BASE__' : $module->phonecontent->baseUrl($device);
-        if (!is_dir($dir)||is_link($dir)||$base==='') {imagedestroy($dst);return null;}
+        // Only create the shared PNG once; the caller constructs each phone's URL.
+        if (!is_dir($dir)||is_link($dir)) {imagedestroy($dst);return null;}
         $file='notification-'.bin2hex(random_bytes(12)).'.png';
         $ok=imagepng($dst,$dir.'/'.$file);
         imagedestroy($dst);
@@ -102,6 +102,6 @@ final class notificationSources {
         chmod($dir.'/'.$file,0644);
         foreach (glob($dir.'/notification-*.png')?:[] as $path)
             if (is_file($path) && !is_link($path) && filemtime($path)<time()-3600) @unlink($path);
-        return $base.'/'.$file;
+        return $file;
     }
 }
