@@ -393,21 +393,12 @@ header('X-Content-Type-Options: nosniff');
 // Prevent the handset from retaining each directory page in its browser history.
 header('Expires: Thu, 01 Jan 1970 00:00:01 GMT');
 if (isset($_GET['call'])) {
-    $index = filter_var($_GET['call'], FILTER_VALIDATE_INT, array('options'=>array('min_range'=>0)));
-    $xml = new DOMDocument();
-    if ($index === false || !@$xml->load($path, LIBXML_NONET) ||
-        $xml->documentElement->tagName !== 'CiscoIPPhoneMenu') {
+    $number = (string) $_GET['call'];
+    if (!preg_match('/^[0-9*#+]{1,40}$/D', $number)) {
         http_response_code(404);
         exit;
     }
-    $entries = $xml->getElementsByTagName('MenuItem');
-    $entry = $entries->item($index);
-    $urls = $entry ? $entry->getElementsByTagName('URL') : null;
-    $dialUrl = ($urls && $urls->length) ? (string)$urls->item(0)->textContent : '';
-    if (!preg_match('/^Dial:[0-9*#+]{1,40}$/D', $dialUrl)) {
-        http_response_code(404);
-        exit;
-    }
+    $dialUrl = 'Dial:' . $number;
     $execute = new DOMDocument('1.0', 'UTF-8');
     $root = $execute->appendChild($execute->createElement('CiscoIPPhoneExecute'));
     foreach (array('Init:Directories', $dialUrl) as $command) {
@@ -546,7 +537,7 @@ PHP;
                 $this->element($doc, $row, 'Name', $entry['name']);
                 // Close Directories before dialing, like the voicemail call action.
                 $this->element($doc, $row, 'URL', $base . '/phone.php?doc=' .
-                    $prefix . '-' . ($i + 1) . '&call=' . $index);
+                    $prefix . '-' . ($i + 1) . '&call=' . rawurlencode($entry['number']));
             }
             $this->directorySoftkeys($doc, $root, $base, $otherDoc, $otherLabel,
                 $paged ? $pageIndex : null);
