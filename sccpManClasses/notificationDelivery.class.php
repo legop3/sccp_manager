@@ -57,6 +57,16 @@ final class notificationDelivery {
         return $base.'/notification-display.php?id='.$id;
     }
 
+    /** Compose the actual handset-specific image document, never a shared placeholder. */
+    public static function scheduledImageXml($title, $imageUrl) {
+        if (!preg_match('~^https?://~', $imageUrl)) throw new \InvalidArgumentException('Invalid notification image URL');
+        return '<CiscoIPPhoneImageFile><Title>'.
+            htmlspecialchars(substr($title,0,32),ENT_XML1|ENT_QUOTES,'UTF-8').
+            '</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>'.
+            htmlspecialchars($imageUrl,ENT_XML1|ENT_QUOTES,'UTF-8').
+            '</URL></CiscoIPPhoneImageFile>';
+    }
+
     private function forDevice($device, $extensions, $kind) {
         if ($extensions === null) return true;
         try {
@@ -98,19 +108,20 @@ final class notificationDelivery {
             $message=notificationSources::text($options['message_url'],$message);
         }
         $sound=$this->configuredSound($options['sound']);
-        $url=null;
+        $documentId=null;
+        $imageFilename=null;
         if ($options['style']!=='sound') {
             if ($kind==='scheduled' && $options['style']==='image' && ($builtIn!==null || $options['image_url']!=='')) {
-                $image=notificationSources::image($builtIn!==null ? $builtIn['image_url'] : $options['image_url'],$this->module,$message,null);
-                $xml=$image?'<CiscoIPPhoneImageFile><Title>'.htmlspecialchars(substr($title,0,32),ENT_XML1).'</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>'.htmlspecialchars($image,ENT_XML1).'</URL></CiscoIPPhoneImageFile>':phoneNotifications::text($title,$message);
+                $imageFilename=notificationSources::image($builtIn!==null ? $builtIn['image_url'] : $options['image_url'],$this->module,$message);
+                $xml=$imageFilename===null ? phoneNotifications::text($title,$message) : null;
             } else {
                 $xml=$options['style']==='status'
                     ? phoneNotifications::status($message,$options['duration'])
                     : phoneNotifications::text($title,$message);
             }
-            $documentId=$this->publicDocument($xml);
+            if ($xml!==null) $documentId=$this->publicDocument($xml);
         }
-        if (!$documentId && !$sound) return 0;
+        if (!$documentId && !$imageFilename && !$sound) return 0;
         $secret=(string)$this->module->getConfig('phonecontent_push_secret');
         if ($secret==='') throw new \RuntimeException('Push authentication is not configured. Save notification settings first.');
         $sent=0;
@@ -122,11 +133,10 @@ final class notificationDelivery {
             // Every handset needs its own authenticated voicemail links.
             // Do not publish the bearer token in a shared document.
             $deviceUrl=$documentId ? $this->displayUrl($device,$documentId) : null;
-            if ($documentId && strpos($xml,'__SCCP_NOTIFICATION_BASE__')!==false) {
-                // Scheduled images use the same network base as their recipient.
-                $perDeviceXml=str_replace('__SCCP_NOTIFICATION_BASE__',
-                    $this->module->phonecontent->baseUrl($device),$xml);
-                $deviceUrl=$this->displayUrl($device,$this->publicDocument($perDeviceXml));
+            if ($imageFilename!==null) {
+                $imageXml=self::scheduledImageXml($title,
+                    $this->module->phonecontent->baseUrl($device).'/'.$imageFilename);
+                $deviceUrl=$this->displayUrl($device,$this->publicDocument($imageXml));
             }
             if ($kind==='voicemail' && $options['style']==='text') {
                 $actions=[];
