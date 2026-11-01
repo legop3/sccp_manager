@@ -142,11 +142,11 @@ try {
           'Select dials the highlighted contact; All opens the full extension list');
 
     check((string) $xml->MenuItem[0]->Name === 'Alice & Bob' &&
-          (string) $xml->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1&call=0' &&
-          (string) $xml->MenuItem[1]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1&call=1', 'One-line entries link to per-contact close-then-dial actions');
+          (string) $xml->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1&call=150' &&
+          (string) $xml->MenuItem[1]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1&call=%2A80', 'One-line entries link to per-contact close-then-dial actions');
     $id = $content->contacts()[0]['id'];
     $content->saveContact($id, 'Alice', '151');
-    check((string) simplexml_load_file($base . '/web/contacts-1.xml')->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1&call=0',
+    check((string) simplexml_load_file($base . '/web/contacts-1.xml')->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=contacts-1&call=151',
         'Edit contacts');
     try {
         $content->saveContact('', 'Unsafe', '123</Telephone>');
@@ -178,7 +178,7 @@ try {
     $extensions = simplexml_load_file($base . '/web/extensions-1.xml');
     check(count($extensions->MenuItem) === 3, 'FreePBX extensions appear exactly once');
     check((string)$extensions->MenuItem[0]->Name === 'Desk Phone (111)' &&
-          (string)$extensions->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=extensions-1&call=0',
+          (string)$extensions->MenuItem[0]->URL === 'http://192.168.0.25/sccp-manager/phone.php?doc=extensions-1&call=111',
         'FreePBX extension display names are used');
     $content->saveExtensionChoices(array('111'=>'favorite','150'=>'hidden','170'=>'directory'));
     check($content->extensionChoices() === array('111'=>'favorite','150'=>'hidden'),
