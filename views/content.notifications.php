@@ -1,6 +1,8 @@
 <?php
 $esc=static function($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');};
-$notifications=(new \FreePBX\modules\Sccp_manager\notificationConfig($this))->all();
+$notificationConfig=new \FreePBX\modules\Sccp_manager\notificationConfig($this);
+$notifications=$notificationConfig->all();
+$appearance=$notificationConfig->appearance();
 $rings=$this->phonecontent->ringtones();
 $palettes=[
  'rainbow'=>['#E40303','#FF8C00','#FFED00','#008026','#24408E','#732982'],
@@ -37,16 +39,56 @@ $samples=[
 @media(max-width:850px){.sccp-notify-editor .ne-grid{grid-template-columns:1fr}}
 </style>
 <div class="container-fluid sccp-notify-editor">
- <div class="ne-top"><h2>Notification Designer</h2><p>Configure each type separately. Graphical alerts are rendered as 296 × 156 PNG images by the PBX; softkeys remain actual Cisco phone controls.</p></div>
+ <div class="ne-top"><h2>Notification Designer</h2><p>One shared appearance for every notification type. Graphical alerts are rendered as 296 × 156 PNG images by the PBX; softkeys remain actual Cisco phone controls.</p></div>
  <div class="ne-tabs" role="tablist">
-  <button type="button" class="active" data-ne-tab="voicemail">Voicemail</button>
+  <button type="button" class="active" data-ne-tab="appearance">Appearance</button>
+  <button type="button" data-ne-tab="voicemail">Voicemail</button>
   <button type="button" data-ne-tab="missed">Missed calls</button>
   <button type="button" data-ne-tab="scheduled">Scheduled content</button>
  </div>
  <form method="post" action="config.php?display=sccp_content#notifications" id="ne-form">
  <input type="hidden" name="content_action" value="notifications_save">
+<section class="ne-panel active" data-ne-panel="appearance"><div class="ne-grid"><div>
+<?php $settings=$appearance;?>
+
+     <div class="ne-card"><h4>Design & layout</h4>
+      <div class="form-group"><label>Base theme</label><select class="form-control ne-theme" name="notifications[appearance][theme]">
+       <?php foreach (['cisco'=>'Cisco Classic','ocean'=>'Ocean','charcoal'=>'Charcoal','plum'=>'Plum','forest'=>'Forest','custom'=>'Custom'] as $value=>$label):?>
+       <option value="<?php echo $value;?>" <?php echo $settings['theme']===$value?'selected':'';?>><?php echo $label;?></option><?php endforeach;?></select></div>
+      <label><input type="checkbox" name="notifications[appearance][show_number]" value="1" <?php echo $settings['show_number']?'checked':'';?>> Display caller number</label>
+      <label style="margin-left:15px"><input type="checkbox" name="notifications[appearance][show_details]" value="1" <?php echo $settings['show_details']?'checked':'';?>> Display details</label>
+      <h4 style="margin-top:18px">Section colors</h4><div class="ne-colors">
+       <?php $themes=['cisco'=>['#D5E2ED','#1E568F','#101C2A','#233849','#FFFFFF'],'ocean'=>['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],'charcoal'=>['#181B20','#30343C','#FFFFFF','#BFC6D0','#FFD084'],'plum'=>['#301C3F','#513162','#FFFFFF','#DFC6EC','#FF9BC8'],'forest'=>['#123C31','#245C48','#F5FFF8','#C1E9D2','#91E7B1']];
+       $palette=$themes[$settings['theme']]??$themes['ocean'];
+       $defaults=['background'=>$palette[0],'header'=>$palette[1],'header_text'=>$palette[4],'name_text'=>$palette[2],'secondary_text'=>$palette[3],'details_background'=>$palette[0],'details_label'=>$palette[3],'details_text'=>$palette[2],'accent'=>$palette[4]];
+       foreach ($colorLabels as $key=>$label): ?>
+       <label><?php echo $label;?><input type="color" name="notifications[appearance][colors][<?php echo $key;?>]" value="<?php echo $esc($settings['colors'][$key]??$defaults[$key]);?>"></label>
+       <?php endforeach;?></div>
+     </div>
+     <div class="ne-card"><h4>Stripes & pride palettes</h4>
+      <div class="form-group"><label>Placement</label><select class="form-control" name="notifications[appearance][stripe_position]">
+       <?php foreach (['off'=>'None','header'=>'Header','top'=>'Top accent','bottom'=>'Bottom accent','background'=>'Background with readable content panel'] as $value=>$label):?>
+       <option value="<?php echo $value;?>" <?php echo ($settings['stripe_position']??'off')===$value?'selected':'';?>><?php echo $label;?></option><?php endforeach;?></select></div>
+      <div><strong>Color presets</strong></div>
+      <?php foreach (['rainbow'=>'Rainbow','progress'=>'Progress','trans'=>'Trans','bi'=>'Bisexual','pan'=>'Pansexual','lesbian'=>'Lesbian','nonbinary'=>'Nonbinary','ace'=>'Asexual'] as $name=>$label): ?>
+       <button type="button" class="btn btn-default btn-sm ne-preset" data-preset="<?php echo $name;?>" data-kind="appearance"><?php echo $label;?></button>
+      <?php endforeach;?>
+      <p class="ne-help">Presets fill the stripe colors below. Edit any stripe individually afterward.</p>
+      <div class="ne-stripes" data-stripes="appearance">
+       <?php for($i=0;$i<10;$i++):?>
+       <label class="ne-stripe-row">#<?php echo $i+1;?><input type="color" data-stripe-color value="<?php echo $esc($settings['stripes'][$i]??'#FFFFFF');?>">
+       <input type="checkbox" data-stripe-active <?php echo isset($settings['stripes'][$i])?'checked':'';?>><input type="hidden" name="notifications[appearance][stripes][<?php echo $i;?>]" value="<?php echo $esc($settings['stripes'][$i]??'');?>"></label>
+       <?php endfor;?>
+      </div>
+     </div>
+    </div><div><div class="ne-card"><h4>Shared design preview</h4>
+<?php $xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,'voicemail',$samples['voicemail'],[],$appearance);
+$preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match)) $preview=html_entity_decode($match[1],ENT_QUOTES,'UTF-8'); ?>
+<?php if ($preview):?><img class="ne-screen" src="<?php echo $esc($preview);?>" alt="Shared appearance preview"><?php endif;?>
+<p class="ne-help">All notification types use this design. Their tabs control content and delivery only.</p>
+</div></div></div></section>
  <?php foreach ($notifications as $kind=>$settings): ?>
- <section class="ne-panel <?php echo $kind==='voicemail'?'active':'';?>" data-ne-panel="<?php echo $kind;?>">
+ <section class="ne-panel " data-ne-panel="<?php echo $kind;?>">
   <div class="ne-grid">
    <div>
     <div class="ne-card">
@@ -65,7 +107,7 @@ $samples=[
       <input type="hidden" name="notifications[<?php echo $kind;?>][title]" value="<?php echo $esc($settings['title']);?>">
       <input type="hidden" name="notifications[<?php echo $kind;?>][message]" value="<?php echo $esc($settings['message']);?>">
       <input type="hidden" name="notifications[<?php echo $kind;?>][duration]" value="<?php echo (int)$settings['duration'];?>">
-      <p class="ne-help">Actions are integrated with FreePBX. Voicemail: Listen, Details, Messages, Dismiss. Missed calls: Call Back, Dismiss.</p>
+      <p class="ne-help">Actions are integrated with FreePBX. Clear is first; the remaining actions are sender-defined.</p>
      <?php endif;?>
     </div>
     <?php if ($kind==='scheduled'): ?>
@@ -82,53 +124,10 @@ $samples=[
       <?php endforeach;?>
       <div class="form-group"><label>Duration (status display)</label><input class="form-control" type="number" min="2" max="60" name="notifications[scheduled][duration]" value="<?php echo (int)$settings['duration'];?>"></div>
      </div>
-    <?php else: ?>
-     <div class="ne-card"><h4>Design & layout</h4>
-      <div class="form-group"><label>Base theme</label><select class="form-control ne-theme" name="notifications[<?php echo $kind;?>][theme]">
-       <?php foreach (['cisco'=>'Cisco Classic','ocean'=>'Ocean','charcoal'=>'Charcoal','plum'=>'Plum','forest'=>'Forest','custom'=>'Custom'] as $value=>$label):?>
-       <option value="<?php echo $value;?>" <?php echo $settings['theme']===$value?'selected':'';?>><?php echo $label;?></option><?php endforeach;?></select></div>
-      <label><input type="checkbox" name="notifications[<?php echo $kind;?>][show_number]" value="1" <?php echo $settings['show_number']?'checked':'';?>> Display caller number</label>
-      <label style="margin-left:15px"><input type="checkbox" name="notifications[<?php echo $kind;?>][show_details]" value="1" <?php echo $settings['show_details']?'checked':'';?>> Display details</label>
-      <h4 style="margin-top:18px">Section colors</h4><div class="ne-colors">
-       <?php $themes=['cisco'=>['#D5E2ED','#1E568F','#101C2A','#233849','#FFFFFF'],'ocean'=>['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],'charcoal'=>['#181B20','#30343C','#FFFFFF','#BFC6D0','#FFD084'],'plum'=>['#301C3F','#513162','#FFFFFF','#DFC6EC','#FF9BC8'],'forest'=>['#123C31','#245C48','#F5FFF8','#C1E9D2','#91E7B1']];
-       $palette=$themes[$settings['theme']]??$themes['ocean'];
-       $defaults=['background'=>$palette[0],'header'=>$palette[1],'header_text'=>$palette[4],'name_text'=>$palette[2],'secondary_text'=>$palette[3],'details_background'=>$palette[0],'details_label'=>$palette[3],'details_text'=>$palette[2],'accent'=>$palette[4]];
-       foreach ($colorLabels as $key=>$label): ?>
-       <label><?php echo $label;?><input type="color" name="notifications[<?php echo $kind;?>][colors][<?php echo $key;?>]" value="<?php echo $esc($settings['colors'][$key]??$defaults[$key]);?>"></label>
-       <?php endforeach;?></div>
-     </div>
-     <div class="ne-card"><h4>Stripes & pride palettes</h4>
-      <div class="form-group"><label>Placement</label><select class="form-control" name="notifications[<?php echo $kind;?>][stripe_position]">
-       <?php foreach (['off'=>'None','header'=>'Header','top'=>'Top accent','bottom'=>'Bottom accent','background'=>'Background with readable content panel'] as $value=>$label):?>
-       <option value="<?php echo $value;?>" <?php echo ($settings['stripe_position']??'off')===$value?'selected':'';?>><?php echo $label;?></option><?php endforeach;?></select></div>
-      <div><strong>Color presets</strong></div>
-      <?php foreach (['rainbow'=>'Rainbow','progress'=>'Progress','trans'=>'Trans','bi'=>'Bisexual','pan'=>'Pansexual','lesbian'=>'Lesbian','nonbinary'=>'Nonbinary','ace'=>'Asexual'] as $name=>$label): ?>
-       <button type="button" class="btn btn-default btn-sm ne-preset" data-preset="<?php echo $name;?>" data-kind="<?php echo $kind;?>"><?php echo $label;?></button>
-      <?php endforeach;?>
-      <p class="ne-help">Presets fill the stripe colors below. Edit any stripe individually afterward.</p>
-      <div class="ne-stripes" data-stripes="<?php echo $kind;?>">
-       <?php for($i=0;$i<10;$i++):?>
-       <label class="ne-stripe-row">#<?php echo $i+1;?><input type="color" data-stripe-color value="<?php echo $esc($settings['stripes'][$i]??'#FFFFFF');?>">
-       <input type="checkbox" data-stripe-active <?php echo isset($settings['stripes'][$i])?'checked':'';?>><input type="hidden" name="notifications[<?php echo $kind;?>][stripes][<?php echo $i;?>]" value="<?php echo $esc($settings['stripes'][$i]??'');?>"></label>
-       <?php endfor;?>
-      </div>
-     </div>
     <?php endif;?>
    </div>
    <div>
-    <?php if ($kind!=='scheduled'): ?>
-     <div class="ne-card"><h4>Actual rendered preview</h4>
-      <?php
-       $xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,$kind,$samples[$kind],[],$settings);
-       $preview='';
-       if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match)) $preview=html_entity_decode($match[1],ENT_QUOTES,'UTF-8');
-      ?>
-      <?php if ($preview):?><img class="ne-screen" src="<?php echo $esc($preview);?>" alt="Actual Cisco phone PNG preview">
-      <?php else:?><p>Unable to generate PNG preview. Check PHP GD and your public content folder.</p><?php endif;?>
-      <p class="ne-help">This PNG was generated using exactly the same PHP renderer as the real notifications. Changing appearance settings updates this image using the same server renderer as the phone.</p>
-     </div>
-    <?php else: ?><div class="ne-card"><h4>Scheduled notifications</h4><p>Scheduled images use the incoming feed image; they are not generated with the call/voicemail graphic renderer.</p><p>Use the source and schedule controls to configure delivery.</p></div><?php endif;?>
-   </div>
+       </div>
   </div>
  </section>
  <?php endforeach;?>
@@ -161,12 +160,12 @@ $samples=[
    secondary_text:t[3],details_background:t[0],details_label:t[3],
    details_text:t[2],accent:t[4]};
   Object.keys(values).forEach(key=>{const input=panel.querySelector('[name$="[colors]['+key+']"]');if(input)input.value=values[key];});
-  requestPreview(panel);
+
  }));
 
  root.querySelectorAll('.ne-stripe-row').forEach(row=>{
   const color=row.querySelector('[data-stripe-color]'),active=row.querySelector('[data-stripe-active]'),hidden=row.querySelector('input[type=hidden]');
-  const update=()=>{hidden.value=active.checked?color.value:'';};color.addEventListener('input',()=>{active.checked=true;update();requestPreview(row.closest('.ne-panel'));});active.addEventListener('change',()=>{update();requestPreview(row.closest('.ne-panel'));});
+  const update=()=>{hidden.value=active.checked?color.value:'';};color.addEventListener('input',()=>{active.checked=true;update();});active.addEventListener('change',()=>{update();});
  });
  root.querySelectorAll('[data-preset]').forEach(button=>button.addEventListener('click',()=>{
   const values=palettes[button.dataset.preset]||[];
@@ -174,34 +173,8 @@ $samples=[
   rows.forEach((row,i)=>{const color=row.querySelector('[data-stripe-color]'),active=row.querySelector('[data-stripe-active]'),hidden=row.querySelector('input[type=hidden]');color.value=values[i]||'#FFFFFF';active.checked=!!values[i];hidden.value=values[i]||'';});
   const panel=root.querySelector('[data-ne-panel="'+button.dataset.kind+'"]');
   panel.querySelector('[name$="[stripe_position]"]').value='header';
-  requestPreview(panel);
+
  }));
- const pending=new WeakMap();
- function requestPreview(panel){
-  if(!panel || panel.dataset.nePanel==='scheduled')return;
-  if(pending.has(panel))clearTimeout(pending.get(panel));
-  pending.set(panel,setTimeout(async()=>{
-   const kind=panel.dataset.nePanel;
-   const values=new URLSearchParams();
-   values.set('content_action','notifications_preview');values.set('kind',kind);
-   panel.querySelectorAll('[name]').forEach(el=>{
-    if(el.type==='checkbox'&&!el.checked)return;
-    const match=el.name.match(/^notifications\[(voicemail|missed)\]\[(.+)$/);
-    if(match && match[1]===kind)values.append('appearance['+match[2],el.value);
-   });
-   try{
-    const response=await fetch('config.php?display=sccp_content',{method:'POST',body:values,credentials:'same-origin'});
-    const data=await response.json();if(!response.ok||!data.url)throw new Error(data.error||'Preview failed');
-    const img=panel.querySelector('.ne-screen');if(img)img.src=data.url;
-   }catch(err){const note=panel.querySelector('.ne-preview-status');if(note)note.textContent='Preview error: '+err.message;}
-  },180));
- }
- root.querySelectorAll('.ne-panel').forEach(panel=>{
-  panel.querySelectorAll('input,select').forEach(el=>{
-   if(el.matches('.ne-theme,[data-stripe-color],[data-stripe-active]'))return;
-   el.addEventListener('change',()=>requestPreview(panel));
-   if(el.type==='color')el.addEventListener('input',()=>{const theme=panel.querySelector('.ne-theme');if(theme)theme.value='custom';requestPreview(panel);});
-  });
- });
+
 })();
 </script>
