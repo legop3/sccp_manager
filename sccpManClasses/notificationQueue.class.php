@@ -122,6 +122,16 @@ final class notificationQueue {
                 libxml_clear_errors();libxml_use_internal_errors($previous);
                 if ($loaded && $doc->documentElement) {
                     $root=$doc->documentElement;
+                    // CiscoIPPhoneStatus has no softkeys or Prompt. Convert
+                    // queued status overlays to a dismissible text document.
+                    if ($root->tagName==='CiscoIPPhoneStatus') {
+                        $value=$root->getElementsByTagName('Text')->item(0);
+                        $message=$value ? $value->textContent : '';
+                        $doc=new \DOMDocument('1.0','UTF-8');
+                        $root=$doc->appendChild($doc->createElement('CiscoIPPhoneText'));
+                        $root->appendChild($doc->createElement('Title','Notification'));
+                        $root->appendChild($doc->createElement('Text'))->appendChild($doc->createTextNode($message));
+                    }
                     foreach (iterator_to_array($root->getElementsByTagName('Prompt')) as $p)
                         if ($p->parentNode===$root) $root->removeChild($p);
                     $prompt=$doc->createElement('Prompt');
