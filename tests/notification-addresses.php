@@ -5,7 +5,7 @@ $queue=file_get_contents(__DIR__.'/../sccpManClasses/notificationQueue.class.php
 $config=file_get_contents(__DIR__.'/../sccpManClasses/notificationConfig.class.php');
 if (substr_count($delivery,'phoneNotifications::graphic(')!==1)
     throw new RuntimeException('Every delivery kind must use exactly one graphical renderer call');
-if (!str_contains($delivery,"new notificationMessage('',$actions,$graphic"))
+if (!str_contains($delivery, "new notificationMessage('',\$actions,\$graphic"))
     throw new RuntimeException('Delivery must pass inline graphic directly to shared message');
 foreach (['scheduledImageXml','publicDocument(','displayUrl(','notification-display.php'] as $unused)
     if (str_contains($delivery,$unused))
