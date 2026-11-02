@@ -38,7 +38,7 @@ final class notificationQueue {
     private static function prune($items) {
         $now=time();
         $items=array_values(array_filter((array)$items,static function($v)use($now) {
-            return is_array($v) && isset($v['at'],$v['id'],$v['url']) &&
+            return is_array($v) && isset($v['at'],$v['id']) &&
                 (int)$v['at']>$now-self::MAX_AGE &&
                 preg_match('/^[a-f0-9]{24}$/D',(string)$v['id']) &&
                 is_string($v['xml']??null) &&
@@ -59,9 +59,8 @@ final class notificationQueue {
      * One generic notification contract for every producer. Renderers own their
      * XML and actions; this manager owns the Clear softkey and navigation state.
      */
-    public function enqueue($device,$url,array $providedActions=[],$contentXml=null) {
+    private function enqueue($device,array $providedActions,$contentXml) {
         if (!phonevoicemail::validDevice($device) ||
-            ($url!=='' && !filter_var($url,FILTER_VALIDATE_URL)) ||
             !is_string($contentXml) || $contentXml==='')
             throw new \InvalidArgumentException('Invalid queued notification');
         $endpoint=$this->module->phonecontent->publicPath().'/notification-queue.php';
@@ -72,17 +71,15 @@ final class notificationQueue {
         $id=bin2hex(random_bytes(12));
         if ($contentXml!==null && (!is_string($contentXml) || strlen($contentXml)>262144))
             throw new \InvalidArgumentException('Invalid notification XML payload');
-        $snapshot=null;
         $actions=[];
         foreach ($providedActions as $label=>$target) {
             if (count($actions)===3) break;
             if (is_string($label) && trim($label)!=='' && is_string($target) && trim($target)!=='')
                 $actions[]=['name'=>substr(trim($label),0,12),'url'=>$target];
         }
-        $snapshot=$contentXml;
-        $this->transaction(static function(&$state)use($device,$id,$url,$snapshot,$actions) {
+        $this->transaction(static function(&$state)use($device,$id,$contentXml,$actions) {
             $items=self::prune($state[$device]??[]);
-            $items[]=['id'=>$id,'url'=>$url,'xml'=>$snapshot,'actions'=>array_slice($actions,0,3),'at'=>time()];
+            $items[]=['id'=>$id,'xml'=>$contentXml,'actions'=>array_slice($actions,0,3),'at'=>time()];
             $state[$device]=self::prune($items);
         });
         return $this->url($device,$id);
@@ -100,14 +97,13 @@ final class notificationQueue {
         $notification=$message->payload();
         if (!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4))
             throw new \InvalidArgumentException('Invalid notification handset address');
-        $url=(string)($notification['url']??'');
         $contentXml=$notification['xml']??null;
         $actions=$notification['actions']??[];
         if (!is_array($actions)) throw new \InvalidArgumentException('Invalid notification actions');
         $sound=(string)($notification['sound']??'');
         if ($sound!=='' && !preg_match('/^[A-Za-z0-9_.-]+\\.raw$/D',$sound))
             throw new \InvalidArgumentException('Invalid notification sound');
-        $display=$this->enqueue($device,$url,$actions,$contentXml);
+        $display=$this->enqueue($device,$actions,$contentXml);
         $xml='<CiscoIPPhoneExecute>';
         if ($sound!=='') $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1|ENT_QUOTES,'UTF-8').'"/>';
          $xml.='<ExecuteItem URL="'.htmlspecialchars($display,ENT_XML1|ENT_QUOTES,'UTF-8').'"/>';
