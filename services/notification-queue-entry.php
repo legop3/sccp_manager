@@ -6,6 +6,7 @@ header('Cache-Control: no-store');
 try {
     $bootstrap_settings['freepbx_auth']=false;
     require_once '/etc/freepbx.conf';
+    require_once rtrim((string)$amp_conf['AMPWEBROOT'],'/').'/admin/modules/sccp_manager/Sccp_manager.class.php';
     $module=\FreePBX::create()->Sccp_manager;
     (new \FreePBX\modules\Sccp_manager\notificationQueue($module))->handle($_GET);
 } catch (\Throwable $e) {
