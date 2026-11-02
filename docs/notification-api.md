@@ -3,8 +3,8 @@
 Every phone notification uses a single graphical image pipeline.
 
 1. The sender builds generic display fields: `title`, `primary`, `secondary`, `detail`, and `timestamp`.
-2. The shared `phoneNotifications::graphic($module, $fields, [], $appearance, $device)` renders a `CiscoIPPhoneImageFile` XML document and its PNG using `notificationConfig::appearance()`.
-3. The sender constructs `notificationMessage('', $actions, $xml, $optionalSound)`, with at most three actions.
+2. The shared `phoneNotifications::graphic($module, $fields, $appearance, $device)` renders a `CiscoIPPhoneImageFile` XML document and its PNG using `notificationConfig::appearance()`.
+3. The sender constructs `notificationMessage($actions, $xml, $optionalSound)`, with at most three actions.
 4. `notificationQueue::send($device, $sessionIp, $message)` stores the image document, adds Clear as the first softkey, then pushes the queue URL to the Cisco phone.
 
 There are no text, status, standalone image-source, URL-only, or sound-only notification modes. Sounds may accompany a graphical notification.
@@ -24,8 +24,8 @@ $fields=[
     'detail'=>'',
     'timestamp'=>date('m/d/Y g:i A')
 ];
-$xml=phoneNotifications::graphic($module,$fields,[],$appearance,$device);
-$message=new notificationMessage('', ['Open'=>$appUrl], $xml);
+$xml=phoneNotifications::graphic($module,$fields,$appearance,$device);
+$message=new notificationMessage(['Open'=>$appUrl], $xml);
 $result=(new notificationQueue($module))->send($device,$sessionIp,$message);
 ```
 
