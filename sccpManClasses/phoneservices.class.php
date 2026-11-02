@@ -92,7 +92,7 @@ class phoneservices {
         $theme=(new notificationConfig($this->module))->appearance();
         $graphic=phoneNotifications::graphic($this->module,[
             'title'=>$heading,'primary'=>$message,'timestamp'=>date('m/d/Y g:i A')
-        ],[],$theme,$device);
+        ],$theme,$device);
         if (!$graphic) throw new \RuntimeException('Unable to render service notification image');
         $result=(new notificationQueue($this->module))->send($device,$all[$device],
             new notificationMessage('', ['Open'=>$url],$graphic));
