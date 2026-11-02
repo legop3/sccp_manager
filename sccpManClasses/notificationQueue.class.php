@@ -231,11 +231,12 @@ final class notificationQueue {
             }
             echo $doc->saveXML(); return;
         }
-        // Service pushes already render full interactive pages. Carry a queue
-        // token into the existing service renderer for a native Dismiss softkey.
-        if (isset($parts['path']) && basename($parts['path'])==='service.php') {
-            $separator=strpos($url,'?')===false?'?':'&';
-            $url.=$separator.http_build_query(['notification_id'=>$entry['id'],'notification_entry'=>1],'','&',PHP_QUERY_RFC3986);
+        // A notification can launch ANY module application. Its renderer owns
+        // the page and implements the shared notification_id return contract.
+        // No sender type or service endpoint is special-cased here.
+        $contextual=self::contextLink($url,$entry['id']);
+        if ($contextual!==$url) {
+            $url=$contextual.'&notification_entry=1';
         }
         $safe=htmlspecialchars($url,ENT_XML1|ENT_QUOTES,'UTF-8');
         echo '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneExecute><ExecuteItem URL="'.$safe.'"/></CiscoIPPhoneExecute>';
