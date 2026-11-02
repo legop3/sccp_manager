@@ -503,7 +503,7 @@ class phonevoicemail
         }
         $this->xml(substr($from, 0, 55), 'Select an action', $entries,
             $confirmDelete ? $base . '&op=detail&id=' . rawurlencode($id) : ($this->singleMessage ? null : $base),
-            $this->singleMessage && !$notificationLinked ? $this->serviceUrlFromSingle($base) : null);
+            $this->singleMessage && !($this->notificationNavigation && $this->notificationNavigation->active()) ? $this->serviceUrlFromSingle($base) : null);
     }
 
     private function serviceUrlFromSingle($base)
