@@ -5,7 +5,9 @@ namespace FreePBX\modules\Sccp_manager;
 class phoneservices {
     private $module;
     private $queueControls = null;
+    private $notificationReturn = null;
     private function queueSoftkey() {
+        if ($this->notificationReturn!==null) return '<SoftKeyItem><Name>Notification</Name><URL>'.$this->esc($this->notificationReturn).'</URL><Position>4</Position></SoftKeyItem>';
         if (!$this->queueControls) return '';
         return '<SoftKeyItem><Name>Dismiss</Name><URL>'.$this->esc($this->queueControls['dismiss']).'</URL><Position>4</Position></SoftKeyItem>';
     }
@@ -13,7 +15,7 @@ class phoneservices {
     private function esc($s) {return htmlspecialchars((string)$s, ENT_XML1|ENT_QUOTES, 'UTF-8');}
     private function xml($name,$data) {
         echo '<?xml version="1.0" encoding="UTF-8"?>';
-        echo '<CiscoIPPhoneText><Title>'.$this->esc(substr($name,0,32)).'</Title><Text>'.$this->esc($data).'</Text>' . ($this->queueControls ? '<Prompt>'.$this->esc($this->queueControls['prompt']).'</Prompt>'.$this->queueSoftkey() : '') . '</CiscoIPPhoneText>';
+        echo '<CiscoIPPhoneText><Title>'.$this->esc(substr($name,0,32)).'</Title><Text>'.$this->esc($data).'</Text>' . ($this->queueControls || $this->notificationReturn!==null ? '<Prompt>'.$this->esc($this->queueControls['prompt']??'Notification menu').'</Prompt>'.$this->queueSoftkey() : '') . '</CiscoIPPhoneText>';
     }
     private function menu($title,$entries) {
         echo '<?xml version="1.0" encoding="UTF-8"?>';
@@ -26,7 +28,7 @@ class phoneservices {
     private function form($title,$url,$label,$param,$mode='A') {
         echo '<?xml version="1.0" encoding="UTF-8"?>';
         echo '<CiscoIPPhoneInput><Title>'.$this->esc($title).'</Title><Prompt>'.$this->esc($this->queueControls['prompt']??$label).'</Prompt><URL>'.$this->esc($url).'</URL>';
-        echo '<InputItem><DisplayName>'.$this->esc($label).'</DisplayName><QueryString>'.$this->esc($param).'</QueryString><InputFlags>'.$this->esc($mode).'</InputFlags></InputItem></CiscoIPPhoneInput>';
+        echo '<InputItem><DisplayName>'.$this->esc($label).'</DisplayName><QueryString>'.$this->esc($param).'</QueryString><InputFlags>'.$this->esc($mode).'</InputFlags></InputItem>'.$this->queueSoftkey().'</CiscoIPPhoneInput>';
     }
     private function statePath() {return '/var/spool/asterisk/sccp-manager-services.json';}
     private function transact($callback) {
@@ -118,12 +120,17 @@ class phoneservices {
         header('Cache-Control: no-store');header('Expires: Thu, 01 Jan 1970 00:00:01 GMT');
         header('X-Content-Type-Options: nosniff');
         [$device,$identity]=$this->auth($q);
+        if (isset($q['notification_id'])) {
+            $controls=(new notificationQueue($this->module))->returnControls($device,(string)$q['notification_id']);
+            $this->notificationReturn=$controls['return']??null;
+        }
         if (isset($q['queue_id'])) {
             $this->queueControls=(new notificationQueue($this->module))->serviceControls(
                 $device,(string)$q['queue_id']);
         }
         $line=$identity['extension'];
         $root=['phone'=>$device,'key'=>(string)$q['key']];
+        if ($this->notificationReturn!==null) $root['notification_id']=(string)$q['notification_id'];
         $route=function($fields)use($root){return $this->requestUrl(array_merge($root,$fields));};
         $flags=$this->module->phonemenus->serviceFlags();
         $app=(string)($q['app']??'');$op=(string)($q['op']??'');
