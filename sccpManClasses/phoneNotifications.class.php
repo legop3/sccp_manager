@@ -152,21 +152,4 @@ final class phoneNotifications
         $positioxml.'</CiscoIPPhoneImageFile>';
     }
 
-    public static function execute($notificationUrl, $soundFile = null)
-    {
-        if (!filter_var($notificationUrl, FILTER_VALIDATE_URL) ||
-            !in_array(strtolower((string)parse_url($notificationUrl, PHP_URL_SCHEME)), array('http', 'https'), true)) {
-            throw new \InvalidArgumentException('Invalid notification URL');
-        }
-        $items = '';
-        if ($soundFile !== null && $soundFile !== '') {
-            if (!preg_match('/^[A-Za-z0-9_.-]+\\.raw$/D', (string)$soundFile)) {
-                throw new \InvalidArgumentException('Invalid notification sound filename');
-            }
-            $items .= '<ExecuteItem URL="Play:' . self::xml($soundFile) . '"/>';
-        }
-        $items .= '<ExecuteItem URL="' . self::xml($notificationUrl) . '"/>';
-        return '<?xml version="1.0" encoding="UTF-8"?>'
-            . '<CiscoIPPhoneExecute>' . $items . '</CiscoIPPhoneExecute>';
-    }
 }
