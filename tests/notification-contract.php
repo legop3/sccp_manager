@@ -1,7 +1,7 @@
 <?php
 // Shared notification navigation contract regression checks.
 require_once __DIR__.'/../sccpManClasses/notificationQueue.class.php';
-require_once __DIR__.'/../sccpManClasses/notificationMessage.class.php';
+require_once __DIR__.'/../sccpManClasses/notificationMessage.php';
 use FreePBX\modules\Sccp_manager\notificationQueue;
 use FreePBX\modules\Sccp_manager\notificationMessage;
 function assertSameValue($expected,$actual,$message) {
@@ -29,4 +29,7 @@ try {new notificationMessage('javascript:alert(1)');throw new RuntimeException('
 catch (InvalidArgumentException $expected) {}
 try { new notificationMessage('',[], '<CiscoIPPhoneText><Title>Broken & URL</Title></CiscoIPPhoneText>'); throw new RuntimeException('Malformed XML accepted'); }
 catch (InvalidArgumentException $expected) {}
+$loader=file_get_contents(__DIR__.'/../Sccp_manager.class.php');
+if (str_contains($loader, 'notificationMessage.class.php')) throw new RuntimeException('Value object must not be auto-constructed');
+if (is_file(__DIR__.'/../sccpManClasses/notificationMessage.class.php')) throw new RuntimeException('Value object is in component scan');
 echo "Shared notification object and link contract OK\n";
