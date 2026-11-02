@@ -147,6 +147,13 @@ verify($last->getElementsByTagName('Name')->item(0)->textContent==='Back',
     'Notification voicemail menu has explicit Back, not Exit');
 verify($keys->length<=4,'Notification voicemail menu has no more than four softkeys');
 $contextProperty->setValue($vm,null);
+$sourceText=file_get_contents(__DIR__.'/../sccpManClasses/phonevoicemail.class.php');
+verify(strpos($sourceText,'fastcgi_finish_request()')!==false &&
+    strpos($sourceText,'@flush()')!==false,
+    'Playback must flush phone XML response before originating SCCP call');
+verify(strpos($sourceText,'if ($this->notificationReturn!==null) {')!==false,
+    'Notification voicemail call menu must preserve application navigation');
+
 
 $softkeysDetail = array_map('strval', $xml->xpath('//SoftKeyItem/Name'));
 verify(!in_array('VM Menu', $softkeysDetail, true),
