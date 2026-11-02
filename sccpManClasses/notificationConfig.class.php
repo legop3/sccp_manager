@@ -6,8 +6,7 @@ final class notificationConfig {
     private $module;
     public function __construct($module) { $this->module=$module; }
     public function appearance() {
-        $defaults=['theme'=>'cisco','show_number'=>true,'show_details'=>true,
-            'colors'=>[],'stripes'=>[],'stripe_position'=>'off'];
+        $defaults=['theme'=>'cisco','colors'=>[],'stripes'=>[],'stripe_position'=>'off'];
         $saved=$this->module->getConfig('phonecontent_notification_appearance');
         if (is_array($saved)) return array_merge($defaults,array_intersect_key($saved,$defaults));
         // Preserve the existing voicemail appearance as the one shared design,
@@ -25,8 +24,6 @@ final class notificationConfig {
         if (!in_array($theme,['cisco','ocean','charcoal','plum','forest','custom'],true))
             throw new \InvalidArgumentException('Invalid notification theme');
         $settings['theme']=$theme;
-        $settings['show_number']=!empty($post['show_number']);
-        $settings['show_details']=!empty($post['show_details']);
         foreach (['background','header','header_text','name_text','secondary_text','details_background','details_label','details_text','accent'] as $key) {
             $value=(string)($post['colors'][$key]??$settings['colors'][$key]??'');
             if ($value!=='' && !preg_match('/^#[0-9a-fA-F]{6}$/D',$value))
