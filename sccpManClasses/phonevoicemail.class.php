@@ -525,7 +525,8 @@ class phonevoicemail
         // This softkey is outside the recordings list and appears only
         // at the mailbox root, never on individual message screens.
         $this->xml('Voicemail ' . $line, count($messages) . ' messages (* = new)',
-            $links, null, $base . '&op=call-menu');
+            $links, null, ($this->notificationNavigation && $this->notificationNavigation->active())
+                ? null : $base . '&op=call-menu');
     }
 
     /**
