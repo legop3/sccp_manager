@@ -10,13 +10,11 @@ final class notificationNavigation {
     private $id;
     private $returnUrl;
     private $clearUrl;
-    private $entry;
 
     public function __construct($module,$device,array $query) {
         $this->id='';
         $this->returnUrl=null;
         $this->clearUrl=null;
-        $this->entry=false;
         $id=(string)($query['notification_id']??'');
         if (!preg_match('/^[a-f0-9]{24}$/D',$id)) return;
         $controls=(new notificationQueue($module))->returnControls($device,$id);
@@ -24,7 +22,6 @@ final class notificationNavigation {
         $this->id=$id;
         $this->returnUrl=$controls['return'];
         $this->clearUrl=$controls['clear'];
-        $this->entry=(string)($query['notification_entry']??'')==='1';
     }
     public function active() { return $this->returnUrl!==null; }
     public function returnUrl() { return $this->returnUrl; }
@@ -35,12 +32,6 @@ final class notificationNavigation {
     public function fields() { return $this->active()?['notification_id'=>$this->id]:[]; }
     public function softkeys($type='menu') {
         if (!$this->active()) return [];
-        if ($this->entry) {
-            $keys=[['Clear',$this->clearUrl,1]];
-            if ($type==='menu') $keys[]=['Select','SoftKey:Select',2];
-            if ($type==='input') $keys[]=['Submit','SoftKey:Submit',2];
-            return $keys;
-        }
         $keys=[];
         if ($type==='menu') $keys[]=['Select','SoftKey:Select',1];
         if ($type==='input') $keys[]=['Submit','SoftKey:Submit',1];
