@@ -133,9 +133,8 @@ if (!is_file($file) || is_link($file)) {
 }
 header('Content-Type: text/xml; charset=UTF-8');
 header('Cache-Control: no-store');
-// Experiment: allow notification pages into Cisco XML history so Exit may
-// reveal an earlier pushed notification. Other phone menus are unchanged.
-header('Expires: Thu, 01 Jan 2037 00:00:00 GMT');
+// Keep Cisco XML history separate from the server-managed notification queue.
+header('Expires: Thu, 01 Jan 2004 00:00:00 GMT');
 readfile($file);
 PHP;
         if (file_put_contents($displayPath,$displayScript."\n",LOCK_EX)===false)
