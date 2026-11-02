@@ -52,6 +52,7 @@ jobs:
         run: |
           php tests/notification-addresses.php
           php tests/notification-contract.php
+          php tests/notification-service-menus.php
 
       - name: Record source validation result
         if: always()
