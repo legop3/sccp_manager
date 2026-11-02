@@ -150,6 +150,11 @@ final class notificationQueue {
             if (!@$doc->loadXML($raw,LIBXML_NONET) || !$doc->documentElement)
                 throw new \RuntimeException('Stored notification XML is invalid');
             $root=$doc->documentElement;
+            // Legacy queue entries had softkeys embedded in their snapshot.
+            // Strip only that old control metadata before applying the shared
+            // four-key contract; do not change the notification body.
+            foreach (iterator_to_array($root->getElementsByTagName('SoftKeyItem')) as $oldKey)
+                if ($oldKey->parentNode===$root) $root->removeChild($oldKey);
             if ($root->tagName==='CiscoIPPhoneStatus') {
                 $value=$root->getElementsByTagName('Text')->item(0);
                 $message=$value?$value->textContent:'';
