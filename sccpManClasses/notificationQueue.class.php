@@ -100,7 +100,7 @@ final class notificationQueue {
         }
         $state=$this->current($device,($q['op']??'')==='dismiss'?$id:null);
         if (!$state['entry']) {
-            echo '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneText><Title>Notifications</Title><Text>No more notifications</Text><Prompt>All cleared</Prompt><SoftKeyItem><Name>Exit</Name><URL>SoftKey:Exit</URL><Position>1</Position></SoftKeyItem></CiscoIPPhoneText>';
+            echo '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneExecute><ExecuteItem URL="Init:Services"/></CiscoIPPhoneExecute>';
             return;
         }
         $entry=$state['entry'];
