@@ -163,7 +163,7 @@ final class notificationDelivery {
                 $actions=[];
                 $number=(string)($fields['number']??'');
                 if (preg_match('/^[+0-9*#]{1,32}$/D',$number)) $actions['Call Back']='Dial:'.$number;
-                $graphic=phoneNotifications::graphic($this->module,'missed',$fields,[],$options,$device);
+                $graphic=phoneNotifications::graphic($this->module,'missed',$fields,[],$appearance,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
                 $contentXml=$graphic;
