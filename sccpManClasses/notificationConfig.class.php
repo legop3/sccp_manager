@@ -135,30 +135,9 @@ PHP;
             throw new \RuntimeException('Cannot publish Cisco push authentication endpoint.');
         chmod($path,0644);
 
-        // Cisco 79xx expects text/xml, while Apache's default .xml MIME
-        // mapping can be application/xml. Only serve generated notifications.
-        $displayPath=dirname($path).'/notification-display.php';
-        $displayScript=<<<'PHP'
-<?php
-ini_set('display_errors','0');
-$id=(string)($_GET['id']??'');
-if (!preg_match('/^[0-9a-f]{24}$/D',$id)) {
-    http_response_code(404);
-    exit;
-}
-$file=__DIR__.'/notification-'.$id.'.xml';
-if (!is_file($file) || is_link($file)) {
-    http_response_code(404);
-    exit;
-}
-header('Content-Type: text/xml; charset=UTF-8');
-header('Cache-Control: no-store');
-// Keep Cisco XML history separate from the server-managed notification queue.
-header('Expires: Thu, 01 Jan 2004 00:00:00 GMT');
-readfile($file);
-PHP;
-        if (file_put_contents($displayPath,$displayScript."\n",LOCK_EX)===false)
-            throw new \RuntimeException('Cannot publish Cisco XML notification display endpoint.');
-        chmod($displayPath,0644);
+        // Remove the retired display endpoint; notifications are served by
+        // notification-queue.php and rendered from their stored image XML.
+        $oldDisplay=dirname($path).'/notification-display.php';
+        if (is_file($oldDisplay) && !is_link($oldDisplay)) @unlink($oldDisplay);
     }
 }
