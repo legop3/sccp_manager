@@ -133,6 +133,7 @@ final class notificationDelivery {
             // Every handset needs its own authenticated voicemail links.
             // Do not publish the bearer token in a shared document.
             $deviceUrl=$documentId ? $this->displayUrl($device,$documentId) : null;
+            $actions=[];
             if ($imageFilename!==null) {
                 $imageXml=self::scheduledImageXml($title,
                     $this->module->phonecontent->baseUrl($device).'/'.$imageFilename);
@@ -161,7 +162,7 @@ final class notificationDelivery {
                 } catch (\Throwable $e) {
                     error_log('SCCP notification voicemail actions: '.$e->getMessage());
                 }
-                $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,$actions,$options,$device);
+                $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,[],$options,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
             } elseif ($kind==='missed' && $options['style']==='text') {
@@ -171,7 +172,7 @@ final class notificationDelivery {
                 $actions=[];
                 $number=(string)($fields['number']??'');
                 if (preg_match('/^[+0-9*#]{1,32}$/D',$number)) $actions['Call Back']='Dial:'.$number;
-                $graphic=phoneNotifications::graphic($this->module,'missed',$fields,$actions,$options,$device);
+                $graphic=phoneNotifications::graphic($this->module,'missed',$fields,[],$options,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
             }
@@ -179,7 +180,7 @@ final class notificationDelivery {
             // remain immediate and are not stored as empty screens.
             if ($deviceUrl !== null) {
                 try {
-                    $deviceUrl=(new notificationQueue($this->module))->enqueue($device,$deviceUrl);
+                    $deviceUrl=(new notificationQueue($this->module))->enqueue($device,$deviceUrl,$actions);
                 } catch (\Throwable $e) {
                     error_log('SCCP notification queue fallback: '.$e->getMessage());
                 }
