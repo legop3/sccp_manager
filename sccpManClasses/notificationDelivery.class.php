@@ -88,7 +88,9 @@ final class notificationDelivery {
     }
 
     public function send($kind,$fields=[],$extensions=null,$test=false) {
-        $settings=(new notificationConfig($this->module))->all();
+        $config=new notificationConfig($this->module);
+        $settings=$config->all();
+        $appearance=$config->appearance();
         if (!isset($settings[$kind])) return 0;
         $options=$settings[$kind];
         if (!$options['enabled'] && !$test) return 0;
@@ -126,7 +128,7 @@ final class notificationDelivery {
                 'title'=>$title,'caller'=>$message,'secondary'=>'',
                 'when'=>date('m/d/Y g:i A')
             ];
-            $kindSettings=$options;
+            $kindSettings=$appearance;
             if ($kind==='voicemail') {
                 $actions=[];
                 try {
@@ -150,7 +152,7 @@ final class notificationDelivery {
                 } catch (\Throwable $e) {
                     error_log('SCCP notification voicemail actions: '.$e->getMessage());
                 }
-                $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,[],$options,$device);
+                $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,[],$appearance,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
                 $contentXml=$graphic;
