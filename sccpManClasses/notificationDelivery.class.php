@@ -35,38 +35,6 @@ final class notificationDelivery {
         return null;
     }
 
-    private function publicDocument($xml) {
-        $dir=$this->module->phonecontent->publicPath();
-        if (!is_dir($dir) || is_link($dir)) return null;
-        $name='notification-'.bin2hex(random_bytes(12)).'.xml';
-        if (file_put_contents($dir.'/'.$name,$xml,LOCK_EX)===false) return null;
-        chmod($dir.'/'.$name,0644);
-        foreach (glob($dir.'/notification-*.xml')?:[] as $old)
-            if (is_file($old) && !is_link($old) && filemtime($old)<time()-3600) @unlink($old);
-        // The 7945G XML browser expects text/xml. Apache serves .xml as
-        // application/xml on some FreePBX hosts, causing "HTTP file error".
-        // Serve through a fixed, read-only endpoint with the proper MIME type.
-        return substr($name,13,24);
-    }
-
-    /** All notification display links require a recipient; never fall back to LAN. */
-    private function displayUrl($device, $id) {
-        if ($id === null) return null;
-        $base=$this->module->phonecontent->baseUrl($device);
-        if ($base==='') throw new \RuntimeException('No HTTP address configured for '.$device);
-        return $base.'/notification-display.php?id='.$id;
-    }
-
-    /** Compose the actual handset-specific image document, never a shared placeholder. */
-    public static function scheduledImageXml($title, $imageUrl) {
-        if (!preg_match('~^https?://~', $imageUrl)) throw new \InvalidArgumentException('Invalid notification image URL');
-        return '<CiscoIPPhoneImageFile><Title>'.
-            htmlspecialchars(substr($title,0,32),ENT_XML1|ENT_QUOTES,'UTF-8').
-            '</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>'.
-            htmlspecialchars($imageUrl,ENT_XML1|ENT_QUOTES,'UTF-8').
-            '</URL></CiscoIPPhoneImageFile>';
-    }
-
     private function forDevice($device, $extensions, $kind) {
         if ($extensions === null) return true;
         try {
@@ -128,7 +96,6 @@ final class notificationDelivery {
                 'title'=>$title,'primary'=>$message,'secondary'=>'',
                 'detail'=>'','timestamp'=>date('m/d/Y g:i A')
             ];
-            $kindSettings=$appearance;
             if ($kind==='voicemail') {
                 $actions=[];
                 try {
@@ -162,8 +129,6 @@ final class notificationDelivery {
                     $renderFields['secondary']='Ext. '.$renderFields['secondary'];
                 $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$appearance,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
-                $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
-                $contentXml=$graphic;
             } elseif ($kind==='missed') {
                 // Present the user's public number, not the SCCP-only line.
                 $identity=(new phonevoicemail($this->module))->destinationForDevice($device);
@@ -180,17 +145,12 @@ final class notificationDelivery {
                     $renderFields['secondary']='Ext. '.$renderFields['secondary'];
                 $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$appearance,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
-                $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
-                $contentXml=$graphic;
             }
-            if ($graphic===null) {
-                $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$kindSettings,$device);
-                if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
-                $contentXml=$graphic;
-                $deviceUrl='';
-            }
+            if ($graphic===null)
+                $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$appearance,$device);
+            if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
             $delivery=(new notificationQueue($this->module))->send($device,$ip,
-                new notificationMessage($deviceUrl??'',$actions,$contentXml??null,$sound??null));
+                new notificationMessage('',$actions,$graphic,$sound??null));
             $status=$delivery['status'];
             $response=$delivery['response'];
             if ($status===200 && is_string($response) && strpos($response,'CiscoIPPhoneError')===false) {
