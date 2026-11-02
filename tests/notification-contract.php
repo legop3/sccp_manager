@@ -21,6 +21,8 @@ $message=new notificationMessage('http://10.254.77.1/sccp-manager/notification-d
     'Listen'=>$base, 'Messages'=>'http://10.254.77.1/sccp-manager/service.php?app=messages'
 ],'<CiscoIPPhoneText><Title>Test</Title><Text>Message</Text></CiscoIPPhoneText>');
 assertSameValue(2,count($message->payload()['actions']),'Sender-provided actions remain independent of content');
+$selfContained=new notificationMessage('',[], '<CiscoIPPhoneText><Title>Standalone</Title><Text>OK</Text></CiscoIPPhoneText>');
+assertSameValue('', $selfContained->payload()['url'], 'Self-contained notifications need no published URL');
 try {new notificationMessage($base,['A'=>'Dial:1','B'=>'Dial:2','C'=>'Dial:3','D'=>'Dial:4']);throw new RuntimeException('Four sender actions accepted');}
 catch (InvalidArgumentException $expected) {}
 try {new notificationMessage('javascript:alert(1)');throw new RuntimeException('Unsafe URL accepted');}
