@@ -27,4 +27,14 @@ checkAppearance(str_contains($service,'->appearance()'),'Service sends use share
 $view=file_get_contents(__DIR__.'/../views/content.notifications.php');
 checkAppearance(substr_count($view,'Design & layout')===1,'Single design editor');
 checkAppearance(str_contains($view,'notifications[appearance][theme]'),'Editor submits shared theme');
+$renderer=file_get_contents(__DIR__.'/../sccpManClasses/phoneNotifications.class.php');
+$graphic=substr($renderer,strpos($renderer,'public static function graphic('));
+checkAppearance(strpos($graphic,"$kind==='voicemail'")===false &&
+    strpos($graphic,"$kind==='missed'")===false,
+    'Graphical renderer must not branch on sender type');
+foreach (["'title'","'primary'","'secondary'","'detail'","'timestamp'"] as $field)
+    checkAppearance(strpos($graphic,$field)!==false,'Renderer supports generic field '.$field);
+$view=file_get_contents(__DIR__.'/../views/content.notifications.php');
+checkAppearance(strpos($view,'show_number')===false && strpos($view,'show_details')===false,
+    'Appearance editor must not expose caller-specific content flags');
 echo "Shared notification appearance tests passed\n";
