@@ -117,7 +117,8 @@ final class notificationQueue {
      * @param string $ip SCCP session peer IPv4 address
      * @param array $notification ['url'=>string,'actions'=>[label=>url],'sound'=>?string]
      */
-    public function send($device,$ip,array $notification) {
+    public function send($device,$ip,notificationMessage $message) {
+        $notification=$message->payload();
         if (!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4))
             throw new \InvalidArgumentException('Invalid notification handset address');
         $url=(string)($notification['url']??'');
