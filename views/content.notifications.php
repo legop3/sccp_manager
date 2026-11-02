@@ -98,8 +98,6 @@ $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match
        <?php endforeach;?></select></div>
      <?php if ($kind==='scheduled'): ?>
      <?php else: ?>
-      <input type="hidden" name="notifications[<?php echo $kind;?>][title]" value="<?php echo $esc($settings['title']);?>">
-      <input type="hidden" name="notifications[<?php echo $kind;?>][message]" value="<?php echo $esc($settings['message']);?>">
       <p class="ne-help">Actions are integrated with FreePBX. Clear is first; the remaining actions are sender-defined.</p>
      <?php endif;?>
     </div>
