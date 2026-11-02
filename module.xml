@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.118</version>
+	<version>17.1.119</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.119 * - Fix FreePBX module boot failure by moving notification value object outside component scan
 		 * Version 17.1.118 * - Unified notification API, generic app navigation, XML validation, and service screen regression tests
 		 * Version 17.1.117 * - Unified notification message API, delivery, XML validation, universal app context and navigation tests
 		 * Version 17.1.116 * - Shared notification manager delivery API with renderer-supplied XML, actions, and explicit return navigation
