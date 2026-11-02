@@ -205,18 +205,11 @@ final class notificationQueue {
             if (!@$doc->loadXML($raw,LIBXML_NONET) || !$doc->documentElement)
                 throw new \RuntimeException('Stored notification XML is invalid');
             $root=$doc->documentElement;
-            // Legacy queue entries had softkeys embedded in their snapshot.
-            // Strip only that old control metadata before applying the shared
-            // four-key contract; do not change the notification body.
+            // Shared renderer supplies image content; the queue supplies actions.
             foreach (iterator_to_array($root->getElementsByTagName('SoftKeyItem')) as $oldKey)
                 if ($oldKey->parentNode===$root) $root->removeChild($oldKey);
-            if ($root->tagName==='CiscoIPPhoneStatus') {
-                $value=$root->getElementsByTagName('Text')->item(0);
-                $message=$value?$value->textContent:'';
-                $doc=new \DOMDocument('1.0','UTF-8');
-                $root=$doc->appendChild($doc->createElement('CiscoIPPhoneText'));
-                $root->appendChild($doc->createElement('Title','Notification'));
-                $root->appendChild($doc->createElement('Text'))->appendChild($doc->createTextNode($message));
+            if ($root->tagName!=='CiscoIPPhoneImageFile') {
+                throw new \RuntimeException('Queued notification must be graphical');
             }
             foreach (iterator_to_array($root->getElementsByTagName('Prompt')) as $p)
                 if ($p->parentNode===$root) $root->removeChild($p);
