@@ -80,7 +80,7 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
 <?php $sampleCard=['title'=>'Notification','primary'=>'Example message',
  'secondary'=>'Additional information', 'detail'=>'Extra detail',
  'timestamp'=>'11/02/2026 3:45 PM'];
-$xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,$sampleCard,[],$appearance);
+$xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,$sampleCard,$appearance);
 $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match)) $preview=html_entity_decode($match[1],ENT_QUOTES,'UTF-8'); ?>
 <?php if ($preview):?><img class="ne-screen" src="<?php echo $esc($preview);?>" alt="Shared appearance preview"><?php endif;?>
 <p class="ne-help">All notification types use this design. Their tabs control content and delivery only.</p>
