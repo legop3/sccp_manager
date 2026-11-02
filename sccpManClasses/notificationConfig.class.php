@@ -46,12 +46,6 @@ final class notificationConfig {
         if (is_array($saved)) foreach ($defaults as $kind=>$data)
             if (isset($saved[$kind]) && is_array($saved[$kind]))
                 $defaults[$kind]=array_merge($data,array_intersect_key($saved[$kind],$data));
-        // Migrate only the original shipped one-line messages. Never replace
-        // a user's custom template.
-        if ($defaults['voicemail']['message']==='You have {count} new voicemail(s)')
-            $defaults['voicemail']['message']="From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}";
-        if ($defaults['missed']['message']==='Missed call from {caller}')
-            $defaults['missed']['message']="From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}";
         return $defaults;
     }
     public function save($submitted) {
