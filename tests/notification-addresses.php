@@ -17,4 +17,22 @@ if (str_contains($config,'readfile($file)'))
 $service=file_get_contents(__DIR__.'/../sccpManClasses/phoneservices.class.php');
 if (!str_contains($service,"new notificationMessage(['Open'=>\$url],\$graphic)"))
     throw new RuntimeException('Services must send inline graphical notifications');
+$imageRenderer=file_get_contents(__DIR__.'/../sccpManClasses/phoneNotifications.class.php');
+$source=file_get_contents(__DIR__.'/../sccpManClasses/notificationSources.class.php');
+$admin=file_get_contents(__DIR__.'/../sccpManTraits/bmoFunctions.php');
+$nav=file_get_contents(__DIR__.'/../sccpManClasses/notificationNavigation.php');
+if (str_contains($imageRenderer,'public static function execute(') ||
+    str_contains($imageRenderer,'function previewFields(') ||
+    str_contains($imageRenderer,'SoftKeyItem'))
+    throw new RuntimeException('Renderer contains old push, preview, or softkey implementation');
+if (str_contains($source,'public static function image('))
+    throw new RuntimeException('Second scheduled image generator remains');
+if (str_contains($admin,'notifications_preview') || str_contains($admin,'previewFields('))
+    throw new RuntimeException('Obsolete AJAX preview handler remains');
+if (str_contains($nav,'notification_entry') || str_contains($queue,'notification_entry'))
+    throw new RuntimeException('Retired notification entry navigation path remains');
+if (str_contains($config,"'style'=>'text'") ||
+    str_contains($config,"'show_number'") ||
+    str_contains($config,"'show_details'"))
+    throw new RuntimeException('Old appearance or display mode settings remain');
 echo "Single notification delivery path passed\n";
