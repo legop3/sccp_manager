@@ -125,8 +125,8 @@ final class notificationDelivery {
             $actions=[];
             $graphic=null;
             $renderFields=[
-                'title'=>$title,'caller'=>$message,'secondary'=>'',
-                'when'=>date('m/d/Y g:i A')
+                'title'=>$title,'primary'=>$message,'secondary'=>'',
+                'detail'=>'','timestamp'=>date('m/d/Y g:i A')
             ];
             $kindSettings=$appearance;
             if ($kind==='voicemail') {
@@ -152,7 +152,15 @@ final class notificationDelivery {
                 } catch (\Throwable $e) {
                     error_log('SCCP notification voicemail actions: '.$e->getMessage());
                 }
-                $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,[],$appearance,$device);
+                $renderFields=[
+                    'title'=>'New voicemail','primary'=>(string)($fields['caller']??'Unknown caller'),
+                    'secondary'=>(string)($fields['number']??''),
+                    'detail'=>isset($fields['length'])&&$fields['length']!==''?'Length: '.$fields['length']:'',
+                    'timestamp'=>(string)($fields['when']??$fields['received']??'')
+                ];
+                if (preg_match('/^[0-9]{1,6}$/D',$renderFields['secondary']))
+                    $renderFields['secondary']='Ext. '.$renderFields['secondary'];
+                $graphic=phoneNotifications::graphic($this->module,'voicemail',$renderFields,[],$appearance,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
                 $contentXml=$graphic;
@@ -163,7 +171,14 @@ final class notificationDelivery {
                 $actions=[];
                 $number=(string)($fields['number']??'');
                 if (preg_match('/^[+0-9*#]{1,32}$/D',$number)) $actions['Call Back']='Dial:'.$number;
-                $graphic=phoneNotifications::graphic($this->module,'missed',$fields,[],$appearance,$device);
+                $renderFields=[
+                    'title'=>'Missed call','primary'=>(string)($fields['caller']??'Unknown caller'),
+                    'secondary'=>(string)($fields['number']??''),
+                    'detail'=>'','timestamp'=>(string)($fields['when']??$fields['received']??'')
+                ];
+                if (preg_match('/^[0-9]{1,6}$/D',$renderFields['secondary']))
+                    $renderFields['secondary']='Ext. '.$renderFields['secondary'];
+                $graphic=phoneNotifications::graphic($this->module,'missed',$renderFields,[],$appearance,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
                 $contentXml=$graphic;
