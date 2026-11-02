@@ -182,7 +182,7 @@ final class notificationDelivery {
             if ($deviceUrl !== null) {
                 try {
                     $deviceUrl=(new notificationQueue($this->module))->enqueue($device,$deviceUrl);
-                } catch (\\Throwable $e) {
+                } catch (\Throwable $e) {
                     error_log('SCCP notification queue fallback: '.$e->getMessage());
                 }
             }
