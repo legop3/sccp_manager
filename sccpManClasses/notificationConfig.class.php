@@ -5,6 +5,47 @@ namespace FreePBX\modules\Sccp_manager;
 final class notificationConfig {
     private $module;
     public function __construct($module) { $this->module=$module; }
+    public function appearance() {
+        $defaults=['theme'=>'cisco','show_number'=>true,'show_details'=>true,
+            'colors'=>[],'stripes'=>[],'stripe_position'=>'off'];
+        $saved=$this->module->getConfig('phonecontent_notification_appearance');
+        if (is_array($saved)) return array_merge($defaults,array_intersect_key($saved,$defaults));
+        // Preserve the existing voicemail appearance as the one shared design,
+        // without mutating old user settings or resetting customization.
+        $previous=$this->module->getConfig('phonecontent_notifications');
+        if (is_array($previous)) foreach (['voicemail','missed'] as $kind) {
+            if (isset($previous[$kind]) && is_array($previous[$kind]))
+                return array_merge($defaults,array_intersect_key($previous[$kind],$defaults));
+        }
+        return $defaults;
+    }
+    private function saveAppearance(array $post) {
+        $settings=$this->appearance();
+        $theme=(string)($post['theme']??$settings['theme']);
+        if (!in_array($theme,['cisco','ocean','charcoal','plum','forest','custom'],true))
+            throw new \InvalidArgumentException('Invalid notification theme');
+        $settings['theme']=$theme;
+        $settings['show_number']=!empty($post['show_number']);
+        $settings['show_details']=!empty($post['show_details']);
+        foreach (['background','header','header_text','name_text','secondary_text','details_background','details_label','details_text','accent'] as $key) {
+            $value=(string)($post['colors'][$key]??$settings['colors'][$key]??'');
+            if ($value!=='' && !preg_match('/^#[0-9a-fA-F]{6}$/D',$value))
+                throw new \InvalidArgumentException('Invalid notification color');
+            $settings['colors'][$key]=$value;
+        }
+        $position=(string)($post['stripe_position']??$settings['stripe_position']);
+        if (!in_array($position,['off','header','top','bottom','background'],true))
+            throw new \InvalidArgumentException('Invalid stripe placement');
+        $settings['stripe_position']=$position;
+        $settings['stripes']=[];
+        foreach (array_slice((array)($post['stripes']??[]),0,10) as $color) {
+            if ($color==='' || $color===null) continue;
+            if (!is_string($color) || !preg_match('/^#[0-9a-fA-F]{6}$/D',$color))
+                throw new \InvalidArgumentException('Invalid stripe color');
+            $settings['stripes'][]=$color;
+        }
+        $this->module->setConfig('phonecontent_notification_appearance',$settings);
+    }
     public function all() {
         $defaults=[
             'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8,'theme'=>'cisco','show_number'=>true,'show_details'=>true,'colors'=>[],'stripes'=>[],'stripe_position'=>'off'],
@@ -26,6 +67,8 @@ final class notificationConfig {
     public function save($submitted) {
         if (!is_array($submitted)) throw new \InvalidArgumentException('Invalid notification configuration');
         $values=$this->all();
+        if (isset($submitted['appearance']) && is_array($submitted['appearance']))
+            $this->saveAppearance($submitted['appearance']);
         $sounds=[''];
         foreach ($this->module->phonecontent->ringtones() as $ring) $sounds[]=(string)($ring['id']??'');
         foreach ($values as $kind=>$settings) {
@@ -38,26 +81,6 @@ final class notificationConfig {
             if (!in_array($sound,$sounds,true)) throw new \InvalidArgumentException('Unknown ringtone');
             $values[$kind]['sound']=$sound;
             $values[$kind]['duration']=max(2,min(60,(int)($post['duration']??8)));
-            if ($kind!=='scheduled') {
-                $theme=(string)($post['theme']??$settings['theme']);
-                if (!in_array($theme,['cisco','ocean','charcoal','plum','forest','custom'],true)) throw new \InvalidArgumentException('Invalid notification theme');
-                $values[$kind]['theme']=$theme;
-                $values[$kind]['show_number']=!empty($post['show_number']);
-                $values[$kind]['show_details']=!empty($post['show_details']);
-                foreach (['background','header','header_text','name_text','secondary_text','details_background','details_label','details_text','accent'] as $key) {
-                    $value=(string)($post['colors'][$key]??$settings['colors'][$key]??'');
-                    if ($value!=='' && !preg_match('/^#[0-9a-fA-F]{6}$/D',$value)) throw new \InvalidArgumentException('Invalid notification color');
-                    $values[$kind]['colors'][$key]=$value;
-                }
-                $stripes=(array)($post['stripes']??[]);
-                $values[$kind]['stripe_position']=in_array(($post['stripe_position']??'off'),['off','header','top','bottom','background'],true)?$post['stripe_position']:'off';
-                $values[$kind]['stripes']=[];
-                foreach (array_slice($stripes,0,10) as $color) {
-                    if ($color==='' || $color===null) continue;
-                    if (!is_string($color)||!preg_match('/^#[0-9a-fA-F]{6}$/D',$color)) throw new \InvalidArgumentException('Invalid stripe color');
-                    $values[$kind]['stripes'][]=$color;
-                }
-            }
             foreach (['title','message','title_url','message_url','image_url'] as $key) {
                 if (!array_key_exists($key,$settings)) continue;
                 $v=trim((string)($post[$key]??''));
