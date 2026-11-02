@@ -2,6 +2,7 @@
 namespace FreePBX\modules\Sccp_manager;
 
 require_once __DIR__.'/notificationMessage.php';
+require_once __DIR__.'/notificationNavigation.php';
 
 /**
  * Shared per-handset push queue. Stores references to already generated XML or
