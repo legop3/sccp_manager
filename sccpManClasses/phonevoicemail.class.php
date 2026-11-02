@@ -11,7 +11,7 @@ class phonevoicemail
     private $parent;
     private $serviceContext = false;
     private $singleMessage = false;
-    private $notificationReturn = null;
+    private $notificationNavigation = null;
     public function __construct($parent = null) { $this->parent = $parent; }
 
     public static function validDevice($id) {
@@ -446,17 +446,18 @@ class phonevoicemail
             $item->appendChild($doc->createElement('URL'))->appendChild($doc->createTextNode($entry[1]));
         }
 
+        $notificationLinked=$this->notificationNavigation && $this->notificationNavigation->active();
         $softkeys = array(array('Select', 'SoftKey:Select', 1));
         if ($vmMenuUrl !== null) {
             $softkeys[] = array('VM Menu', $vmMenuUrl, 2);
         }
         if ($backUrl !== null) {
-            $softkeys[] = array($this->notificationReturn !== null ? 'Previous' : 'Back', $backUrl, 3);
+            $softkeys[] = array($notificationLinked ? 'Previous' : 'Back', $backUrl, 3);
         }
         // Init:Messages closes the Messages application instead of walking
         // the firmware's page history like SoftKey:Exit does.
-        $softkeys[] = $this->notificationReturn !== null
-            ? array('Back', $this->notificationReturn, 4)
+        $softkeys[] = $notificationLinked
+            ? array('Back', $this->notificationNavigation->returnUrl(), 4)
             : array('Exit', $this->serviceContext ? 'SoftKey:Exit' : 'Init:Messages', 4);
         foreach ($softkeys as $softkey) {
             $item = $root->appendChild($doc->createElement('SoftKeyItem'));
@@ -502,7 +503,7 @@ class phonevoicemail
         }
         $this->xml(substr($from, 0, 55), 'Select an action', $entries,
             $confirmDelete ? $base . '&op=detail&id=' . rawurlencode($id) : ($this->singleMessage ? null : $base),
-            $this->singleMessage && $this->notificationReturn===null ? $this->serviceUrlFromSingle($base) : null);
+            $this->singleMessage && !$notificationLinked ? $this->serviceUrlFromSingle($base) : null);
     }
 
     private function serviceUrlFromSingle($base)
@@ -557,19 +558,16 @@ class phonevoicemail
             $base = $this->serviceUrl($device);
             $this->serviceContext = (string)($get['service'] ?? '') === '1';
             $this->singleMessage = $this->serviceContext && (string)($get['single'] ?? '') === '1';
-            $notificationId=(string)($get['notification_id']??'');
-            $controls=(new notificationQueue($this->module))->returnControls($device,$notificationId);
-            $this->notificationReturn=$controls['return']??null;
+            $this->notificationNavigation=new notificationNavigation($this->parent,$device,$get);
             if ($this->serviceContext) $base .= '&service=1';
             if ($this->singleMessage) $base .= '&single=1';
-            if ($this->notificationReturn!==null) $base .= '&notification_id='.rawurlencode($notificationId);
+            $base=$this->notificationNavigation->link($base);
             $op = (string)($get['op'] ?? 'list');
             if (!in_array($op, array('list','detail','play','notification','notification-play','mark','delete','confirm-delete','call-menu'), true)) throw new \InvalidArgumentException('Unknown voicemail operation.');
             if ($op === 'call-menu') {
-                if ($this->notificationReturn!==null) {
-                    // Keep the notification browser alive: native Init:Messages
-                    // would close the entire notification navigation stack.
-                    $this->xml('Voicemail', 'Use Play on a message to listen', array(), $this->notificationReturn);
+                if ($this->notificationNavigation->active()) {
+                    // Return to the originating notification; never close the app.
+                    $this->xml('Voicemail', 'Use Play on a message to listen', array(), $this->notificationNavigation->returnUrl());
                     return;
                 }
                 $this->traditionalVoicemailCall($line);
