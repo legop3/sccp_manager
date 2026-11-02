@@ -132,6 +132,22 @@ verify((string)$deleteXml->SoftKeyItem[0]->URL === 'SoftKey:Select',
 verify(strpos($deleteXml->asXML(), 'Delete Message?') === false,
     'Avoid the failing standalone Delete Message confirmation XML page');
 
+// Notification-launched voicemail must remain valid and retain explicit Back.
+$contextProperty=new ReflectionProperty(phonevoicemail::class,'notificationReturn');
+$contextProperty->setValue($vm,'http://10.254.77.1/sccp-manager/notification-queue.php?phone=SEP00AABBCCDDEE&amp;id='.str_repeat('a',24));
+ob_start();
+$detail->invoke($vm, $baseUrl.'&notification_id='.str_repeat('a',24), $relocated, false);
+$notificationDocument=ob_get_clean();
+$parsedNotification=new DOMDocument();
+verify(@$parsedNotification->loadXML($notificationDocument,LIBXML_NONET),
+    'Notification voicemail detail XML must parse with return link');
+$keys=$parsedNotification->getElementsByTagName('SoftKeyItem');
+$last=$keys->item($keys->length-1);
+verify($last->getElementsByTagName('Name')->item(0)->textContent==='Back',
+    'Notification voicemail menu has explicit Back, not Exit');
+verify($keys->length<=4,'Notification voicemail menu has no more than four softkeys');
+$contextProperty->setValue($vm,null);
+
 $softkeysDetail = array_map('strval', $xml->xpath('//SoftKeyItem/Name'));
 verify(!in_array('VM Menu', $softkeysDetail, true),
     'VM Menu shortcut does not appear in individual message details');
