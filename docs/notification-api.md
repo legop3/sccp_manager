@@ -19,8 +19,7 @@ if (!$result['ok']) error_log('Phone notification delivery failed: HTTP '.$resul
 
 The queue owns identity, storage, newest-first ordering, the first **Clear**
 softkey, delivery and the return URL. The sender owns XML body, app-specific
-actions and any menus. A sender may instead provide a URL with no inline XML
-to launch an interactive app, or a `sound` for audio. Sound-only pushes
+actions and any menus. New visible notifications require a `CiscoIPPhoneImageFile` XML document. An optional URL identifies the source application, but cannot replace the image document. A `sound` may accompany the image. Sound-only pushes
 have no UI to dismiss and thus aren't stored as visible queue entries.
 
 When a notification action opens an application, the shared manager adds
@@ -42,7 +41,7 @@ Keep all URLs XML-escaped when rendering, especially ampersands in query
 parameters. Use DOM text nodes or `htmlspecialchars(..., ENT_XML1)`.
 Never set a DOM node's `nodeValue` directly to a raw URL.
 
-The existing legacy generated notification-display URLs remain supported
+The existing legacy generated notification-display URLs remain readable from prior queue entries
 for queued entries from older releases; new producers should use inline XML
 when possible. All actual Cisco XML behavior must be verified on physical
 phones before marking a new application as production-ready.
