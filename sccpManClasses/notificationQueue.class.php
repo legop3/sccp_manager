@@ -54,7 +54,7 @@ final class notificationQueue {
      * One generic notification contract for every producer. Renderers own their
      * XML and actions; this manager owns the Clear softkey and navigation state.
      */
-    public function enqueue($device,$url,array $providedActions=[]) {
+    public function enqueue($device,$url,array $providedActions=[],$contentXml=null) {
         if (!phonevoicemail::validDevice($device) || !filter_var($url,FILTER_VALIDATE_URL))
             throw new \InvalidArgumentException('Invalid queued notification');
         $endpoint=$this->module->phonecontent->publicPath().'/notification-queue.php';
@@ -63,6 +63,8 @@ final class notificationQueue {
             hash_file('sha256',$source)!==hash_file('sha256',$endpoint)))
             $this->module->phonecontent->publishDirectory();
         $id=bin2hex(random_bytes(12));
+        if ($contentXml!==null && (!is_string($contentXml) || strlen($contentXml)>262144))
+            throw new \InvalidArgumentException('Invalid notification XML payload');
         $snapshot=null;
         $actions=[];
         foreach ($providedActions as $label=>$target) {
@@ -71,7 +73,9 @@ final class notificationQueue {
                 $actions[]=['name'=>substr(trim($label),0,12),'url'=>$target];
         }
         $parts=parse_url($url);
-        if (isset($parts['path']) && basename($parts['path'])==='notification-display.php') {
+        if ($contentXml!==null) {
+            $snapshot=$contentXml;
+        } elseif (isset($parts['path']) && basename($parts['path'])==='notification-display.php') {
             parse_str((string)($parts['query']??''),$params);
             $fileId=$params['id']??'';
             if (is_string($fileId) && preg_match('/^[a-f0-9]{24}$/D',$fileId)) {
@@ -117,6 +121,7 @@ final class notificationQueue {
         if (!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4))
             throw new \InvalidArgumentException('Invalid notification handset address');
         $url=(string)($notification['url']??'');
+        $contentXml=$notification['xml']??null;
         $actions=$notification['actions']??[];
         if (!is_array($actions)) throw new \InvalidArgumentException('Invalid notification actions');
         $sound=(string)($notification['sound']??'');
@@ -127,7 +132,7 @@ final class notificationQueue {
             // Sound-only notifications do not have an XML app to clear.
             $display=null;
         } else {
-            $display=$this->enqueue($device,$url,$actions);
+            $display=$this->enqueue($device,$url,$actions,$contentXml);
         }
         $xml='<CiscoIPPhoneExecute>';
         if ($sound!=='') $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1|ENT_QUOTES,'UTF-8').'"/>';
