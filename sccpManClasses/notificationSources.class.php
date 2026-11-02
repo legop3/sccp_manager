@@ -66,7 +66,7 @@ final class notificationSources {
         if (!$parts || ($parts['scheme']??'')!=='https' || ($parts['host']??'')!==$host ||
             !empty($parts['user']) || !empty($parts['pass']) || isset($parts['port'])) return null;
         return ['title'=>substr($title,0,120),
-            'message'=>substr($caption,0,500),'image_url'=>$url];
+            'message'=>substr($caption,0,500)];
     }
     public static function text($url,$default) {
         $content=self::fetch($url,16384,['text/plain','text/html','application/json']);
@@ -74,34 +74,5 @@ final class notificationSources {
         $content=trim(strip_tags($content));
         return substr($content,0,2048);
     }
-    /** Returns a phone-accessible PNG URL, or null. Source image is never sent to the phone directly. */
-    public static function image($url,$module,$message='') {
-        $body=self::fetch($url,1048576,['image/png','image/jpeg','image/gif']);
-        if ($body===null || !function_exists('imagecreatefromstring')) return null;
-        $src=@imagecreatefromstring($body);
-        if ($src===false) return null;
-        $w=imagesx($src);$h=imagesy($src);
-        if ($w<=0||$h<=0||$w>4096||$h>4096) {imagedestroy($src);return null;}
-        $dst=imagecreatetruecolor(296,156);
-        $background=imagecolorallocate($dst,255,255,255);
-        imagefill($dst,0,0,$background);
-        $scale=min(296/$w,112/$h);
-        $sw=max(1,(int)round($w*$scale));$sh=max(1,(int)round($h*$scale));
-        imagecopyresampled($dst,$src,(int)((296-$sw)/2),(int)((112-$sh)/2),0,0,$sw,$sh,$w,$h);
-        imagedestroy($src);
-        $black=imagecolorallocate($dst,0,0,0);
-        $lines=explode("\n",wordwrap(strip_tags((string)$message),47,"\n",true));
-        foreach (array_slice($lines,0,3) as $index=>$line) imagestring($dst,2,3,113+$index*14,substr($line,0,47),$black);
-        $dir=$module->phonecontent->publicPath();
-        // Only create the shared PNG once; the caller constructs each phone's URL.
-        if (!is_dir($dir)||is_link($dir)) {imagedestroy($dst);return null;}
-        $file='notification-'.bin2hex(random_bytes(12)).'.png';
-        $ok=imagepng($dst,$dir.'/'.$file);
-        imagedestroy($dst);
-        if (!$ok) return null;
-        chmod($dir.'/'.$file,0644);
-        foreach (glob($dir.'/notification-*.png')?:[] as $path)
-            if (is_file($path) && !is_link($path) && filemtime($path)<time()-3600) @unlink($path);
-        return $file;
-    }
+
 }
