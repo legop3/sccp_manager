@@ -409,6 +409,14 @@ class phonevoicemail
         $this->assertNotOnCall($line);
         ignore_user_abort(true);
         register_shutdown_function(function () use ($line, $message, $mailbox) {
+            // Complete the HTTP response before originating the SCCP call.
+            // Auto-answer otherwise interrupts the handset's XML fetch.
+            if (function_exists('fastcgi_finish_request')) {
+                fastcgi_finish_request();
+            } else {
+                while (ob_get_level()>0) @ob_end_flush();
+                @flush();
+            }
             // Playback starts at PHP request shutdown, after the XML
             // response has been written and flushed. No fixed timer.
             try {
@@ -443,7 +451,7 @@ class phonevoicemail
             $softkeys[] = array('VM Menu', $vmMenuUrl, 2);
         }
         if ($backUrl !== null) {
-            $softkeys[] = array('Back', $backUrl, 3);
+            $softkeys[] = array($this->notificationReturn !== null ? 'Previous' : 'Back', $backUrl, 3);
         }
         // Init:Messages closes the Messages application instead of walking
         // the firmware's page history like SoftKey:Exit does.
@@ -558,6 +566,12 @@ class phonevoicemail
             $op = (string)($get['op'] ?? 'list');
             if (!in_array($op, array('list','detail','play','notification','notification-play','mark','delete','confirm-delete','call-menu'), true)) throw new \InvalidArgumentException('Unknown voicemail operation.');
             if ($op === 'call-menu') {
+                if ($this->notificationReturn!==null) {
+                    // Keep the notification browser alive: native Init:Messages
+                    // would close the entire notification navigation stack.
+                    $this->xml('Voicemail', 'Use Play on a message to listen', array(), $this->notificationReturn);
+                    return;
+                }
                 $this->traditionalVoicemailCall($line);
                 return;
             }
