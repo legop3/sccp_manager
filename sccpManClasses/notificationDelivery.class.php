@@ -144,7 +144,7 @@ final class notificationDelivery {
             $graphic=phoneNotifications::graphic($this->module,$renderFields,$appearance,$device);
             if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
             $delivery=(new notificationQueue($this->module))->send($device,$ip,
-                new notificationMessage('',$actions,$graphic,$sound??null));
+                new notificationMessage($actions,$graphic,$sound??null));
             $status=$delivery['status'];
             $response=$delivery['response'];
             if ($status===200 && is_string($response) && strpos($response,'CiscoIPPhoneError')===false) {
