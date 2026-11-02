@@ -6,8 +6,13 @@ class phoneservices {
     private $module;
     private $queueControls = null;
     private $notificationReturn = null;
+    private $notificationClear = null;
+    private $notificationEntry = false;
     private function queueSoftkey() {
-        if ($this->notificationReturn!==null) return '<SoftKeyItem><Name>Notification</Name><URL>'.$this->esc($this->notificationReturn).'</URL><Position>4</Position></SoftKeyItem>';
+        if ($this->notificationReturn!==null) {
+            if ($this->notificationEntry) return '<SoftKeyItem><Name>Clear</Name><URL>'.$this->esc($this->notificationClear).'</URL><Position>1</Position></SoftKeyItem><SoftKeyItem><Name>Select</Name><URL>SoftKey:Select</URL><Position>2</Position></SoftKeyItem>';
+            return '<SoftKeyItem><Name>Select</Name><URL>SoftKey:Select</URL><Position>1</Position></SoftKeyItem><SoftKeyItem><Name>Back</Name><URL>'.$this->esc($this->notificationReturn).'</URL><Position>4</Position></SoftKeyItem>';
+        }
         if (!$this->queueControls) return '';
         return '<SoftKeyItem><Name>Dismiss</Name><URL>'.$this->esc($this->queueControls['dismiss']).'</URL><Position>4</Position></SoftKeyItem>';
     }
@@ -123,6 +128,8 @@ class phoneservices {
         if (isset($q['notification_id'])) {
             $controls=(new notificationQueue($this->module))->returnControls($device,(string)$q['notification_id']);
             $this->notificationReturn=$controls['return']??null;
+            $this->notificationClear=$controls['clear']??null;
+            $this->notificationEntry=$this->notificationReturn!==null && (string)($q['notification_entry']??'')==='1';
         }
         if (isset($q['queue_id'])) {
             $this->queueControls=(new notificationQueue($this->module))->serviceControls(
