@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.114</version>
+	<version>17.1.115</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.115 * - Preserve legacy notification queue entries without duplicate softkeys
 		 * Version 17.1.114 * - Shared notification action contract, Clear-first softkeys, and context-safe application navigation
 		 * Version 17.1.113 * - Propagate shared notification identity into voicemail and service menus with explicit return navigation
 		 * Version 17.1.112 * - Close Services on final notification dismissal instead of displaying an empty queue page
