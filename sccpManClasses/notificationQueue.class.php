@@ -60,7 +60,7 @@ final class notificationQueue {
     public function enqueue($device,$url,array $providedActions=[],$contentXml=null) {
         if (!phonevoicemail::validDevice($device) ||
             ($url!=='' && !filter_var($url,FILTER_VALIDATE_URL)) ||
-            ($url==='' && $contentXml===null))
+            !is_string($contentXml) || $contentXml==='')
             throw new \InvalidArgumentException('Invalid queued notification');
         $endpoint=$this->module->phonecontent->publicPath().'/notification-queue.php';
         $source=__DIR__.'/../services/notification-queue-entry.php';
@@ -77,35 +77,7 @@ final class notificationQueue {
             if (is_string($label) && trim($label)!=='' && is_string($target) && trim($target)!=='')
                 $actions[]=['name'=>substr(trim($label),0,12),'url'=>$target];
         }
-        $parts=parse_url($url);
-        if ($contentXml!==null) {
-            $snapshot=$contentXml;
-        } elseif (isset($parts['path']) && basename($parts['path'])==='notification-display.php') {
-            parse_str((string)($parts['query']??''),$params);
-            $fileId=$params['id']??'';
-            if (is_string($fileId) && preg_match('/^[a-f0-9]{24}$/D',$fileId)) {
-                $file=$this->module->phonecontent->publicPath().'/notification-'.$fileId.'.xml';
-                if (is_file($file) && !is_link($file)) {
-                    $raw=@file_get_contents($file);
-                    if (is_string($raw) && $raw!=='') {
-                        $doc=new \DOMDocument('1.0','UTF-8');
-                        if (@$doc->loadXML($raw,LIBXML_NONET) && $doc->documentElement) {
-                            $root=$doc->documentElement;
-                            foreach (iterator_to_array($root->getElementsByTagName('SoftKeyItem')) as $key) {
-                                if ($key->parentNode!==$root) continue;
-                                $name=$key->getElementsByTagName('Name')->item(0);
-                                $target=$key->getElementsByTagName('URL')->item(0);
-                                if (!$providedActions && $name && $target && count($actions)<3 && !in_array(strtolower(trim($name->textContent)),['exit','dismiss','clear'],true)) {
-                                    $actions[]=['name'=>trim($name->textContent),'url'=>$target->textContent];
-                                }
-                                $root->removeChild($key);
-                            }
-                            $snapshot=$doc->saveXML();
-                        }
-                    }
-                }
-            }
-        }
+        $snapshot=$contentXml;
         $this->transaction(static function(&$state)use($device,$id,$url,$snapshot,$actions) {
             $items=self::prune($state[$device]??[]);
             $items[]=['id'=>$id,'url'=>$url,'xml'=>$snapshot,'actions'=>array_slice($actions,0,3),'at'=>time()];
@@ -133,16 +105,10 @@ final class notificationQueue {
         $sound=(string)($notification['sound']??'');
         if ($sound!=='' && !preg_match('/^[A-Za-z0-9_.-]+\\.raw$/D',$sound))
             throw new \InvalidArgumentException('Invalid notification sound');
-        if ($url==='' && $contentXml===null) {
-            if ($sound==='') throw new \InvalidArgumentException('Empty notification');
-            // Sound-only notifications do not have an XML app to clear.
-            $display=null;
-        } else {
-            $display=$this->enqueue($device,$url,$actions,$contentXml);
-        }
+        $display=$this->enqueue($device,$url,$actions,$contentXml);
         $xml='<CiscoIPPhoneExecute>';
         if ($sound!=='') $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1|ENT_QUOTES,'UTF-8').'"/>';
-        if ($display!==null) $xml.='<ExecuteItem URL="'.htmlspecialchars($display,ENT_XML1|ENT_QUOTES,'UTF-8').'"/>';
+         $xml.='<ExecuteItem URL="'.htmlspecialchars($display,ENT_XML1|ENT_QUOTES,'UTF-8').'"/>';
         $xml.='</CiscoIPPhoneExecute>';
         $ch=curl_init('http://'.$ip.'/CGI/Execute');
         if (!$ch) throw new \RuntimeException('Cannot initialize phone notification push');
@@ -262,12 +228,5 @@ final class notificationQueue {
         }
         return null;
     }
-    /** Service pages can add the same queue controls without changing their content. */
-    public function serviceControls($device,$id) {
-        if (!preg_match('/^[a-f0-9]{24}$/D',$id)) return null;
-        $state=$this->current($device);
-        if (!$state['entry'] || $state['entry']['id']!==$id) return null;
-        return ['prompt'=>'Notification 1 of '.$state['count'],
-                'dismiss'=>$this->url($device,$id,'dismiss')];
-    }
+
 }
