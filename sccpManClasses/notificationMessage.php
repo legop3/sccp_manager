@@ -25,11 +25,13 @@ final class notificationMessage {
             $doc=new \DOMDocument('1.0','UTF-8');
             if (!@$doc->loadXML($xml,LIBXML_NONET) || !$doc->documentElement ||
                 !in_array($doc->documentElement->tagName,
-                    ['CiscoIPPhoneImageFile','CiscoIPPhoneText','CiscoIPPhoneMenu','CiscoIPPhoneStatus'],true))
+                    ['CiscoIPPhoneImageFile'],true))
                 throw new \InvalidArgumentException('Notification XML is not a supported Cisco document');
         }
-        if ($url==='' && $xml===null && ($sound===null || $sound===''))
+        if ($xml===null && ($sound===null || $sound===''))
             throw new \InvalidArgumentException('Notification requires content or sound');
+        if ($xml===null && $url!=='')
+            throw new \InvalidArgumentException('Visual notifications require graphical XML');
         if (count($actions)>3)
             throw new \InvalidArgumentException('Notifications support up to three custom actions');
         foreach ($actions as $name=>$destination) {
