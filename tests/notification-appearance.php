@@ -8,13 +8,8 @@ class AppearanceFixture {
 }
 function checkAppearance($ok,$why){if(!$ok)throw new RuntimeException($why);}
 $m=new AppearanceFixture();
-$m->data['phonecontent_notifications']=[
- 'voicemail'=>['theme'=>'plum','stripes'=>['#123456'],'stripe_position'=>'header'],
- 'missed'=>['theme'=>'ocean']
-];
 $c=new notificationConfig($m);
-checkAppearance($c->appearance()['theme']==='plum','Existing voicemail theme must migrate');
-checkAppearance($c->appearance()['stripes']===['#123456'],'Existing stripes migrate');
+checkAppearance($c->appearance()['theme']==='cisco','Only shared appearance defaults are supported');
 $m->data['phonecontent_notification_appearance']=['theme'=>'forest','colors'=>['header'=>'#ABCDEF']];
 checkAppearance($c->appearance()['theme']==='forest','Shared appearance overrides per-type themes');
 checkAppearance($c->appearance()['colors']['header']==='#ABCDEF','Shared custom colors persist');
