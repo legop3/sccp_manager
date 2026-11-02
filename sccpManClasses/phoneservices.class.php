@@ -8,10 +8,23 @@ class phoneservices {
     private $notificationReturn = null;
     private $notificationClear = null;
     private $notificationEntry = false;
-    private function queueSoftkey() {
+    private function queueSoftkey($type='text') {
         if ($this->notificationReturn!==null) {
-            if ($this->notificationEntry) return '<SoftKeyItem><Name>Clear</Name><URL>'.$this->esc($this->notificationClear).'</URL><Position>1</Position></SoftKeyItem><SoftKeyItem><Name>Select</Name><URL>SoftKey:Select</URL><Position>2</Position></SoftKeyItem>';
-            return '<SoftKeyItem><Name>Select</Name><URL>SoftKey:Select</URL><Position>1</Position></SoftKeyItem><SoftKeyItem><Name>Back</Name><URL>'.$this->esc($this->notificationReturn).'</URL><Position>4</Position></SoftKeyItem>';
+            $buttons=[];
+            if ($this->notificationEntry) {
+                $buttons[]=['Clear',$this->notificationClear,1];
+                if ($type==='menu') $buttons[]=['Select','SoftKey:Select',2];
+                if ($type==='input') $buttons[]=['Submit','SoftKey:Submit',2];
+            } else {
+                if ($type==='menu') $buttons[]=['Select','SoftKey:Select',1];
+                if ($type==='input') $buttons[]=['Submit','SoftKey:Submit',1];
+                $buttons[]=['Back',$this->notificationReturn,4];
+            }
+            $xml='';
+            foreach ($buttons as $button)
+                $xml.='<SoftKeyItem><Name>'.$this->esc($button[0]).'</Name><URL>'.
+                    $this->esc($button[1]).'</URL><Position>'.$button[2].'</Position></SoftKeyItem>';
+            return $xml;
         }
         if (!$this->queueControls) return '';
         return '<SoftKeyItem><Name>Dismiss</Name><URL>'.$this->esc($this->queueControls['dismiss']).'</URL><Position>4</Position></SoftKeyItem>';
@@ -28,12 +41,12 @@ class phoneservices {
         foreach($entries as $entry) {
             echo '<MenuItem><Name>'.$this->esc(substr($entry[0],0,64)).'</Name><URL>'.$this->esc($entry[1]).'</URL></MenuItem>';
         }
-        echo $this->queueSoftkey().'</CiscoIPPhoneMenu>';
+        echo $this->queueSoftkey('menu').'</CiscoIPPhoneMenu>';
     }
     private function form($title,$url,$label,$param,$mode='A') {
         echo '<?xml version="1.0" encoding="UTF-8"?>';
         echo '<CiscoIPPhoneInput><Title>'.$this->esc($title).'</Title><Prompt>'.$this->esc($this->queueControls['prompt']??$label).'</Prompt><URL>'.$this->esc($url).'</URL>';
-        echo '<InputItem><DisplayName>'.$this->esc($label).'</DisplayName><QueryString>'.$this->esc($param).'</QueryString><InputFlags>'.$this->esc($mode).'</InputFlags></InputItem>'.$this->queueSoftkey().'</CiscoIPPhoneInput>';
+        echo '<InputItem><DisplayName>'.$this->esc($label).'</DisplayName><QueryString>'.$this->esc($param).'</QueryString><InputFlags>'.$this->esc($mode).'</InputFlags></InputItem>'.$this->queueSoftkey('input').'</CiscoIPPhoneInput>';
     }
     private function statePath() {return '/var/spool/asterisk/sccp-manager-services.json';}
     private function transact($callback) {
