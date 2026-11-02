@@ -14,6 +14,11 @@ final class notificationQueue {
     private function transaction($callback) {
         $f=@fopen($this->path(),'c+');
         if (!$f) throw new \RuntimeException('Notification queue storage unavailable');
+        // Cron may run as root while Apache serves dismissals as asterisk.
+        // Keep the persistent queue writable by both contexts.
+        @chown($this->path(),'asterisk');
+        @chgrp($this->path(),'asterisk');
+        @chmod($this->path(),0660);
         try {
             if (!flock($f,LOCK_EX)) throw new \RuntimeException('Notification queue lock failed');
             rewind($f);
@@ -48,6 +53,8 @@ final class notificationQueue {
     public function enqueue($device,$url) {
         if (!phonevoicemail::validDevice($device) || !filter_var($url,FILTER_VALIDATE_URL))
             throw new \InvalidArgumentException('Invalid queued notification');
+        if (!is_file($this->module->phonecontent->publicPath().'/notification-queue.php'))
+            $this->module->phonecontent->publishDirectory();
         $id=bin2hex(random_bytes(12));
         $snapshot=null;
         $parts=parse_url($url);
