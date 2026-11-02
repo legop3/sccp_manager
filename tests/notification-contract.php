@@ -23,7 +23,7 @@ $message=new notificationMessage([
 assertSameValue(2,count($message->payload()['actions']),'Sender-provided actions remain independent of content');
 $selfContained=new notificationMessage([], '<CiscoIPPhoneImageFile><Title>Standalone</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>http://127.0.0.1/standalone.png</URL></CiscoIPPhoneImageFile>');
 assertSameValue(false, array_key_exists('url',$selfContained->payload()), 'Notification contract has no URL-only mode');
-try {new notificationMessage(['A'=>'Dial:1','B'=>'Dial:2','C'=>'Dial:3','D'=>'Dial:4']);throw new RuntimeException('Four sender actions accepted');}
+try {new notificationMessage(['A'=>'Dial:1','B'=>'Dial:2','C'=>'Dial:3','D'=>'Dial:4'], '<CiscoIPPhoneImageFile><URL>http://127.0.0.1/x.png</URL></CiscoIPPhoneImageFile>');throw new RuntimeException('Four sender actions accepted');}
 catch (InvalidArgumentException $expected) {}
 try {new notificationMessage([],null);throw new RuntimeException('Unsafe URL accepted');}
 catch (InvalidArgumentException $expected) {}
