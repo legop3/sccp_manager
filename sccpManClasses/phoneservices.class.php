@@ -86,9 +86,8 @@ class phoneservices {
     private function push($device,$url) {
         $all=(new notificationDelivery($this->module))->devices();
         if (!isset($all[$device])) return false;
-        $result=(new notificationQueue($this->module))->send($device,$all[$device],[
-            'url'=>$url,'actions'=>[]
-        ]);
+        $result=(new notificationQueue($this->module))->send($device,$all[$device],
+            new notificationMessage($url));
         return $result['ok'];
     }
     private function fetch($url) {
