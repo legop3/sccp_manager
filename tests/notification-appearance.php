@@ -37,4 +37,10 @@ foreach (["'title'","'primary'","'secondary'","'detail'","'timestamp'"] as $fiel
 $view=file_get_contents(__DIR__.'/../views/content.notifications.php');
 checkAppearance(strpos($view,'show_number')===false && strpos($view,'show_details')===false,
     'Appearance editor must not expose caller-specific content flags');
+checkAppearance(strpos($graphic,'$kind')===false,
+    'Image renderer cannot depend on notification kind');
+checkAppearance(strpos($renderer,'public static function text(')===false &&
+    strpos($renderer,'public static function status(')===false &&
+    strpos($renderer,'public static function interactive(')===false,
+    'No competing text/status notification renderers');
 echo "Shared notification appearance tests passed\n";
