@@ -160,7 +160,10 @@ final class notificationQueue {
                     }
                     if ($dismissKey) {
                         $action=$dismissKey->getElementsByTagName('URL')->item(0);
-                        if ($action) $action->nodeValue=$dismiss;
+                        if ($action) {
+                            while ($action->firstChild) $action->removeChild($action->firstChild);
+                            $action->appendChild($doc->createTextNode($dismiss));
+                        }
                     }
                     echo $doc->saveXML(); return;
                 }
