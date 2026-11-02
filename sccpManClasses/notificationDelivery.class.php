@@ -64,8 +64,8 @@ final class notificationDelivery {
         if (!$options['enabled'] && !$test) return 0;
         $values=[];
         foreach ($fields as $key=>$value) $values['{'.$key.'}']=(string)$value;
-        $title=strtr($options['title'],$values);
-        $message=strtr($options['message'],$values);
+        $title=strtr((string)($options['title']??''),$values);
+        $message=strtr((string)($options['message']??''),$values);
         $builtIn=null;
         if ($kind==='scheduled' && ($options['source']??'custom')!=='custom') {
             $builtIn=notificationSources::builtIn($options['source']);
