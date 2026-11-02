@@ -17,15 +17,15 @@ $service='http://10.254.77.1/sccp-manager/custom-app.php?x=1';
 assertSameValue($service.'&notification_id='.$id,notificationQueue::contextLink($service,$id),'Future app should work');
 assertSameValue('Dial:111',notificationQueue::contextLink('Dial:111',$id),'Dial must remain unchanged');
 assertSameValue('https://example.org/other.php?x=1',notificationQueue::contextLink('https://example.org/other.php?x=1',$id),'External app untouched');
-$message=new notificationMessage('',[
+$message=new notificationMessage([
     'Listen'=>$base, 'Messages'=>'http://10.254.77.1/sccp-manager/service.php?app=messages'
 ],'<CiscoIPPhoneImageFile><Title>Test</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>http://127.0.0.1/test.png</URL></CiscoIPPhoneImageFile>');
 assertSameValue(2,count($message->payload()['actions']),'Sender-provided actions remain independent of content');
-$selfContained=new notificationMessage('',[], '<CiscoIPPhoneImageFile><Title>Standalone</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>http://127.0.0.1/standalone.png</URL></CiscoIPPhoneImageFile>');
-assertSameValue('', $selfContained->payload()['url'], 'Self-contained notifications need no published URL');
-try {new notificationMessage($base,['A'=>'Dial:1','B'=>'Dial:2','C'=>'Dial:3','D'=>'Dial:4']);throw new RuntimeException('Four sender actions accepted');}
+$selfContained=new notificationMessage([], '<CiscoIPPhoneImageFile><Title>Standalone</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>http://127.0.0.1/standalone.png</URL></CiscoIPPhoneImageFile>');
+assertSameValue(false, array_key_exists('url',$selfContained->payload()), 'Notification contract has no URL-only mode');
+try {new notificationMessage(['A'=>'Dial:1','B'=>'Dial:2','C'=>'Dial:3','D'=>'Dial:4']);throw new RuntimeException('Four sender actions accepted');}
 catch (InvalidArgumentException $expected) {}
-try {new notificationMessage('javascript:alert(1)');throw new RuntimeException('Unsafe URL accepted');}
+try {new notificationMessage([],null);throw new RuntimeException('Unsafe URL accepted');}
 catch (InvalidArgumentException $expected) {}
 try { new notificationMessage('',[], '<CiscoIPPhoneText><Title>Broken & URL</Title></CiscoIPPhoneText>'); throw new RuntimeException('Malformed XML accepted'); }
 catch (InvalidArgumentException $expected) {}
