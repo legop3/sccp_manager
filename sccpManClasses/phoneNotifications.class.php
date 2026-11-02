@@ -172,16 +172,16 @@ final class phoneNotifications
             $chars=max(1,(int)floor($maxWidth/imagefontwidth(5)));
             imagestring($im,5,$x,$baseline-15,substr($text,0,$chars),$ink);
         };
-        $heading=$kind==='voicemail'?'New voicemail':'Missed call';
+        $heading=$kind==='voicemail'?'New voicemail':($kind==='missed'?'Missed call':(string)($fields['title']??ucfirst($kind)));
         $draw($heading,9,22,278,15,$colors['header_text'],12);
-        $name=(string)($fields['caller']??'Unknown caller');
+        $name=(string)($fields['caller']??$fields['primary']??'Notification');
         $draw($name,9,72,278,26,$colors['name_text'],15);
-        $number=(string)($fields['number']??'');
+        $number=(string)($fields['number']??$fields['secondary']??'');
         $showNumber=(!isset($settings['show_number']) || $settings['show_number'])
             && $number!=='' && $number!=='Unknown';
         if ($showNumber) {
             $ext=(bool)preg_match('/^[0-9]{1,6}$/D',$number);
-            $draw(($ext?'Ext. ':'').$number,10,101,276,17,$colors['secondary_text'],10);
+            $draw(($ext && in_array($kind,['voicemail','missed'],true)?'Ext. ':'').$number,10,101,276,17,$colors['secondary_text'],10);
         }
         if ($kind==='voicemail' && (!isset($settings['show_details']) || $settings['show_details'])) {
             $length=(string)($fields['length']??'');
