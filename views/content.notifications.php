@@ -102,11 +102,7 @@ $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match
        <option value="<?php echo $esc($ring['id']);?>" <?php echo $settings['sound']===$ring['id']?'selected':'';?>><?php echo $esc($ring['name']);?></option>
        <?php endforeach;?></select></div>
      <?php if ($kind==='scheduled'): ?>
-      <div class="form-group"><label>Display type</label><select class="form-control" name="notifications[scheduled][style]">
-       <?php foreach (['text'=>'Full-screen text','status'=>'Small status popup','image'=>'Image with text','sound'=>'Sound only'] as $value=>$label):?>
-       <option value="<?php echo $value;?>" <?php echo $settings['style']===$value?'selected':'';?>><?php echo $esc($label);?></option><?php endforeach;?></select></div>
      <?php else: ?>
-      <input type="hidden" name="notifications[<?php echo $kind;?>][style]" value="text">
       <input type="hidden" name="notifications[<?php echo $kind;?>][title]" value="<?php echo $esc($settings['title']);?>">
       <input type="hidden" name="notifications[<?php echo $kind;?>][message]" value="<?php echo $esc($settings['message']);?>">
       <input type="hidden" name="notifications[<?php echo $kind;?>][duration]" value="<?php echo (int)$settings['duration'];?>">
