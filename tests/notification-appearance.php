@@ -20,9 +20,9 @@ checkAppearance($c->appearance()['theme']==='forest','Shared appearance override
 checkAppearance($c->appearance()['colors']['header']==='#ABCDEF','Shared custom colors persist');
 $worker=file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
 $service=file_get_contents(__DIR__.'/../sccpManClasses/phoneservices.class.php');
-checkAppearance(str_contains($worker,'$appearance=$config->appearance()') && substr_count($worker,'[],$appearance,$device)')===2,
+checkAppearance(str_contains($worker,'$appearance=$config->appearance()') && substr_count($worker,'[],$appearance,$device)')===1,
  'Voicemail and missed-call renderers use shared design');
-checkAppearance(str_contains($worker,'$kindSettings=$appearance'),'Scheduled uses shared design');
+checkAppearance(substr_count($worker,'phoneNotifications::graphic(')===1,'All events use one render call');
 checkAppearance(str_contains($service,'->appearance()'),'Service sends use shared design');
 $view=file_get_contents(__DIR__.'/../views/content.notifications.php');
 checkAppearance(substr_count($view,'Design & layout')===1,'Single design editor');
