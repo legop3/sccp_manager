@@ -21,6 +21,13 @@ final class notificationMessage {
             throw new \InvalidArgumentException('Invalid notification URL');
         if ($xml!==null && (!is_string($xml) || strlen($xml)>262144))
             throw new \InvalidArgumentException('Invalid notification XML');
+        if ($xml!==null) {
+            $doc=new \DOMDocument('1.0','UTF-8');
+            if (!@$doc->loadXML($xml,LIBXML_NONET) || !$doc->documentElement ||
+                !in_array($doc->documentElement->tagName,
+                    ['CiscoIPPhoneImageFile','CiscoIPPhoneText','CiscoIPPhoneMenu','CiscoIPPhoneStatus'],true))
+                throw new \InvalidArgumentException('Notification XML is not a supported Cisco document');
+        }
         if ($url==='' && $xml===null && ($sound===null || $sound===''))
             throw new \InvalidArgumentException('Notification requires content or sound');
         if (count($actions)>3)
