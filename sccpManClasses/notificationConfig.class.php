@@ -45,9 +45,9 @@ final class notificationConfig {
     }
     public function all() {
         $defaults=[
-            'voicemail'=>['enabled'=>false,'style'=>'text','title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8],
-            'missed'=>['enabled'=>false,'style'=>'text','title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>'','duration'=>8],
-            'scheduled'=>['enabled'=>false,'style'=>'text','title'=>'Hello','message'=>'A message for everyone','sound'=>'','duration'=>8,'interval'=>60,'time'=>'','title_url'=>'','message_url'=>'','image_url'=>'','source'=>'custom']
+            'voicemail'=>['enabled'=>false,'title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8],
+            'missed'=>['enabled'=>false,'title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>'','duration'=>8],
+            'scheduled'=>['enabled'=>false,'title'=>'Hello','message'=>'A message for everyone','sound'=>'','duration'=>8,'interval'=>60,'time'=>'','title_url'=>'','message_url'=>'','image_url'=>'','source'=>'custom']
         ];
         $saved=$this->module->getConfig('phonecontent_notifications');
         if (is_array($saved)) foreach ($defaults as $kind=>$data)
@@ -71,9 +71,6 @@ final class notificationConfig {
         foreach ($values as $kind=>$settings) {
             $post=isset($submitted[$kind])&&is_array($submitted[$kind])?$submitted[$kind]:[];
             $values[$kind]['enabled']=!empty($post['enabled']);
-            $style=(string)($post['style']??'text');
-            if (!in_array($style,['text','status','image','sound'],true)) throw new \InvalidArgumentException('Invalid display style');
-            $values[$kind]['style']=$style;
             $sound=(string)($post['sound']??'');
             if (!in_array($sound,$sounds,true)) throw new \InvalidArgumentException('Unknown ringtone');
             $values[$kind]['sound']=$sound;
