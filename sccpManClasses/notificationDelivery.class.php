@@ -91,7 +91,6 @@ final class notificationDelivery {
             // Every handset needs its own authenticated voicemail links.
             // Do not publish the bearer token in a shared document.
             $actions=[];
-            $graphic=null;
             $renderFields=[
                 'title'=>$title,'primary'=>$message,'secondary'=>'',
                 'detail'=>'','timestamp'=>date('m/d/Y g:i A')
@@ -127,8 +126,6 @@ final class notificationDelivery {
                 ];
                 if (preg_match('/^[0-9]{1,6}$/D',$renderFields['secondary']))
                     $renderFields['secondary']='Ext. '.$renderFields['secondary'];
-                $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$appearance,$device);
-                if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
             } elseif ($kind==='missed') {
                 // Present the user's public number, not the SCCP-only line.
                 $identity=(new phonevoicemail($this->module))->destinationForDevice($device);
@@ -143,11 +140,8 @@ final class notificationDelivery {
                 ];
                 if (preg_match('/^[0-9]{1,6}$/D',$renderFields['secondary']))
                     $renderFields['secondary']='Ext. '.$renderFields['secondary'];
-                $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$appearance,$device);
-                if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
             }
-            if ($graphic===null)
-                $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$appearance,$device);
+            $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$appearance,$device);
             if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
             $delivery=(new notificationQueue($this->module))->send($device,$ip,
                 new notificationMessage('',$actions,$graphic,$sound??null));
