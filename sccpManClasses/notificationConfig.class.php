@@ -9,13 +9,6 @@ final class notificationConfig {
         $defaults=['theme'=>'cisco','colors'=>[],'stripes'=>[],'stripe_position'=>'off'];
         $saved=$this->module->getConfig('phonecontent_notification_appearance');
         if (is_array($saved)) return array_merge($defaults,array_intersect_key($saved,$defaults));
-        // Preserve the existing voicemail appearance as the one shared design,
-        // without mutating old user settings or resetting customization.
-        $previous=$this->module->getConfig('phonecontent_notifications');
-        if (is_array($previous)) foreach (['voicemail','missed'] as $kind) {
-            if (isset($previous[$kind]) && is_array($previous[$kind]))
-                return array_merge($defaults,array_intersect_key($previous[$kind],$defaults));
-        }
         return $defaults;
     }
     private function saveAppearance(array $post) {
