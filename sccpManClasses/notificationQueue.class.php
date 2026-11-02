@@ -50,6 +50,10 @@ final class notificationQueue {
         ],'','&',PHP_QUERY_RFC3986);
     }
     /** Record the notification before pushing. If push fails, retain it. */
+    /**
+     * One generic notification contract for every producer. Renderers own their
+     * XML and actions; this manager owns the Clear softkey and navigation state.
+     */
     public function enqueue($device,$url) {
         if (!phonevoicemail::validDevice($device) || !filter_var($url,FILTER_VALIDATE_URL))
             throw new \InvalidArgumentException('Invalid queued notification');
@@ -60,18 +64,37 @@ final class notificationQueue {
             $this->module->phonecontent->publishDirectory();
         $id=bin2hex(random_bytes(12));
         $snapshot=null;
+        $actions=[];
         $parts=parse_url($url);
         if (isset($parts['path']) && basename($parts['path'])==='notification-display.php') {
             parse_str((string)($parts['query']??''),$params);
             $fileId=$params['id']??'';
             if (is_string($fileId) && preg_match('/^[a-f0-9]{24}$/D',$fileId)) {
                 $file=$this->module->phonecontent->publicPath().'/notification-'.$fileId.'.xml';
-                if (is_file($file) && !is_link($file)) $snapshot=@file_get_contents($file);
+                if (is_file($file) && !is_link($file)) {
+                    $raw=@file_get_contents($file);
+                    if (is_string($raw) && $raw!=='') {
+                        $doc=new \DOMDocument('1.0','UTF-8');
+                        if (@$doc->loadXML($raw,LIBXML_NONET) && $doc->documentElement) {
+                            $root=$doc->documentElement;
+                            foreach (iterator_to_array($root->getElementsByTagName('SoftKeyItem')) as $key) {
+                                if ($key->parentNode!==$root) continue;
+                                $name=$key->getElementsByTagName('Name')->item(0);
+                                $target=$key->getElementsByTagName('URL')->item(0);
+                                if ($name && $target && !in_array(strtolower(trim($name->textContent)),['exit','dismiss','clear'],true)) {
+                                    $actions[]=['name'=>trim($name->textContent),'url'=>$target->textContent];
+                                }
+                                $root->removeChild($key);
+                            }
+                            $snapshot=$doc->saveXML();
+                        }
+                    }
+                }
             }
         }
-        $this->transaction(static function(&$state)use($device,$id,$url,$snapshot) {
+        $this->transaction(static function(&$state)use($device,$id,$url,$snapshot,$actions) {
             $items=self::prune($state[$device]??[]);
-            $items[]=['id'=>$id,'url'=>$url,'xml'=>$snapshot,'at'=>time()];
+            $items[]=['id'=>$id,'url'=>$url,'xml'=>$snapshot,'actions'=>array_slice($actions,0,3),'at'=>time()];
             $state[$device]=self::prune($items);
         });
         return $this->url($device,$id);
@@ -113,78 +136,41 @@ final class notificationQueue {
         $url=$entry['url'];
         $dismiss=$this->url($device,$entry['id'],'dismiss');
         $count=$state['count'];
-        // Generated XML is local, so preserve the complete original graphic and actions.
+        // The queue never changes notification content. It adds only its own
+        // Clear action plus up to three actions supplied by the renderer.
         $parts=parse_url($url);
-        $fileId=null;
-        if (isset($parts['path']) && basename($parts['path'])==='notification-display.php') {
-            parse_str((string)($parts['query']??''),$params);
-            $fileId=$params['id']??null;
-        }
-        if (is_string($fileId) && preg_match('/^[a-f0-9]{24}$/D',$fileId)) {
-            $file=$this->module->phonecontent->publicPath().'/notification-'.$fileId.'.xml';
-            $raw=is_string($entry['xml']??null) ? $entry['xml'] :
-                (is_file($file) && !is_link($file) ? @file_get_contents($file) : false);
-            if (is_string($raw) && $raw!=='') {
+        $raw=$entry['xml']??null;
+        if (is_string($raw) && $raw!=='') {
+            $doc=new \DOMDocument('1.0','UTF-8');
+            if (!@$doc->loadXML($raw,LIBXML_NONET) || !$doc->documentElement)
+                throw new \RuntimeException('Stored notification XML is invalid');
+            $root=$doc->documentElement;
+            if ($root->tagName==='CiscoIPPhoneStatus') {
+                $value=$root->getElementsByTagName('Text')->item(0);
+                $message=$value?$value->textContent:'';
                 $doc=new \DOMDocument('1.0','UTF-8');
-                $previous=libxml_use_internal_errors(true);
-                $loaded=$doc->loadXML($raw,LIBXML_NONET);
-                libxml_clear_errors();libxml_use_internal_errors($previous);
-                if ($loaded && $doc->documentElement) {
-                    $root=$doc->documentElement;
-                    // CiscoIPPhoneStatus has no softkeys or Prompt. Convert
-                    // queued status overlays to a dismissible text document.
-                    if ($root->tagName==='CiscoIPPhoneStatus') {
-                        $value=$root->getElementsByTagName('Text')->item(0);
-                        $message=$value ? $value->textContent : '';
-                        $doc=new \DOMDocument('1.0','UTF-8');
-                        $root=$doc->appendChild($doc->createElement('CiscoIPPhoneText'));
-                        $root->appendChild($doc->createElement('Title','Notification'));
-                        $root->appendChild($doc->createElement('Text'))->appendChild($doc->createTextNode($message));
-                    }
-                    foreach (iterator_to_array($root->getElementsByTagName('Prompt')) as $p)
-                        if ($p->parentNode===$root) $root->removeChild($p);
-                    $prompt=$doc->createElement('Prompt');
-                    $prompt->appendChild($doc->createTextNode('Notification 1 of '.$count));
-                    $root->appendChild($prompt);
-                    $used=[];$dismissKey=null;
-                    foreach (iterator_to_array($root->getElementsByTagName('SoftKeyItem')) as $item) {
-                        if ($item->parentNode!==$root) continue;
-                        $name=$item->getElementsByTagName('Name')->item(0);
-                        $pos=$item->getElementsByTagName('Position')->item(0);
-                        if ($pos) $used[(int)$pos->textContent]=true;
-                        if ($name && in_array(strtolower(trim($name->textContent)),['dismiss','exit'],true))
-                            $dismissKey=$item;
-                    }
-                    if (!$dismissKey) {
-                        for($i=1;$i<=4;$i++) if (!isset($used[$i])) { $position=$i; break; }
-                        if (isset($position)) {
-                            $dismissKey=$doc->createElement('SoftKeyItem');
-                            foreach (['Name'=>'Dismiss','URL'=>$dismiss,'Position'=>(string)$position] as $k=>$v)
-                                $dismissKey->appendChild($doc->createElement($k))->appendChild($doc->createTextNode($v));
-                            $root->appendChild($dismissKey);
-                        }
-                    }
-                    if ($dismissKey) {
-                        $action=$dismissKey->getElementsByTagName('URL')->item(0);
-                        if ($action) {
-                            while ($action->firstChild) $action->removeChild($action->firstChild);
-                            $action->appendChild($doc->createTextNode($dismiss));
-                        }
-                    }
-                    foreach (iterator_to_array($root->getElementsByTagName('SoftKeyItem')) as $item) {
-                        $name=$item->getElementsByTagName('Name')->item(0);
-                        $link=$item->getElementsByTagName('URL')->item(0);
-                        if (!$link || ($name && in_array(strtolower(trim($name->textContent)),['dismiss','exit'],true))) continue;
-                        $original=$link->textContent;
-                        $contextual=self::contextLink($original,$entry['id']);
-                        if ($contextual!==$original) {
-                            while ($link->firstChild) $link->removeChild($link->firstChild);
-                            $link->appendChild($doc->createTextNode($contextual));
-                        }
-                    }
-                    echo $doc->saveXML(); return;
+                $root=$doc->appendChild($doc->createElement('CiscoIPPhoneText'));
+                $root->appendChild($doc->createElement('Title','Notification'));
+                $root->appendChild($doc->createElement('Text'))->appendChild($doc->createTextNode($message));
+            }
+            foreach (iterator_to_array($root->getElementsByTagName('Prompt')) as $p)
+                if ($p->parentNode===$root) $root->removeChild($p);
+            // Cisco XML requires Prompt before softkeys.
+            $prompt=$doc->createElement('Prompt');
+            $prompt->appendChild($doc->createTextNode('Notification 1 of '.$count));
+            $root->appendChild($prompt);
+            $actions=array_merge([['name'=>'Clear','url'=>$dismiss]],array_slice($entry['actions']??[],0,3));
+            foreach ($actions as $position=>$action) {
+                if (!is_array($action) || !isset($action['name'],$action['url'])) continue;
+                $item=$root->appendChild($doc->createElement('SoftKeyItem'));
+                foreach (['Name'=>(string)$action['name'],
+                          'URL'=>self::contextLink((string)$action['url'],$entry['id']),
+                          'Position'=>(string)($position+1)] as $tag=>$value) {
+                    $item->appendChild($doc->createElement($tag))
+                        ->appendChild($doc->createTextNode($value));
                 }
             }
+            echo $doc->saveXML(); return;
         }
         // Service pushes already render full interactive pages. Carry a queue
         // token into the existing service renderer for a native Dismiss softkey.
