@@ -141,7 +141,7 @@ final class notificationDelivery {
                 if (preg_match('/^[0-9]{1,6}$/D',$renderFields['secondary']))
                     $renderFields['secondary']='Ext. '.$renderFields['secondary'];
             }
-            $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$appearance,$device);
+            $graphic=phoneNotifications::graphic($this->module,$renderFields,$appearance,$device);
             if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
             $delivery=(new notificationQueue($this->module))->send($device,$ip,
                 new notificationMessage('',$actions,$graphic,$sound??null));
