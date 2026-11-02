@@ -9,16 +9,11 @@ namespace FreePBX\modules\Sccp_manager;
  * The sender's own application remains responsible for its menus.
  */
 final class notificationMessage {
-    private $url;
     private $xml;
     private $actions;
     private $sound;
 
-    public function __construct($url, array $actions=[], $xml=null, $sound=null) {
-        $url=(string)$url;
-        if ($url!=='' && (!filter_var($url,FILTER_VALIDATE_URL) ||
-            !in_array(strtolower((string)parse_url($url,PHP_URL_SCHEME)),['http','https'],true)))
-            throw new \InvalidArgumentException('Invalid notification URL');
+    public function __construct(array $actions, $xml, $sound=null) {
         if ($xml!==null && (!is_string($xml) || strlen($xml)>262144))
             throw new \InvalidArgumentException('Invalid notification XML');
         if ($xml!==null) {
@@ -40,13 +35,12 @@ final class notificationMessage {
         if ($sound!==null && $sound!=='' &&
             !preg_match('/^[A-Za-z0-9_.-]+\\.raw$/D',(string)$sound))
             throw new \InvalidArgumentException('Invalid notification sound filename');
-        $this->url=$url;
         $this->xml=$xml;
         $this->actions=$actions;
         $this->sound=$sound;
     }
     public function payload() {
-        return ['url'=>$this->url,'xml'=>$this->xml,
+        return ['xml'=>$this->xml,
                 'actions'=>$this->actions,'sound'=>$this->sound];
     }
 }
