@@ -80,8 +80,23 @@ class phoneservices {
     private function push($device,$url) {
         $all=(new notificationDelivery($this->module))->devices();
         if (!isset($all[$device])) return false;
+        // Service alerts use the same theme and graphical notification document
+        // as voicemail/missed calls. The service owns the Open action and its menus.
+        $query=[];
+        parse_str((string)(parse_url($url,PHP_URL_QUERY)??''),$query);
+        $app=(string)($query['app']??'service');
+        $labels=['messages'=>'New message','alarms'=>'Reminder','games'=>'Game invitation'];
+        $heading=$labels[$app]??'Notification';
+        $message=$app==='alarms'?(string)($query['note']??'Reminder') :
+            ($app==='messages'?'You have a new message':($app==='games'?'You have a game invitation':'Open service'));
+        $settings=(new notificationConfig($this->module))->all();
+        $theme=$settings['voicemail']??$settings['missed']??[];
+        $graphic=phoneNotifications::graphic($this->module,$app,[
+            'title'=>$heading,'caller'=>$message,'when'=>date('m/d/Y g:i A')
+        ],[],$theme,$device);
+        if (!$graphic) throw new \RuntimeException('Unable to render service notification image');
         $result=(new notificationQueue($this->module))->send($device,$all[$device],
-            new notificationMessage($url));
+            new notificationMessage('', ['Open'=>$url],$graphic));
         return $result['ok'];
     }
     private function fetch($url) {
