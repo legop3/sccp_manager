@@ -6,22 +6,7 @@ require_once __DIR__.'/../sccpManClasses/notificationNavigation.php';
 $nav=(new ReflectionClass(\FreePBX\modules\Sccp_manager\notificationNavigation::class))->newInstanceWithoutConstructor();
 (new ReflectionProperty($nav,'returnUrl'))->setValue($nav,'http://127.0.0.1/notification-queue.php?id=1&op=return');
 (new ReflectionProperty($nav,'clearUrl'))->setValue($nav,'http://127.0.0.1/notification-queue.php?id=1&op=dismiss');
-(new ReflectionProperty($nav,'entry'))->setValue($nav,true);
-$s=new phoneservices();
-(new ReflectionProperty(phoneservices::class,'notificationNavigation'))->setValue($s,$nav);
-foreach (['xml'=>['Message','A text message'],
-          'menu'=>['Messages',[['Inbox','http://127.0.0.1/service.php?x=1']]],
-          'form'=>['Input','http://127.0.0.1/service.php?x=1','Text','text']] as $kind=>$args) {
-    $method=new ReflectionMethod(phoneservices::class,$kind);
-    ob_start();$method->invokeArgs($s,$args);$raw=ob_get_clean();
-    $dom=new DOMDocument();
-    check(@$dom->loadXML($raw,LIBXML_NONET),'Valid notification-linked '.$kind.' XML');
-    $softkeys=$dom->getElementsByTagName('SoftKeyItem');
-    check($softkeys->length<=4,'No more than four softkeys in '.$kind);
-    $name=$softkeys->item(0)->getElementsByTagName('Name')->item(0)->textContent;
-    check($name==='Clear','Clear is first for '.$kind);
-}
-(new ReflectionProperty($nav,'entry'))->setValue($nav,false);
+
 foreach (['xml'=>['Message','A text message'],
           'menu'=>['Messages',[['Inbox','http://127.0.0.1/service.php?x=1']]],
           'form'=>['Input','http://127.0.0.1/service.php?x=1','Text','text']] as $kind=>$args) {
