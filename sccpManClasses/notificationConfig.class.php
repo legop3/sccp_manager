@@ -38,9 +38,9 @@ final class notificationConfig {
     }
     public function all() {
         $defaults=[
-            'voicemail'=>['enabled'=>false,'title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>'','duration'=>8],
-            'missed'=>['enabled'=>false,'title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>'','duration'=>8],
-            'scheduled'=>['enabled'=>false,'title'=>'Hello','message'=>'A message for everyone','sound'=>'','duration'=>8,'interval'=>60,'time'=>'','title_url'=>'','message_url'=>'','image_url'=>'','source'=>'custom']
+            'voicemail'=>['enabled'=>false,'title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>''],
+            'missed'=>['enabled'=>false,'title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>''],
+            'scheduled'=>['enabled'=>false,'title'=>'Hello','message'=>'A message for everyone','sound'=>'','interval'=>60,'time'=>'','title_url'=>'','message_url'=>'' ,'source'=>'custom']
         ];
         $saved=$this->module->getConfig('phonecontent_notifications');
         if (is_array($saved)) foreach ($defaults as $kind=>$data)
@@ -61,8 +61,7 @@ final class notificationConfig {
             $sound=(string)($post['sound']??'');
             if (!in_array($sound,$sounds,true)) throw new \InvalidArgumentException('Unknown ringtone');
             $values[$kind]['sound']=$sound;
-            $values[$kind]['duration']=max(2,min(60,(int)($post['duration']??8)));
-            foreach (['title','message','title_url','message_url','image_url'] as $key) {
+            foreach (['title','message','title_url','message_url'] as $key) {
                 if (!array_key_exists($key,$settings)) continue;
                 $v=trim((string)($post[$key]??''));
                 if (strlen($v)>($key==='message'?2048:500)) throw new \InvalidArgumentException('Notification field too long');
