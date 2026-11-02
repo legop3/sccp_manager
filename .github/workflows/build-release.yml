@@ -48,7 +48,7 @@ jobs:
           php tests/shared-extension-routing.php
           php tests/phone-voicemail.php
 
-      - name: Test shared notification delivery and appearance paths
+      - name: Validate unified notification appearance across all senders
         run: |
           php tests/notification-addresses.php
           php tests/notification-contract.php
