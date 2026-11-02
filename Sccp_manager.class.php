@@ -128,6 +128,8 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                             include($driver);
                         }
                         if (class_exists($class, false)) {
+                            // Value objects are included for use by services, but are not BMO components.
+                            if ($name === 'notificationMessage') continue;
                             $this->$name = new $class($this);
                         } else {
                             throw new \Exception(sprintf('sccp_manager: class %s was not found in the include folder', $class));
