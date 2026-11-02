@@ -51,7 +51,7 @@ if (strpos($workerSource,'phoneNotifications::text(')!==false ||
     strpos($workerSource,'phoneNotifications::status(')!==false)
     throw new RuntimeException('Notification worker must not emit text or status alerts');
 if (strpos($workerSource,'$graphic===null')===false ||
-    strpos($workerSource,'phoneNotifications::graphic($this->module,$kind')===false)
+    strpos($workerSource,'phoneNotifications::graphic($this->module,$renderFields')===false)
     throw new RuntimeException('All worker kinds must use the shared graphical renderer');
 $serviceSource=file_get_contents(__DIR__.'/../sccpManClasses/phoneservices.class.php');
 if (strpos($serviceSource,"new notificationMessage('', ['Open'=>\$url],\$graphic)")===false)
