@@ -27,4 +27,6 @@ try {new notificationMessage($base,['A'=>'Dial:1','B'=>'Dial:2','C'=>'Dial:3','D
 catch (InvalidArgumentException $expected) {}
 try {new notificationMessage('javascript:alert(1)');throw new RuntimeException('Unsafe URL accepted');}
 catch (InvalidArgumentException $expected) {}
+try { new notificationMessage('',[], '<CiscoIPPhoneText><Title>Broken & URL</Title></CiscoIPPhoneText>'); throw new RuntimeException('Malformed XML accepted'); }
+catch (InvalidArgumentException $expected) {}
 echo "Shared notification object and link contract OK\n";
