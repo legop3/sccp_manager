@@ -83,7 +83,7 @@ final class notificationQueue {
             if ($dismissId!==null) $items=array_values(array_filter($items,
                 static function($item)use($dismissId) { return $item['id']!==$dismissId; }));
             $state[$device]=$items;
-            return ['entry'=>$items?end($items):null,'count'=>count($items)];
+            return ['entry'=>$items?end($items):null,'count'=>count($items),'items'=>$items];
         });
     }
     public function handle(array $q) {
@@ -99,6 +99,12 @@ final class notificationQueue {
             http_response_code(403); return;
         }
         $state=$this->current($device,($q['op']??'')==='dismiss'?$id:null);
+        if (($q['op']??'')==='return') {
+            foreach ($state['items'] as $item) if ($item['id']===$id) {
+                $state['entry']=$item;
+                break;
+            }
+        }
         if (!$state['entry']) {
             echo '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneExecute><ExecuteItem URL="Init:Services"/></CiscoIPPhoneExecute>';
             return;
@@ -165,6 +171,17 @@ final class notificationQueue {
                             $action->appendChild($doc->createTextNode($dismiss));
                         }
                     }
+                    foreach (iterator_to_array($root->getElementsByTagName('SoftKeyItem')) as $item) {
+                        $name=$item->getElementsByTagName('Name')->item(0);
+                        $link=$item->getElementsByTagName('URL')->item(0);
+                        if (!$link || ($name && in_array(strtolower(trim($name->textContent)),['dismiss','exit'],true))) continue;
+                        $original=$link->textContent;
+                        $contextual=self::contextLink($original,$entry['id']);
+                        if ($contextual!==$original) {
+                            while ($link->firstChild) $link->removeChild($link->firstChild);
+                            $link->appendChild($doc->createTextNode($contextual));
+                        }
+                    }
                     echo $doc->saveXML(); return;
                 }
             }
@@ -173,10 +190,28 @@ final class notificationQueue {
         // token into the existing service renderer for a native Dismiss softkey.
         if (isset($parts['path']) && basename($parts['path'])==='service.php') {
             $separator=strpos($url,'?')===false?'?':'&';
-            $url.=$separator.http_build_query(['queue_id'=>$entry['id']],'','&',PHP_QUERY_RFC3986);
+            $url.=$separator.http_build_query(['notification_id'=>$entry['id']],'','&',PHP_QUERY_RFC3986);
         }
         $safe=htmlspecialchars($url,ENT_XML1|ENT_QUOTES,'UTF-8');
         echo '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneExecute><ExecuteItem URL="'.$safe.'"/></CiscoIPPhoneExecute>';
+    }
+    /** Shared lifecycle contract: internal app links carry only notification identity.
+     * Content renderers stay responsible for their own pages and menus. */
+    public static function contextLink($url,$id) {
+        if (!preg_match('/^[a-f0-9]{24}$/D',(string)$id)) return $url;
+        $path=(string)(parse_url($url,PHP_URL_PATH)??'');
+        if (!in_array(basename($path),['voicemail.php','service.php'],true)) return $url;
+        return $url.(strpos($url,'?')===false?'?':'&').
+            http_build_query(['notification_id'=>$id],'','&',PHP_QUERY_RFC3986);
+    }
+    public function returnControls($device,$id) {
+        if (!preg_match('/^[a-f0-9]{24}$/D',(string)$id)) return null;
+        $state=$this->current($device);
+        foreach (($state['items']??[]) as $item) {
+            if ($item['id']===$id)
+                return ['return'=>$this->url($device,$id,'return'),'id'=>$id];
+        }
+        return null;
     }
     /** Service pages can add the same queue controls without changing their content. */
     public function serviceControls($device,$id) {
