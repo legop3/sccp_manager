@@ -172,36 +172,23 @@ final class phoneNotifications
             $chars=max(1,(int)floor($maxWidth/imagefontwidth(5)));
             imagestring($im,5,$x,$baseline-15,substr($text,0,$chars),$ink);
         };
-        $heading=$kind==='voicemail'?'New voicemail':($kind==='missed'?'Missed call':(string)($fields['title']??ucfirst($kind)));
+        // The renderer accepts semantic-free display slots. Producers decide
+        // what belongs in them; no notification type is interpreted here.
+        $heading=(string)($fields['title']??'Notification');
+        $primary=(string)($fields['primary']??'');
+        $secondary=(string)($fields['secondary']??'');
+        $detail=(string)($fields['detail']??'');
+        $timestamp=(string)($fields['timestamp']??'');
         $draw($heading,9,22,278,15,$colors['header_text'],12);
-        $name=(string)($fields['caller']??$fields['primary']??'Notification');
-        $draw($name,9,72,278,26,$colors['name_text'],15);
-        $number=(string)($fields['number']??$fields['secondary']??'');
-        $showNumber=(!isset($settings['show_number']) || $settings['show_number'])
-            && $number!=='' && $number!=='Unknown';
-        if ($showNumber) {
-            $ext=(bool)preg_match('/^[0-9]{1,6}$/D',$number);
-            $draw(($ext && in_array($kind,['voicemail','missed'],true)?'Ext. ':'').$number,10,101,276,17,$colors['secondary_text'],10);
+        $draw($primary,9,72,278,26,$colors['name_text'],15);
+        $draw($secondary,10,101,$detail!==''?160:276,17,$colors['secondary_text'],10);
+        if ($detail!=='') {
+            $detailWidth=($font!==null && function_exists('imagettfbbox'))
+                ? (imagettfbbox(13,0,$font,$detail)[2] ?? strlen($detail)*9)
+                : strlen($detail)*9;
+            $draw($detail,max(165,286-$detailWidth),101,121,13,$colors['details_label'],10);
         }
-        if ($kind==='voicemail' && (!isset($settings['show_details']) || $settings['show_details'])) {
-            $length=(string)($fields['length']??'');
-            if ($length!=='') {
-                $label='Length: '.$length;
-                // Right-align duration alongside the caller number.
-                $labelWidth=($font!==null && function_exists('imagettfbbox'))
-                    ? (imagettfbbox(13,0,$font,$label)[2] ?? strlen($label)*9)
-                    : strlen($label)*9;
-                $draw($label,max(10,286-$labelWidth),101,145,13,$colors['details_label'],10);
-            }
-        }
-        if (!isset($settings['show_details']) || $settings['show_details']) {
-            $timestamp=(string)($fields['when']??$fields['received']??'');
-            if ($timestamp==='') {
-                $timestamp=trim((string)($fields['date']??'').' '.(string)($fields['time']??''));
-            }
-            // Both notifications use the same complete absolute timestamp.
-            $draw($timestamp,10,129,276,16,$colors['details_text'],10);
-        }
+        $draw($timestamp,10,129,276,16,$colors['details_text'],10);
         $id=bin2hex(random_bytes(12));
         $filename='notification-'.$id.'.png';
         $ok=imagepng($im,$dir.'/'.$filename);
