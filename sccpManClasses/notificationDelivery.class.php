@@ -179,11 +179,7 @@ final class notificationDelivery {
             // Queue the finished per-device notification URL. Sound-only pushes
             // remain immediate and are not stored as empty screens.
             if ($deviceUrl !== null) {
-                try {
-                    $deviceUrl=(new notificationQueue($this->module))->enqueue($device,$deviceUrl,$actions);
-                } catch (\Throwable $e) {
-                    error_log('SCCP notification queue fallback: '.$e->getMessage());
-                }
+                $deviceUrl=(new notificationQueue($this->module))->enqueue($device,$deviceUrl,$actions);
             }
             $xml='<CiscoIPPhoneExecute>';
             if ($sound) $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1).'"/>';
