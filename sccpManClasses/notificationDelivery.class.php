@@ -178,6 +178,7 @@ final class notificationDelivery {
                 $graphic=phoneNotifications::graphic($this->module,'missed',$fields,[],$options,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
+                $contentXml=$graphic;
             }
             $delivery=(new notificationQueue($this->module))->send($device,$ip,
                 new notificationMessage($deviceUrl??'',$actions,$contentXml??null,$sound??null));
