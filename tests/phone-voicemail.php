@@ -133,8 +133,11 @@ verify(strpos($deleteXml->asXML(), 'Delete Message?') === false,
     'Avoid the failing standalone Delete Message confirmation XML page');
 
 // Notification-launched voicemail must remain valid and retain explicit Back.
-$contextProperty=new ReflectionProperty(phonevoicemail::class,'notificationReturn');
-$contextProperty->setValue($vm,'http://10.254.77.1/sccp-manager/notification-queue.php?phone=SEP00AABBCCDDEE&id='.str_repeat('a',24));
+require_once __DIR__.'/../sccpManClasses/notificationNavigation.php';
+$navigation=(new ReflectionClass(\FreePBX\modules\Sccp_manager\notificationNavigation::class))->newInstanceWithoutConstructor();
+(new ReflectionProperty($navigation,'returnUrl'))->setValue($navigation,
+    'http://10.254.77.1/sccp-manager/notification-queue.php?phone=SEP00AABBCCDDEE&id='.str_repeat('a',24));
+(new ReflectionProperty(phonevoicemail::class,'notificationNavigation'))->setValue($vm,$navigation);
 ob_start();
 $detail->invoke($vm, $baseUrl.'&notification_id='.str_repeat('a',24), $relocated, false);
 $notificationDocument=ob_get_clean();
@@ -146,12 +149,12 @@ $last=$keys->item($keys->length-1);
 verify($last->getElementsByTagName('Name')->item(0)->textContent==='Back',
     'Notification voicemail menu has explicit Back, not Exit');
 verify($keys->length<=4,'Notification voicemail menu has no more than four softkeys');
-$contextProperty->setValue($vm,null);
+(new ReflectionProperty(phonevoicemail::class,'notificationNavigation'))->setValue($vm,null);
 $sourceText=file_get_contents(__DIR__.'/../sccpManClasses/phonevoicemail.class.php');
 verify(strpos($sourceText,'fastcgi_finish_request()')!==false &&
     strpos($sourceText,'@flush()')!==false,
     'Playback must flush phone XML response before originating SCCP call');
-verify(strpos($sourceText,'if ($this->notificationReturn!==null) {')!==false,
+verify(strpos($sourceText,'if ($this->notificationNavigation->active()) {')!==false,
     'Notification voicemail call menu must preserve application navigation');
 
 
