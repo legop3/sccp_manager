@@ -1,59 +1,20 @@
 <?php
-// Run: php tests/notification-addresses.php
 require_once __DIR__.'/../sccpManClasses/notificationDelivery.class.php';
-class NotificationAddressFixture {
-    public function baseUrl($device) {
-        if ($device === 'SEP00EBD5CA227A') return 'http://192.168.0.25/sccp-manager';
-        if ($device === 'SEP00EBD5CA2776') return 'http://10.254.77.1/sccp-manager';
-        throw new RuntimeException('Unexpected device identifier');
-    }
-}
-class NotificationModuleFixture {
-    public $phonecontent;
-    public function __construct() { $this->phonecontent = new NotificationAddressFixture(); }
-}
-$delivery = new \FreePBX\modules\Sccp_manager\notificationDelivery(new NotificationModuleFixture());
-$method = new ReflectionMethod($delivery, 'displayUrl');
-$method->setAccessible(true);
-$id = '0123456789abcdef01234567';
-foreach ([
-    'SEP00EBD5CA227A' => 'http://192.168.0.25/sccp-manager',
-    'SEP00EBD5CA2776' => 'http://10.254.77.1/sccp-manager'
-] as $device => $base) {
-    $actual = $method->invoke($delivery, $device, $id);
-    if ($actual !== $base.'/notification-display.php?id='.$id) throw new RuntimeException('Wrong notification URL for '.$device);
-}
-if ($method->invoke($delivery, 'SEP00EBD5CA2776', null) !== null) throw new RuntimeException('Null document must have no URL');
-$source = file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
-if (substr_count($source, 'displayUrl($device,$this->publicDocument($graphic))') !== 2)
-    throw new RuntimeException('Both missed-call and voicemail branches must use the same URL resolver');
-// Graphical voicemail AND missed-call notifications must pass their rendered
-// image XML to the shared queue. A stale generic text body is not acceptable.
-$senderSource=file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
-if (substr_count($senderSource, '$contentXml=$graphic;')!==3)
-    throw new RuntimeException('All graphical notification paths must register rendered image XML');
-foreach (['SEP00EBD5CA227A' => 'http://192.168.0.25/sccp-manager',
-          'SEP00EBD5CA2776' => 'http://10.254.77.1/sccp-manager'] as $device => $base) {
-    $imageUrl=$base.'/notification-test.png';
-    $xml=\FreePBX\modules\Sccp_manager\notificationDelivery::scheduledImageXml('Random Dog',$imageUrl);
-    $doc=new DOMDocument();
-    if (!$doc->loadXML($xml)) throw new RuntimeException('Invalid generated image XML');
-    if ($doc->getElementsByTagName('URL')->item(0)->textContent!==$imageUrl)
-        throw new RuntimeException('Image URL mismatch for '.$device);
-    if (strpos($xml,'__SCCP_NOTIFICATION_BASE__')!==false)
-        throw new RuntimeException('Unresolved image URL placeholder');
-}
-$deliverySource=file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
-if (strpos($deliverySource,'__SCCP_NOTIFICATION_BASE__')!==false)
-    throw new RuntimeException('Scheduled notification source must not use address placeholders');
-$workerSource=file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
-if (strpos($workerSource,'phoneNotifications::text(')!==false ||
-    strpos($workerSource,'phoneNotifications::status(')!==false)
-    throw new RuntimeException('Notification worker must not emit text or status alerts');
-if (strpos($workerSource,'$graphic===null')===false ||
-    strpos($workerSource,'phoneNotifications::graphic($this->module,$renderFields')===false)
-    throw new RuntimeException('All worker kinds must use the shared graphical renderer');
-$serviceSource=file_get_contents(__DIR__.'/../sccpManClasses/phoneservices.class.php');
-if (strpos($serviceSource,"new notificationMessage('', ['Open'=>\$url],\$graphic)")===false)
-    throw new RuntimeException('Service alerts must use graphical cards and an Open action');
-echo "Notification address tests passed\n";
+$delivery=file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
+$queue=file_get_contents(__DIR__.'/../sccpManClasses/notificationQueue.class.php');
+$config=file_get_contents(__DIR__.'/../sccpManClasses/notificationConfig.class.php');
+if (substr_count($delivery,'phoneNotifications::graphic(')!==1)
+    throw new RuntimeException('Every delivery kind must use exactly one graphical renderer call');
+if (!str_contains($delivery,"new notificationMessage('',$actions,$graphic"))
+    throw new RuntimeException('Delivery must pass inline graphic directly to shared message');
+foreach (['scheduledImageXml','publicDocument(','displayUrl(','notification-display.php'] as $unused)
+    if (str_contains($delivery,$unused))
+        throw new RuntimeException('Obsolete delivery path: '.$unused);
+if (str_contains($queue,'notification-display.php') || str_contains($queue,'sound-only'))
+    throw new RuntimeException('Queue must not retain old URL-based or sound-only paths');
+if (str_contains($config,'readfile($file)'))
+    throw new RuntimeException('Old XML display endpoint still generated');
+$service=file_get_contents(__DIR__.'/../sccpManClasses/phoneservices.class.php');
+if (!str_contains($service,"new notificationMessage('', ['Open'=>\$url],\$graphic)"))
+    throw new RuntimeException('Services must send inline graphical notifications');
+echo "Single notification delivery path passed\n";
