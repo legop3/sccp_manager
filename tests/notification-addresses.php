@@ -47,4 +47,14 @@ foreach (['SEP00EBD5CA227A' => 'http://192.168.0.25/sccp-manager',
 $deliverySource=file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
 if (strpos($deliverySource,'__SCCP_NOTIFICATION_BASE__')!==false)
     throw new RuntimeException('Scheduled notification source must not use address placeholders');
+$workerSource=file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
+if (strpos($workerSource,'phoneNotifications::text(')!==false ||
+    strpos($workerSource,'phoneNotifications::status(')!==false)
+    throw new RuntimeException('Notification worker must not emit text or status alerts');
+if (strpos($workerSource,'$graphic===null')===false ||
+    strpos($workerSource,'phoneNotifications::graphic($this->module,$kind')===false)
+    throw new RuntimeException('All worker kinds must use the shared graphical renderer');
+$serviceSource=file_get_contents(__DIR__.'/../sccpManClasses/phoneservices.class.php');
+if (strpos($serviceSource,"new notificationMessage('', ['Open'=>\$url],\$graphic)")===false)
+    throw new RuntimeException('Service alerts must use graphical cards and an Open action');
 echo "Notification address tests passed\n";
