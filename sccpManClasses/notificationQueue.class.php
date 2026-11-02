@@ -104,6 +104,50 @@ final class notificationQueue {
         });
         return $this->url($device,$id);
     }
+    /**
+     * Single public entry point for a sender. The caller owns content and
+     * action definitions; the notification system owns registration, queuing
+     * and the actual CGI push.
+     *
+     * @param string $device SEP identifier
+     * @param string $ip SCCP session peer IPv4 address
+     * @param array $notification ['url'=>string,'actions'=>[label=>url],'sound'=>?string]
+     */
+    public function send($device,$ip,array $notification) {
+        if (!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4))
+            throw new \InvalidArgumentException('Invalid notification handset address');
+        $url=(string)($notification['url']??'');
+        $actions=$notification['actions']??[];
+        if (!is_array($actions)) throw new \InvalidArgumentException('Invalid notification actions');
+        $sound=(string)($notification['sound']??'');
+        if ($sound!=='' && !preg_match('/^[A-Za-z0-9_.-]+\\.raw$/D',$sound))
+            throw new \InvalidArgumentException('Invalid notification sound');
+        if ($url==='') {
+            if ($sound==='') throw new \InvalidArgumentException('Empty notification');
+            // Sound-only notifications do not have an XML app to clear.
+            $display=null;
+        } else {
+            $display=$this->enqueue($device,$url,$actions);
+        }
+        $xml='<CiscoIPPhoneExecute>';
+        if ($sound!=='') $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1|ENT_QUOTES,'UTF-8').'"/>';
+        if ($display!==null) $xml.='<ExecuteItem URL="'.htmlspecialchars($display,ENT_XML1|ENT_QUOTES,'UTF-8').'"/>';
+        $xml.='</CiscoIPPhoneExecute>';
+        $ch=curl_init('http://'.$ip.'/CGI/Execute');
+        if (!$ch) throw new \RuntimeException('Cannot initialize phone notification push');
+        try {
+            curl_setopt_array($ch,[
+                CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query(['XML'=>$xml]),
+                CURLOPT_HTTPAUTH=>CURLAUTH_BASIC,CURLOPT_USERPWD=>'sccpnotify:',
+                CURLOPT_CONNECTTIMEOUT=>2,CURLOPT_TIMEOUT=>4,CURLOPT_RETURNTRANSFER=>true
+            ]);
+            $response=curl_exec($ch);
+            $status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);
+        } finally { curl_close($ch); }
+        return ['ok'=>$status===200 && is_string($response) &&
+                strpos($response,'CiscoIPPhoneError')===false,
+                'status'=>$status,'response'=>substr(trim((string)$response),0,160)];
+    }
     public function current($device,$dismissId=null) {
         if (!phonevoicemail::validDevice($device)) throw new \InvalidArgumentException('Invalid phone');
         return $this->transaction(static function(&$state)use($device,$dismissId) {
