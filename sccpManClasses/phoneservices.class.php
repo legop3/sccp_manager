@@ -26,7 +26,7 @@ class phoneservices {
     }
     private function form($title,$url,$label,$param,$mode='A') {
         echo '<?xml version="1.0" encoding="UTF-8"?>';
-        echo '<CiscoIPPhoneInput><Title>'.$this->esc($title).'</Title><Prompt>'.$this->esc($this->queueControls['prompt']??$label).'</Prompt><URL>'.$this->esc($url).'</URL>';
+        echo '<CiscoIPPhoneInput><Title>'.$this->esc($title).'</Title><Prompt>'.$this->esc($label).'</Prompt><URL>'.$this->esc($url).'</URL>';
         echo '<InputItem><DisplayName>'.$this->esc($label).'</DisplayName><QueryString>'.$this->esc($param).'</QueryString><InputFlags>'.$this->esc($mode).'</InputFlags></InputItem>'.$this->queueSoftkey('input').'</CiscoIPPhoneInput>';
     }
     private function statePath() {return '/var/spool/asterisk/sccp-manager-services.json';}
