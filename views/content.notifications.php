@@ -55,8 +55,6 @@ $samples=[
       <div class="form-group"><label>Base theme</label><select class="form-control ne-theme" name="notifications[appearance][theme]">
        <?php foreach (['cisco'=>'Cisco Classic','ocean'=>'Ocean','charcoal'=>'Charcoal','plum'=>'Plum','forest'=>'Forest','custom'=>'Custom'] as $value=>$label):?>
        <option value="<?php echo $value;?>" <?php echo $settings['theme']===$value?'selected':'';?>><?php echo $label;?></option><?php endforeach;?></select></div>
-      <label><input type="checkbox" name="notifications[appearance][show_number]" value="1" <?php echo $settings['show_number']?'checked':'';?>> Display caller number</label>
-      <label style="margin-left:15px"><input type="checkbox" name="notifications[appearance][show_details]" value="1" <?php echo $settings['show_details']?'checked':'';?>> Display details</label>
       <h4 style="margin-top:18px">Section colors</h4><div class="ne-colors">
        <?php $themes=['cisco'=>['#D5E2ED','#1E568F','#101C2A','#233849','#FFFFFF'],'ocean'=>['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],'charcoal'=>['#181B20','#30343C','#FFFFFF','#BFC6D0','#FFD084'],'plum'=>['#301C3F','#513162','#FFFFFF','#DFC6EC','#FF9BC8'],'forest'=>['#123C31','#245C48','#F5FFF8','#C1E9D2','#91E7B1']];
        $palette=$themes[$settings['theme']]??$themes['ocean'];
@@ -82,7 +80,12 @@ $samples=[
       </div>
      </div>
     </div><div><div class="ne-card"><h4>Shared design preview</h4>
-<?php $xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,'voicemail',$samples['voicemail'],[],$appearance);
+<?php $example=$samples['voicemail'];
+$sampleCard=['title'=>'New voicemail','primary'=>(string)($example['caller']??'Jane Smith'),
+ 'secondary'=>(string)($example['number']??'150'),
+ 'detail'=>'Length: '.(string)($example['length']??'42 sec'),
+ 'timestamp'=>(string)($example['when']??'10/28/2026 2:35 PM')];
+$xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,'voicemail',$sampleCard,[],$appearance);
 $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match)) $preview=html_entity_decode($match[1],ENT_QUOTES,'UTF-8'); ?>
 <?php if ($preview):?><img class="ne-screen" src="<?php echo $esc($preview);?>" alt="Shared appearance preview"><?php endif;?>
 <p class="ne-help">All notification types use this design. Their tabs control content and delivery only.</p>
