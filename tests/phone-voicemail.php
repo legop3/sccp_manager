@@ -134,7 +134,7 @@ verify(strpos($deleteXml->asXML(), 'Delete Message?') === false,
 
 // Notification-launched voicemail must remain valid and retain explicit Back.
 $contextProperty=new ReflectionProperty(phonevoicemail::class,'notificationReturn');
-$contextProperty->setValue($vm,'http://10.254.77.1/sccp-manager/notification-queue.php?phone=SEP00AABBCCDDEE&amp;id='.str_repeat('a',24));
+$contextProperty->setValue($vm,'http://10.254.77.1/sccp-manager/notification-queue.php?phone=SEP00AABBCCDDEE&id='.str_repeat('a',24));
 ob_start();
 $detail->invoke($vm, $baseUrl.'&notification_id='.str_repeat('a',24), $relocated, false);
 $notificationDocument=ob_get_clean();
