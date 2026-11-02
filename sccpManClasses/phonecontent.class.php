@@ -428,6 +428,9 @@ PHP;
         $src = __DIR__ . '/../services/service-entry.php';
         if (!is_file($src)) throw new \RuntimeException('Built-in services endpoint missing.');
         $this->publishFile($this->public . '/service.php', file_get_contents($src));
+        $queueSrc = __DIR__ . '/../services/notification-queue-entry.php';
+        if (!is_file($queueSrc)) throw new \RuntimeException('Notification queue endpoint missing.');
+        $this->publishFile($this->public . '/notification-queue.php', file_get_contents($queueSrc));
     }
 
     private function publishVoicemailEndpoint()
