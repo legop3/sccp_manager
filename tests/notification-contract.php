@@ -17,7 +17,7 @@ $service='http://10.254.77.1/sccp-manager/custom-app.php?x=1';
 assertSameValue($service.'&notification_id='.$id,notificationQueue::contextLink($service,$id),'Future app should work');
 assertSameValue('Dial:111',notificationQueue::contextLink('Dial:111',$id),'Dial must remain unchanged');
 assertSameValue('https://example.org/other.php?x=1',notificationQueue::contextLink('https://example.org/other.php?x=1',$id),'External app untouched');
-$message=new notificationMessage('http://10.254.77.1/sccp-manager/notification-display.php?id='.str_repeat('a',24),[
+$message=new notificationMessage('',[
     'Listen'=>$base, 'Messages'=>'http://10.254.77.1/sccp-manager/service.php?app=messages'
 ],'<CiscoIPPhoneImageFile><Title>Test</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>http://127.0.0.1/test.png</URL></CiscoIPPhoneImageFile>');
 assertSameValue(2,count($message->payload()['actions']),'Sender-provided actions remain independent of content');
