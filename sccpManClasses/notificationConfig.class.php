@@ -38,8 +38,8 @@ final class notificationConfig {
     }
     public function all() {
         $defaults=[
-            'voicemail'=>['enabled'=>false,'title'=>'New Voicemail','message'=>"From: {caller}\\nNumber: {number}\\nReceived: {received}\\nLength: {length}\\nMailbox: {extension}\\nMessages waiting: {count}",'sound'=>''],
-            'missed'=>['enabled'=>false,'title'=>'Missed Call','message'=>"From: {caller}\\nNumber: {number}\\nWhen: {when}\\nExtension: {extension}\\nResult: {reason}",'sound'=>''],
+            'voicemail'=>['enabled'=>false,'sound'=>''],
+            'missed'=>['enabled'=>false,'sound'=>''],
             'scheduled'=>['enabled'=>false,'title'=>'Hello','message'=>'A message for everyone','sound'=>'','interval'=>60,'time'=>'','title_url'=>'','message_url'=>'' ,'source'=>'custom']
         ];
         $saved=$this->module->getConfig('phonecontent_notifications');
