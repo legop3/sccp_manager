@@ -28,30 +28,7 @@ final class notificationMessage {
                     ['CiscoIPPhoneImageFile'],true))
                 throw new \InvalidArgumentException('Notification XML is not a supported Cisco document');
         }
-        if ($xml===null && ($sound===null || $sound===''))
-            throw new \InvalidArgumentException('Notification requires content or sound');
-        if ($xml===null && $url!=='')
-            throw new \InvalidArgumentException('Visual notifications require graphical XML');
-        if (count($actions)>3)
-            throw new \InvalidArgumentException('Notifications support up to three custom actions');
-        foreach ($actions as $name=>$destination) {
-            if (!is_string($name) || trim($name)==='' || strlen($name)>12 ||
-                !is_string($destination) || $destination==='')
-                throw new \InvalidArgumentException('Invalid notification action');
-        }
-        if ($sound!==null && $sound!=='' &&
-            !preg_match('/^[A-Za-z0-9_.-]+\\.raw$/D',(string)$sound))
-            throw new \InvalidArgumentException('Invalid notification sound filename');
-        $this->url=$url;
-        $this->xml=$xml;
-        $this->actions=$actions;
-        $this->sound=$sound;
-    }
-    public function payload() {
-        return ['url'=>$this->url,'xml'=>$this->xml,
-                'actions'=>$this->actions,'sound'=>$this->sound];
-    }
-}        if ($xml===null)
+        if ($xml===null)
             throw new \InvalidArgumentException('Notification requires graphical XML');
         if (count($actions)>3)
             throw new \InvalidArgumentException('Notifications support up to three custom actions');
