@@ -24,36 +24,6 @@ final class phoneNotifications
         return $value;
     }
 
-    public static function text($title, $message, $prompt = 'Dismiss')
-    {
-        $title = self::xml(self::limit($title, 32));
-        $prompt = self::xml(self::limit($prompt, 32));
-        $message = self::xml(self::limit($message, 2048));
-        return '<?xml version="1.0" encoding="UTF-8"?>'
-            . '<CiscoIPPhoneText><Title>' . $title . '</Title>'
-            . '<Text>' . $message . '</Text><Prompt>' . $prompt . '</Prompt>'
-            . '<SoftKeyItem><Name>Exit</Name><URL>SoftKey:Exit</URL><Position>1</Position></SoftKeyItem>'
-            . '</CiscoIPPhoneText>';
-    }
-
-    public static function interactive($title, $message, array $actions)
-    {
-        $title=self::xml(self::limit($title,32));
-        $message=self::xml(self::limit($message,2048));
-        $xml='<?xml version="1.0" encoding="UTF-8"?>'
-            .'<CiscoIPPhoneText><Title>'.$title.'</Title><Text>'.$message.'</Text>'
-            .'<Prompt>Select an action</Prompt>';
-        $position=1;
-        foreach ($actions as $label=>$url) {
-            if ($position>4) break;
-            if (!is_string($url) || !preg_match('~^(https?://|Dial:|Init:|SoftKey:)~',$url)) continue;
-            $xml.='<SoftKeyItem><Name>'.self::xml(self::limit($label,12))
-                .'</Name><URL>'.self::xml($url).'</URL><Position>'.$position.'</Position></SoftKeyItem>';
-            $position++;
-        }
-        return $xml.'</CiscoIPPhoneText>';
-    }
-
     /** Sample notification using the same field builders as live delivery. */
     public static function previewFields($module,$kind)
     {
@@ -207,15 +177,6 @@ final class phoneNotifications
             $position++;
         }
         return $xml.'</CiscoIPPhoneImageFile>';
-    }
-
-    public static function status($message, $timer = 0)
-    {
-        $message = self::xml(self::limit($message, 80));
-        $timer = max(0, min(3600, (int)$timer));
-        return '<?xml version="1.0" encoding="UTF-8"?>'
-            . '<CiscoIPPhoneStatus><Text>' . $message . '</Text>'
-            . '<Timer>' . $timer . '</Timer></CiscoIPPhoneStatus>';
     }
 
     public static function execute($notificationUrl, $soundFile = null)
