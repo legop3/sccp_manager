@@ -55,7 +55,9 @@ final class notificationQueue {
      * XML and actions; this manager owns the Clear softkey and navigation state.
      */
     public function enqueue($device,$url,array $providedActions=[],$contentXml=null) {
-        if (!phonevoicemail::validDevice($device) || !filter_var($url,FILTER_VALIDATE_URL))
+        if (!phonevoicemail::validDevice($device) ||
+            ($url!=='' && !filter_var($url,FILTER_VALIDATE_URL)) ||
+            ($url==='' && $contentXml===null))
             throw new \InvalidArgumentException('Invalid queued notification');
         $endpoint=$this->module->phonecontent->publicPath().'/notification-queue.php';
         $source=__DIR__.'/../services/notification-queue-entry.php';
@@ -128,7 +130,7 @@ final class notificationQueue {
         $sound=(string)($notification['sound']??'');
         if ($sound!=='' && !preg_match('/^[A-Za-z0-9_.-]+\\.raw$/D',$sound))
             throw new \InvalidArgumentException('Invalid notification sound');
-        if ($url==='') {
+        if ($url==='' && $contentXml===null) {
             if ($sound==='') throw new \InvalidArgumentException('Empty notification');
             // Sound-only notifications do not have an XML app to clear.
             $display=null;
