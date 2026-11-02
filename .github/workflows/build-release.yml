@@ -49,7 +49,9 @@ jobs:
           php tests/phone-voicemail.php
 
       - name: Test notification URL delivery paths
-        run: php tests/notification-addresses.php
+        run: |
+          php tests/notification-addresses.php
+          php tests/notification-contract.php
 
       - name: Record source validation result
         if: always()
