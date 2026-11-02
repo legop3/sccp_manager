@@ -4,40 +4,21 @@ namespace FreePBX\modules\Sccp_manager;
 /** Built-in Cisco services. Service actions use the existing per-handset voicemail bearer token. */
 class phoneservices {
     private $module;
-    private $queueControls = null;
-    private $notificationReturn = null;
-    private $notificationClear = null;
-    private $notificationEntry = false;
+    private $notificationNavigation = null;
     private function queueSoftkey($type='text') {
-        if ($this->notificationReturn!==null) {
-            $buttons=[];
-            if ($this->notificationEntry) {
-                $buttons[]=['Clear',$this->notificationClear,1];
-                if ($type==='menu') $buttons[]=['Select','SoftKey:Select',2];
-                if ($type==='input') $buttons[]=['Submit','SoftKey:Submit',2];
-            } else {
-                if ($type==='menu') $buttons[]=['Select','SoftKey:Select',1];
-                if ($type==='input') $buttons[]=['Submit','SoftKey:Submit',1];
-                $buttons[]=['Back',$this->notificationReturn,4];
-            }
-            $xml='';
-            foreach ($buttons as $button)
-                $xml.='<SoftKeyItem><Name>'.$this->esc($button[0]).'</Name><URL>'.
-                    $this->esc($button[1]).'</URL><Position>'.$button[2].'</Position></SoftKeyItem>';
-            return $xml;
-        }
-        if (!$this->queueControls) return '';
-        return '<SoftKeyItem><Name>Dismiss</Name><URL>'.$this->esc($this->queueControls['dismiss']).'</URL><Position>4</Position></SoftKeyItem>';
+        if ($this->notificationNavigation && $this->notificationNavigation->active())
+            return notificationNavigation::xmlSoftkeys($this->notificationNavigation->softkeys($type));
+        return '';
     }
     public function __construct($module=null) {$this->module=$module;}
     private function esc($s) {return htmlspecialchars((string)$s, ENT_XML1|ENT_QUOTES, 'UTF-8');}
     private function xml($name,$data) {
         echo '<?xml version="1.0" encoding="UTF-8"?>';
-        echo '<CiscoIPPhoneText><Title>'.$this->esc(substr($name,0,32)).'</Title><Text>'.$this->esc($data).'</Text>' . ($this->queueControls || $this->notificationReturn!==null ? '<Prompt>'.$this->esc($this->queueControls['prompt']??'Notification menu').'</Prompt>'.$this->queueSoftkey() : '') . '</CiscoIPPhoneText>';
+        echo '<CiscoIPPhoneText><Title>'.$this->esc(substr($name,0,32)).'</Title><Text>'.$this->esc($data).'</Text>' . ($this->notificationNavigation && $this->notificationNavigation->active() ? '<Prompt>Notification menu</Prompt>'.$this->queueSoftkey() : '') . '</CiscoIPPhoneText>';
     }
     private function menu($title,$entries) {
         echo '<?xml version="1.0" encoding="UTF-8"?>';
-        echo '<CiscoIPPhoneMenu><Title>'.$this->esc(substr($title,0,32)).'</Title><Prompt>'.$this->esc($this->queueControls['prompt']??'Select an item').'</Prompt>';
+        echo '<CiscoIPPhoneMenu><Title>'.$this->esc(substr($title,0,32)).'</Title><Prompt>'.'Select an item'.'</Prompt>';
         foreach($entries as $entry) {
             echo '<MenuItem><Name>'.$this->esc(substr($entry[0],0,64)).'</Name><URL>'.$this->esc($entry[1]).'</URL></MenuItem>';
         }
@@ -128,19 +109,10 @@ class phoneservices {
         header('Cache-Control: no-store');header('Expires: Thu, 01 Jan 1970 00:00:01 GMT');
         header('X-Content-Type-Options: nosniff');
         [$device,$identity]=$this->auth($q);
-        if (isset($q['notification_id'])) {
-            $controls=(new notificationQueue($this->module))->returnControls($device,(string)$q['notification_id']);
-            $this->notificationReturn=$controls['return']??null;
-            $this->notificationClear=$controls['clear']??null;
-            $this->notificationEntry=$this->notificationReturn!==null && (string)($q['notification_entry']??'')==='1';
-        }
-        if (isset($q['queue_id'])) {
-            $this->queueControls=(new notificationQueue($this->module))->serviceControls(
-                $device,(string)$q['queue_id']);
-        }
+        $this->notificationNavigation=new notificationNavigation($this->module,$device,$q);
         $line=$identity['extension'];
         $root=['phone'=>$device,'key'=>(string)$q['key']];
-        if ($this->notificationReturn!==null) $root['notification_id']=(string)$q['notification_id'];
+        $root=array_merge($root,$this->notificationNavigation->fields());
         $route=function($fields)use($root){return $this->requestUrl(array_merge($root,$fields));};
         $flags=$this->module->phonemenus->serviceFlags();
         $app=(string)($q['app']??'');$op=(string)($q['op']??'');
