@@ -30,9 +30,8 @@ if (substr_count($source, 'displayUrl($device,$this->publicDocument($graphic))')
 // Graphical voicemail AND missed-call notifications must pass their rendered
 // image XML to the shared queue. A stale generic text body is not acceptable.
 $senderSource=file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
-preg_match_all('/\$graphic=phoneNotifications::graphic\([\s\S]*?\$contentXml=\$graphic;/',$senderSource,$graphicalBranches);
-if (count($graphicalBranches[0])!==2)
-    throw new RuntimeException('Both graphical notification branches must register their rendered image XML');
+if (substr_count($senderSource, '$contentXml=$graphic;')!==3)
+    throw new RuntimeException('All graphical notification paths must register rendered image XML');
 foreach (['SEP00EBD5CA227A' => 'http://192.168.0.25/sccp-manager',
           'SEP00EBD5CA2776' => 'http://10.254.77.1/sccp-manager'] as $device => $base) {
     $imageUrl=$base.'/notification-test.png';
