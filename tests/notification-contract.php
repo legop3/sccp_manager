@@ -34,4 +34,6 @@ if (str_contains($loader, 'notificationMessage.class.php')) throw new RuntimeExc
 if (is_file(__DIR__.'/../sccpManClasses/notificationMessage.class.php')) throw new RuntimeException('Value object is in component scan');
 try { new notificationMessage('',[], '<CiscoIPPhoneText><Title>Text</Title><Text>No</Text></CiscoIPPhoneText>'); throw new RuntimeException('Non-image notification accepted'); }
 catch (InvalidArgumentException $expected) {}
+try { new notificationMessage('',[],null,'alert.raw'); throw new RuntimeException('Sound-only notification accepted'); }
+catch (InvalidArgumentException $expected) {}
 echo "Shared notification object and link contract OK\n";
