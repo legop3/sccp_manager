@@ -89,8 +89,7 @@ class phoneservices {
         $ip=$all[$device];
         // A phone service can be a notification producer without duplicating
         // the queue implementation or changing its rendered service page.
-        try { $url=(new notificationQueue($this->module))->enqueue($device,$url); }
-        catch (\Throwable $e) { error_log('SCCP service queue fallback: '.$e->getMessage()); }
+        $url=(new notificationQueue($this->module))->enqueue($device,$url);
         if(!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4))return false;
         $xml='<CiscoIPPhoneExecute><ExecuteItem URL="'.$this->esc($url).'"/></CiscoIPPhoneExecute>';
         $ch=curl_init('http://'.$ip.'/CGI/Execute');
