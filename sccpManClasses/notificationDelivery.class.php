@@ -177,6 +177,15 @@ final class notificationDelivery {
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
             }
+            // Queue the finished per-device notification URL. Sound-only pushes
+            // remain immediate and are not stored as empty screens.
+            if ($deviceUrl !== null) {
+                try {
+                    $deviceUrl=(new notificationQueue($this->module))->enqueue($device,$deviceUrl);
+                } catch (\\Throwable $e) {
+                    error_log('SCCP notification queue fallback: '.$e->getMessage());
+                }
+            }
             $xml='<CiscoIPPhoneExecute>';
             if ($sound) $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1).'"/>';
             if ($deviceUrl) $xml.='<ExecuteItem URL="'.htmlspecialchars($deviceUrl,ENT_XML1).'"/>';
