@@ -179,10 +179,8 @@ final class notificationDelivery {
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
             }
-            $delivery=(new notificationQueue($this->module))->send($device,$ip,[
-                'url'=>$deviceUrl??'','xml'=>$contentXml??null,
-                'actions'=>$actions,'sound'=>$sound??''
-            ]);
+            $delivery=(new notificationQueue($this->module))->send($device,$ip,
+                new notificationMessage($deviceUrl??'',$actions,$contentXml??null,$sound??null));
             $status=$delivery['status'];
             $response=$delivery['response'];
             if ($status===200 && is_string($response) && strpos($response,'CiscoIPPhoneError')===false) {
