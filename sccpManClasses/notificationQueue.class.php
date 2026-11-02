@@ -49,9 +49,19 @@ final class notificationQueue {
         if (!phonevoicemail::validDevice($device) || !filter_var($url,FILTER_VALIDATE_URL))
             throw new \InvalidArgumentException('Invalid queued notification');
         $id=bin2hex(random_bytes(12));
-        $this->transaction(static function(&$state)use($device,$id,$url) {
+        $snapshot=null;
+        $parts=parse_url($url);
+        if (isset($parts['path']) && basename($parts['path'])==='notification-display.php') {
+            parse_str((string)($parts['query']??''),$params);
+            $fileId=$params['id']??'';
+            if (is_string($fileId) && preg_match('/^[a-f0-9]{24}$/D',$fileId)) {
+                $file=$this->module->phonecontent->publicPath().'/notification-'.$fileId.'.xml';
+                if (is_file($file) && !is_link($file)) $snapshot=@file_get_contents($file);
+            }
+        }
+        $this->transaction(static function(&$state)use($device,$id,$url,$snapshot) {
             $items=self::prune($state[$device]??[]);
-            $items[]=['id'=>$id,'url'=>$url,'at'=>time()];
+            $items[]=['id'=>$id,'url'=>$url,'xml'=>$snapshot,'at'=>time()];
             $state[$device]=self::prune($items);
         });
         return $this->url($device,$id);
@@ -96,8 +106,9 @@ final class notificationQueue {
         }
         if (is_string($fileId) && preg_match('/^[a-f0-9]{24}$/D',$fileId)) {
             $file=$this->module->phonecontent->publicPath().'/notification-'.$fileId.'.xml';
-            if (is_file($file) && !is_link($file)) {
-                $raw=file_get_contents($file);
+            $raw=is_string($entry['xml']??null) ? $entry['xml'] :
+                (is_file($file) && !is_link($file) ? @file_get_contents($file) : false);
+            if (is_string($raw) && $raw!=='') {
                 $doc=new \DOMDocument('1.0','UTF-8');
                 $previous=libxml_use_internal_errors(true);
                 $loaded=$doc->loadXML($raw,LIBXML_NONET);
