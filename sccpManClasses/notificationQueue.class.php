@@ -242,6 +242,8 @@ final class notificationQueue {
         $path=(string)(parse_url($url,PHP_URL_PATH)??'');
         // Any phone-content application can participate without a queue-side type list.
         if (!preg_match('~/sccp-manager/[^/]+\\.php$~i',$path)) return $url;
+        parse_str((string)(parse_url($url,PHP_URL_QUERY)??''),$query);
+        if (($query['notification_id']??null)===$id) return $url;
         return $url.(strpos($url,'?')===false?'?':'&').
             http_build_query(['notification_id'=>$id],'','&',PHP_QUERY_RFC3986);
     }
