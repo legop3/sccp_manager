@@ -89,8 +89,7 @@ class phoneservices {
         $heading=$labels[$app]??'Notification';
         $message=$app==='alarms'?(string)($query['note']??'Reminder') :
             ($app==='messages'?'You have a new message':($app==='games'?'You have a game invitation':'Open service'));
-        $settings=(new notificationConfig($this->module))->all();
-        $theme=$settings['voicemail']??$settings['missed']??[];
+        $theme=(new notificationConfig($this->module))->appearance();
         $graphic=phoneNotifications::graphic($this->module,$app,[
             'title'=>$heading,'caller'=>$message,'when'=>date('m/d/Y g:i A')
         ],[],$theme,$device);
