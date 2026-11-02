@@ -10,6 +10,7 @@ $base='http://10.254.77.1/sccp-manager/voicemail.php?phone=SEP00EBD5CA2776&key='
 $url=notificationQueue::contextLink($base,$id);
 assertSameValue($base.'&notification_id='.$id,$url,'Voicemail context must persist');
 assertSameValue($url,notificationQueue::contextLink($url,'invalid'),'Invalid ID must not modify link');
+assertSameValue($url,notificationQueue::contextLink($url,$id),'Repeated context must be idempotent');
 $service='http://10.254.77.1/sccp-manager/custom-app.php?x=1';
 assertSameValue($service.'&notification_id='.$id,notificationQueue::contextLink($service,$id),'Future app should work');
 assertSameValue('Dial:111',notificationQueue::contextLink('Dial:111',$id),'Dial must remain unchanged');
