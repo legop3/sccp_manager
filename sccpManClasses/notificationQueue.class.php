@@ -161,52 +161,28 @@ final class notificationQueue {
             return;
         }
         $entry=$state['entry'];
-        $url=$entry['url'];
         $dismiss=$this->url($device,$entry['id'],'dismiss');
-        $count=$state['count'];
-        // The queue never changes notification content. It adds only its own
-        // Clear action plus up to three actions supplied by the renderer.
-        $parts=parse_url($url);
-        $raw=$entry['xml']??null;
-        if (is_string($raw) && $raw!=='') {
-            $doc=new \DOMDocument('1.0','UTF-8');
-            if (!@$doc->loadXML($raw,LIBXML_NONET) || !$doc->documentElement)
-                throw new \RuntimeException('Stored notification XML is invalid');
-            $root=$doc->documentElement;
-            // Shared renderer supplies image content; the queue supplies actions.
-            foreach (iterator_to_array($root->getElementsByTagName('SoftKeyItem')) as $oldKey)
-                if ($oldKey->parentNode===$root) $root->removeChild($oldKey);
-            if ($root->tagName!=='CiscoIPPhoneImageFile') {
-                throw new \RuntimeException('Queued notification must be graphical');
-            }
-            foreach (iterator_to_array($root->getElementsByTagName('Prompt')) as $p)
-                if ($p->parentNode===$root) $root->removeChild($p);
-            // Cisco XML requires Prompt before softkeys.
-            $prompt=$doc->createElement('Prompt');
-            $prompt->appendChild($doc->createTextNode('Notification 1 of '.$count));
-            $root->appendChild($prompt);
-            $actions=array_merge([['name'=>'Clear','url'=>$dismiss]],array_slice($entry['actions']??[],0,3));
-            foreach ($actions as $position=>$action) {
-                if (!is_array($action) || !isset($action['name'],$action['url'])) continue;
-                $item=$root->appendChild($doc->createElement('SoftKeyItem'));
-                foreach (['Name'=>(string)$action['name'],
-                          'URL'=>self::contextLink((string)$action['url'],$entry['id']),
-                          'Position'=>(string)($position+1)] as $tag=>$value) {
-                    $item->appendChild($doc->createElement($tag))
-                        ->appendChild($doc->createTextNode($value));
-                }
-            }
-            echo $doc->saveXML(); return;
+        $doc=new \DOMDocument('1.0','UTF-8');
+        $raw=$entry['xml'];
+        if (!@$doc->loadXML($raw,LIBXML_NONET) || !$doc->documentElement ||
+            $doc->documentElement->tagName!=='CiscoIPPhoneImageFile')
+            throw new \RuntimeException('Stored notification must be graphical');
+        $root=$doc->documentElement;
+        if ($root->getElementsByTagName('SoftKeyItem')->length ||
+            $root->getElementsByTagName('Prompt')->length)
+            throw new \RuntimeException('Notification renderer cannot supply queue controls');
+        $prompt=$root->appendChild($doc->createElement('Prompt'));
+        $prompt->appendChild($doc->createTextNode('Notification 1 of '.$state['count']));
+        $actions=array_merge([['name'=>'Clear','url'=>$dismiss]],array_slice($entry['actions'],0,3));
+        foreach ($actions as $position=>$action) {
+            $item=$root->appendChild($doc->createElement('SoftKeyItem'));
+            foreach (['Name'=>$action['name'],
+                      'URL'=>self::contextLink($action['url'],$entry['id']),
+                      'Position'=>(string)($position+1)] as $tag=>$value)
+                $item->appendChild($doc->createElement($tag))
+                     ->appendChild($doc->createTextNode((string)$value));
         }
-        // A notification can launch ANY module application. Its renderer owns
-        // the page and implements the shared notification_id return contract.
-        // No sender type or service endpoint is special-cased here.
-        $contextual=self::contextLink($url,$entry['id']);
-        if ($contextual!==$url) {
-            $url=$contextual.'&notification_entry=1';
-        }
-        $safe=htmlspecialchars($url,ENT_XML1|ENT_QUOTES,'UTF-8');
-        echo '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneExecute><ExecuteItem URL="'.$safe.'"/></CiscoIPPhoneExecute>';
+        echo $doc->saveXML();
     }
     /** Shared lifecycle contract: internal app links carry only notification identity.
      * Content renderers stay responsible for their own pages and menus. */
