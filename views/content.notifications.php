@@ -85,7 +85,7 @@ $sampleCard=['title'=>'New voicemail','primary'=>(string)($example['caller']??'J
  'secondary'=>(string)($example['number']??'150'),
  'detail'=>'Length: '.(string)($example['length']??'42 sec'),
  'timestamp'=>(string)($example['when']??'10/28/2026 2:35 PM')];
-$xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,'voicemail',$sampleCard,[],$appearance);
+$xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,$sampleCard,[],$appearance);
 $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match)) $preview=html_entity_decode($match[1],ENT_QUOTES,'UTF-8'); ?>
 <?php if ($preview):?><img class="ne-screen" src="<?php echo $esc($preview);?>" alt="Shared appearance preview"><?php endif;?>
 <p class="ne-help">All notification types use this design. Their tabs control content and delivery only.</p>
