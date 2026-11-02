@@ -25,7 +25,7 @@ final class phoneNotifications
     }
 
     /** Render a compact graphical notification for the 7945G screen. */
-    public static function graphic($module, array $fields, array $actions, array $settings, $device = null)
+    public static function graphic($module, array $fields, array $settings, $device = null)
     {
         if (!function_exists('imagecreatetruecolor')) return null;
         $dir=$module->phonecontent->publicPath();
@@ -149,14 +149,7 @@ final class phoneNotifications
             .'<CiscoIPPhoneImageFile><Title>'.self::xml($heading).'</Title>'
             .'<LocationX>0</LocationX><LocationY>0</LocationY><URL>'
             .self::xml($base.'/'.$filename).'</URL>';
-        $position=1;
-        foreach ($actions as $label=>$url) {
-            if ($position>4) break;
-            $xml.='<SoftKeyItem><Name>'.self::xml(self::limit($label,12))
-                .'</Name><URL>'.self::xml($url).'</URL><Position>'.$position.'</Position></SoftKeyItem>';
-            $position++;
-        }
-        return $xml.'</CiscoIPPhoneImageFile>';
+        $positioxml.'</CiscoIPPhoneImageFile>';
     }
 
     public static function execute($notificationUrl, $soundFile = null)
