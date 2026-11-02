@@ -85,19 +85,11 @@ class phoneservices {
     }
     private function push($device,$url) {
         $all=(new notificationDelivery($this->module))->devices();
-        if(!isset($all[$device]))return false;
-        $ip=$all[$device];
-        // A phone service can be a notification producer without duplicating
-        // the queue implementation or changing its rendered service page.
-        $url=(new notificationQueue($this->module))->enqueue($device,$url);
-        if(!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4))return false;
-        $xml='<CiscoIPPhoneExecute><ExecuteItem URL="'.$this->esc($url).'"/></CiscoIPPhoneExecute>';
-        $ch=curl_init('http://'.$ip.'/CGI/Execute');
-        curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query(['XML'=>$xml]),
-            CURLOPT_HTTPAUTH=>CURLAUTH_BASIC,CURLOPT_USERPWD=>'sccpnotify:',
-            CURLOPT_CONNECTTIMEOUT=>2,CURLOPT_TIMEOUT=>4,CURLOPT_RETURNTRANSFER=>true]);
-        $body=curl_exec($ch);$status=curl_getinfo($ch,CURLINFO_RESPONSE_CODE);curl_close($ch);
-        return $status===200 && is_string($body) && strpos($body,'CiscoIPPhoneError')===false;
+        if (!isset($all[$device])) return false;
+        $result=(new notificationQueue($this->module))->send($device,$all[$device],[
+            'url'=>$url,'actions'=>[]
+        ]);
+        return $result['ok'];
     }
     private function fetch($url) {
         // Cache public forecast and RSS data so multiple phones do not
