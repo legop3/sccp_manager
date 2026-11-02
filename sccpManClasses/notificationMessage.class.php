@@ -21,7 +21,7 @@ final class notificationMessage {
             throw new \InvalidArgumentException('Invalid notification URL');
         if ($xml!==null && (!is_string($xml) || strlen($xml)>262144))
             throw new \InvalidArgumentException('Invalid notification XML');
-        if ($url==='' && ($sound===null || $sound===''))
+        if ($url==='' && $xml===null && ($sound===null || $sound===''))
             throw new \InvalidArgumentException('Notification requires content or sound');
         if (count($actions)>3)
             throw new \InvalidArgumentException('Notifications support up to three custom actions');
