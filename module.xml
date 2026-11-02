@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.126</version>
+	<version>17.1.127</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.127 * - Remove notification kind from renderer, delete old text/status rendering and queue fallback
 		 * Version 17.1.126 * - Generic notification content slots, removal of caller-specific appearance controls and obsolete per-type themes
 		 * Version 17.1.125 * - Generic type-independent notification image content model; appearance controls styling only
 		 * Version 17.1.124 * - One shared notification theme and appearance editor with migrated legacy colors and stripes
