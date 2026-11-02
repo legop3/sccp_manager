@@ -53,7 +53,10 @@ final class notificationQueue {
     public function enqueue($device,$url) {
         if (!phonevoicemail::validDevice($device) || !filter_var($url,FILTER_VALIDATE_URL))
             throw new \InvalidArgumentException('Invalid queued notification');
-        if (!is_file($this->module->phonecontent->publicPath().'/notification-queue.php'))
+        $endpoint=$this->module->phonecontent->publicPath().'/notification-queue.php';
+        $source=__DIR__.'/../services/notification-queue-entry.php';
+        if (!is_file($endpoint) || (is_file($source) &&
+            hash_file('sha256',$source)!==hash_file('sha256',$endpoint)))
             $this->module->phonecontent->publishDirectory();
         $id=bin2hex(random_bytes(12));
         $snapshot=null;
