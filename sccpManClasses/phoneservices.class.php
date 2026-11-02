@@ -90,7 +90,7 @@ class phoneservices {
         $message=$app==='alarms'?(string)($query['note']??'Reminder') :
             ($app==='messages'?'You have a new message':($app==='games'?'You have a game invitation':'Open service'));
         $theme=(new notificationConfig($this->module))->appearance();
-        $graphic=phoneNotifications::graphic($this->module,$app,[
+        $graphic=phoneNotifications::graphic($this->module,[
             'title'=>$heading,'primary'=>$message,'timestamp'=>date('m/d/Y g:i A')
         ],[],$theme,$device);
         if (!$graphic) throw new \RuntimeException('Unable to render service notification image');
