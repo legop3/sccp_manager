@@ -133,11 +133,13 @@ final class notificationDelivery {
             // Every handset needs its own authenticated voicemail links.
             // Do not publish the bearer token in a shared document.
             $deviceUrl=$documentId ? $this->displayUrl($device,$documentId) : null;
+            $contentXml=$deviceUrl!==null ? ($xml??null) : null;
             $actions=[];
             if ($imageFilename!==null) {
                 $imageXml=self::scheduledImageXml($title,
                     $this->module->phonecontent->baseUrl($device).'/'.$imageFilename);
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($imageXml));
+                $contentXml=$imageXml;
             }
             if ($kind==='voicemail' && $options['style']==='text') {
                 $actions=[];
@@ -165,6 +167,7 @@ final class notificationDelivery {
                 $graphic=phoneNotifications::graphic($this->module,'voicemail',$fields,[],$options,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
+                $contentXml=$graphic;
             } elseif ($kind==='missed' && $options['style']==='text') {
                 // Present the user's public number, not the SCCP-only line.
                 $identity=(new phonevoicemail($this->module))->destinationForDevice($device);
@@ -177,7 +180,8 @@ final class notificationDelivery {
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
             }
             $delivery=(new notificationQueue($this->module))->send($device,$ip,[
-                'url'=>$deviceUrl??'','actions'=>$actions,'sound'=>$sound??''
+                'url'=>$deviceUrl??'','xml'=>$contentXml??null,
+                'actions'=>$actions,'sound'=>$sound??''
             ]);
             $status=$delivery['status'];
             $response=$delivery['response'];
