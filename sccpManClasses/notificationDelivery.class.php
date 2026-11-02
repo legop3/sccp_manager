@@ -160,7 +160,7 @@ final class notificationDelivery {
                 ];
                 if (preg_match('/^[0-9]{1,6}$/D',$renderFields['secondary']))
                     $renderFields['secondary']='Ext. '.$renderFields['secondary'];
-                $graphic=phoneNotifications::graphic($this->module,'voicemail',$renderFields,[],$appearance,$device);
+                $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$appearance,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
                 $contentXml=$graphic;
@@ -178,13 +178,13 @@ final class notificationDelivery {
                 ];
                 if (preg_match('/^[0-9]{1,6}$/D',$renderFields['secondary']))
                     $renderFields['secondary']='Ext. '.$renderFields['secondary'];
-                $graphic=phoneNotifications::graphic($this->module,'missed',$renderFields,[],$appearance,$device);
+                $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$appearance,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
                 $contentXml=$graphic;
             }
             if ($graphic===null) {
-                $graphic=phoneNotifications::graphic($this->module,$kind,$renderFields,[],$kindSettings,$device);
+                $graphic=phoneNotifications::graphic($this->module,$renderFields,[],$kindSettings,$device);
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $contentXml=$graphic;
                 $deviceUrl='';
