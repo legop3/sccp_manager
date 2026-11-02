@@ -95,7 +95,7 @@ class phoneservices {
         ],$theme,$device);
         if (!$graphic) throw new \RuntimeException('Unable to render service notification image');
         $result=(new notificationQueue($this->module))->send($device,$all[$device],
-            new notificationMessage('', ['Open'=>$url],$graphic));
+            new notificationMessage(['Open'=>$url],$graphic));
         return $result['ok'];
     }
     private function fetch($url) {
