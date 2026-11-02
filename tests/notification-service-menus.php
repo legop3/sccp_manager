@@ -6,6 +6,8 @@ require_once __DIR__.'/../sccpManClasses/notificationNavigation.php';
 $nav=(new ReflectionClass(\FreePBX\modules\Sccp_manager\notificationNavigation::class))->newInstanceWithoutConstructor();
 (new ReflectionProperty($nav,'returnUrl'))->setValue($nav,'http://127.0.0.1/notification-queue.php?id=1&op=return');
 (new ReflectionProperty($nav,'clearUrl'))->setValue($nav,'http://127.0.0.1/notification-queue.php?id=1&op=dismiss');
+$s=new phoneservices();
+(new ReflectionProperty(phoneservices::class,'notificationNavigation'))->setValue($s,$nav);
 
 foreach (['xml'=>['Message','A text message'],
           'menu'=>['Messages',[['Inbox','http://127.0.0.1/service.php?x=1']]],
