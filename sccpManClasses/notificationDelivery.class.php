@@ -108,20 +108,8 @@ final class notificationDelivery {
             $message=notificationSources::text($options['message_url'],$message);
         }
         $sound=$this->configuredSound($options['sound']);
-        $documentId=null;
-        $imageFilename=null;
-        if ($options['style']!=='sound') {
-            if ($kind==='scheduled' && $options['style']==='image' && ($builtIn!==null || $options['image_url']!=='')) {
-                $imageFilename=notificationSources::image($builtIn!==null ? $builtIn['image_url'] : $options['image_url'],$this->module,$message);
-                $xml=$imageFilename===null ? phoneNotifications::text($title,$message) : null;
-            } else {
-                $xml=$options['style']==='status'
-                    ? phoneNotifications::status($message,$options['duration'])
-                    : phoneNotifications::text($title,$message);
-            }
-            if ($xml!==null) $documentId=$this->publicDocument($xml);
-        }
-        if (!$documentId && !$imageFilename && !$sound) return 0;
+        // Every visible notification is rendered by the same themed image builder.
+        // Settings may still describe a source/sound, but not a second XML layout.
         $secret=(string)$this->module->getConfig('phonecontent_push_secret');
         if ($secret==='') throw new \RuntimeException('Push authentication is not configured. Save notification settings first.');
         $sent=0;
@@ -132,16 +120,14 @@ final class notificationDelivery {
             if (!$this->forDevice($device,$extensions,$kind)) continue;
             // Every handset needs its own authenticated voicemail links.
             // Do not publish the bearer token in a shared document.
-            $deviceUrl=$documentId ? $this->displayUrl($device,$documentId) : null;
-            $contentXml=$deviceUrl!==null ? ($xml??null) : null;
             $actions=[];
-            if ($imageFilename!==null) {
-                $imageXml=self::scheduledImageXml($title,
-                    $this->module->phonecontent->baseUrl($device).'/'.$imageFilename);
-                $deviceUrl=$this->displayUrl($device,$this->publicDocument($imageXml));
-                $contentXml=$imageXml;
-            }
-            if ($kind==='voicemail' && $options['style']==='text') {
+            $graphic=null;
+            $renderFields=[
+                'title'=>$title,'caller'=>$message,'secondary'=>'',
+                'when'=>date('m/d/Y g:i A')
+            ];
+            $kindSettings=$options;
+            if ($kind==='voicemail') {
                 $actions=[];
                 try {
                     $vm=new phonevoicemail($this->module);
@@ -168,7 +154,7 @@ final class notificationDelivery {
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
                 $contentXml=$graphic;
-            } elseif ($kind==='missed' && $options['style']==='text') {
+            } elseif ($kind==='missed') {
                 // Present the user's public number, not the SCCP-only line.
                 $identity=(new phonevoicemail($this->module))->destinationForDevice($device);
                 $fields['extension']=$identity['extension'];
@@ -179,6 +165,12 @@ final class notificationDelivery {
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
                 $contentXml=$graphic;
+            }
+            if ($graphic===null) {
+                $graphic=phoneNotifications::graphic($this->module,$kind,$renderFields,[],$kindSettings,$device);
+                if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
+                $contentXml=$graphic;
+                $deviceUrl='';
             }
             $delivery=(new notificationQueue($this->module))->send($device,$ip,
                 new notificationMessage($deviceUrl??'',$actions,$contentXml??null,$sound??null));
