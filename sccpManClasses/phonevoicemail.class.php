@@ -448,7 +448,7 @@ class phonevoicemail
         // Init:Messages closes the Messages application instead of walking
         // the firmware's page history like SoftKey:Exit does.
         $softkeys[] = $this->notificationReturn !== null
-            ? array('Notification', $this->notificationReturn, 4)
+            ? array('Back', $this->notificationReturn, 4)
             : array('Exit', $this->serviceContext ? 'SoftKey:Exit' : 'Init:Messages', 4);
         foreach ($softkeys as $softkey) {
             $item = $root->appendChild($doc->createElement('SoftKeyItem'));
