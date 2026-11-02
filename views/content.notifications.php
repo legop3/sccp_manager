@@ -16,10 +16,7 @@ $palettes=[
  'custom'=>[]
 ];
 $colorLabels=['background'=>'Main background','header'=>'Header background','header_text'=>'Header text','name_text'=>'Primary text','secondary_text'=>'Secondary text','details_background'=>'Details background','details_label'=>'Extra detail','details_text'=>'Timestamp','accent'=>'Divider accent'];
-$samples=[
- 'voicemail'=>\FreePBX\modules\Sccp_manager\phoneNotifications::previewFields($this,'voicemail'),
- 'missed'=>\FreePBX\modules\Sccp_manager\phoneNotifications::previewFields($this,'missed')
-];
+
 ?>
 <style>
 .sccp-notify-editor{max-width:1200px;margin:auto}.sccp-notify-editor .ne-top{margin-bottom:20px}
@@ -80,11 +77,9 @@ $samples=[
       </div>
      </div>
     </div><div><div class="ne-card"><h4>Shared design preview</h4>
-<?php $example=$samples['voicemail'];
-$sampleCard=['title'=>'New voicemail','primary'=>(string)($example['caller']??'Jane Smith'),
- 'secondary'=>(string)($example['number']??'150'),
- 'detail'=>'Length: '.(string)($example['length']??'42 sec'),
- 'timestamp'=>(string)($example['when']??'10/28/2026 2:35 PM')];
+<?php $sampleCard=['title'=>'Notification','primary'=>'Example message',
+ 'secondary'=>'Additional information', 'detail'=>'Extra detail',
+ 'timestamp'=>'11/02/2026 3:45 PM'];
 $xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,$sampleCard,[],$appearance);
 $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match)) $preview=html_entity_decode($match[1],ENT_QUOTES,'UTF-8'); ?>
 <?php if ($preview):?><img class="ne-screen" src="<?php echo $esc($preview);?>" alt="Shared appearance preview"><?php endif;?>
