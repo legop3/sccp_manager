@@ -27,13 +27,13 @@ try {new notificationMessage(['A'=>'Dial:1','B'=>'Dial:2','C'=>'Dial:3','D'=>'Di
 catch (InvalidArgumentException $expected) {}
 try {new notificationMessage([],null);throw new RuntimeException('Unsafe URL accepted');}
 catch (InvalidArgumentException $expected) {}
-try { new notificationMessage('',[], '<CiscoIPPhoneText><Title>Broken & URL</Title></CiscoIPPhoneText>'); throw new RuntimeException('Malformed XML accepted'); }
+try { new notificationMessage([], '<CiscoIPPhoneText><Title>Broken & URL</Title></CiscoIPPhoneText>'); throw new RuntimeException('Malformed XML accepted'); }
 catch (InvalidArgumentException $expected) {}
 $loader=file_get_contents(__DIR__.'/../Sccp_manager.class.php');
 if (str_contains($loader, 'notificationMessage.class.php')) throw new RuntimeException('Value object must not be auto-constructed');
 if (is_file(__DIR__.'/../sccpManClasses/notificationMessage.class.php')) throw new RuntimeException('Value object is in component scan');
-try { new notificationMessage('',[], '<CiscoIPPhoneText><Title>Text</Title><Text>No</Text></CiscoIPPhoneText>'); throw new RuntimeException('Non-image notification accepted'); }
+try { new notificationMessage([], '<CiscoIPPhoneText><Title>Text</Title><Text>No</Text></CiscoIPPhoneText>'); throw new RuntimeException('Non-image notification accepted'); }
 catch (InvalidArgumentException $expected) {}
-try { new notificationMessage('',[],null,'alert.raw'); throw new RuntimeException('Sound-only notification accepted'); }
+try { new notificationMessage([],null,'alert.raw'); throw new RuntimeException('Sound-only notification accepted'); }
 catch (InvalidArgumentException $expected) {}
 echo "Shared notification object and link contract OK\n";
