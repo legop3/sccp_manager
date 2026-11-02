@@ -176,30 +176,11 @@ final class notificationDelivery {
                 if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
                 $deviceUrl=$this->displayUrl($device,$this->publicDocument($graphic));
             }
-            // Queue the finished per-device notification URL. Sound-only pushes
-            // remain immediate and are not stored as empty screens.
-            if ($deviceUrl !== null) {
-                $deviceUrl=(new notificationQueue($this->module))->enqueue($device,$deviceUrl,$actions);
-            }
-            $xml='<CiscoIPPhoneExecute>';
-            if ($sound) $xml.='<ExecuteItem URL="Play:'.htmlspecialchars($sound,ENT_XML1).'"/>';
-            if ($deviceUrl) $xml.='<ExecuteItem URL="'.htmlspecialchars($deviceUrl,ENT_XML1).'"/>';
-            $xml.='</CiscoIPPhoneExecute>';
-            $ch=curl_init('http://'.$ip.'/CGI/Execute');
-            curl_setopt_array($ch,[
-                CURLOPT_POST=>true,
-                CURLOPT_POSTFIELDS=>http_build_query(['XML'=>$xml]),
-                CURLOPT_HTTPAUTH=>CURLAUTH_BASIC,
-                // Cisco 79xx forwards Basic UserID but can omit Password in
-                // its authenticationURL callback. Use a secret-bearing identity.
-                CURLOPT_USERPWD=>'sccpnotify:',
-                CURLOPT_CONNECTTIMEOUT=>2,
-                CURLOPT_TIMEOUT=>4,
-                CURLOPT_RETURNTRANSFER=>true
+            $delivery=(new notificationQueue($this->module))->send($device,$ip,[
+                'url'=>$deviceUrl??'','actions'=>$actions,'sound'=>$sound??''
             ]);
-            $response=curl_exec($ch);
-            $status=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);
-            curl_close($ch);
+            $status=$delivery['status'];
+            $response=$delivery['response'];
             if ($status===200 && is_string($response) && strpos($response,'CiscoIPPhoneError')===false) {
                 $sent++;
             } else {
