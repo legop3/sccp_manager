@@ -105,7 +105,6 @@ $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match
      <?php else: ?>
       <input type="hidden" name="notifications[<?php echo $kind;?>][title]" value="<?php echo $esc($settings['title']);?>">
       <input type="hidden" name="notifications[<?php echo $kind;?>][message]" value="<?php echo $esc($settings['message']);?>">
-      <input type="hidden" name="notifications[<?php echo $kind;?>][duration]" value="<?php echo (int)$settings['duration'];?>">
       <p class="ne-help">Actions are integrated with FreePBX. Clear is first; the remaining actions are sender-defined.</p>
      <?php endif;?>
     </div>
@@ -118,10 +117,9 @@ $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match
       <div class="col-sm-6 form-group"><label>Or daily time</label><input class="form-control" type="time" name="notifications[scheduled][time]" value="<?php echo $esc($settings['time']);?>"></div></div>
       <div class="form-group"><label>Title</label><input class="form-control" name="notifications[scheduled][title]" value="<?php echo $esc($settings['title']);?>"></div>
       <div class="form-group"><label>Message</label><textarea class="form-control" name="notifications[scheduled][message]" rows="3"><?php echo $esc($settings['message']);?></textarea></div>
-      <?php foreach (['title_url'=>'Title URL','message_url'=>'Message URL','image_url'=>'Image URL'] as $key=>$label):?>
+      <?php foreach (['title_url'=>'Title URL','message_url'=>'Message URL'] as $key=>$label):?>
        <div class="form-group"><label><?php echo $label;?></label><input class="form-control" type="url" name="notifications[scheduled][<?php echo $key;?>]" value="<?php echo $esc($settings[$key]);?>"></div>
       <?php endforeach;?>
-      <div class="form-group"><label>Duration (status display)</label><input class="form-control" type="number" min="2" max="60" name="notifications[scheduled][duration]" value="<?php echo (int)$settings['duration'];?>"></div>
      </div>
     <?php endif;?>
    </div>
