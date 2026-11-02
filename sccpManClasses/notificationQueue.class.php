@@ -176,7 +176,7 @@ final class notificationQueue {
         // token into the existing service renderer for a native Dismiss softkey.
         if (isset($parts['path']) && basename($parts['path'])==='service.php') {
             $separator=strpos($url,'?')===false?'?':'&';
-            $url.=$separator.http_build_query(['notification_id'=>$entry['id']],'','&',PHP_QUERY_RFC3986);
+            $url.=$separator.http_build_query(['notification_id'=>$entry['id'],'notification_entry'=>1],'','&',PHP_QUERY_RFC3986);
         }
         $safe=htmlspecialchars($url,ENT_XML1|ENT_QUOTES,'UTF-8');
         echo '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneExecute><ExecuteItem URL="'.$safe.'"/></CiscoIPPhoneExecute>';
@@ -186,7 +186,8 @@ final class notificationQueue {
     public static function contextLink($url,$id) {
         if (!preg_match('/^[a-f0-9]{24}$/D',(string)$id)) return $url;
         $path=(string)(parse_url($url,PHP_URL_PATH)??'');
-        if (!in_array(basename($path),['voicemail.php','service.php'],true)) return $url;
+        // Any phone-content application can participate without a queue-side type list.
+        if (!preg_match('~/sccp-manager/[^/]+\\.php$~i',$path)) return $url;
         return $url.(strpos($url,'?')===false?'?':'&').
             http_build_query(['notification_id'=>$id],'','&',PHP_QUERY_RFC3986);
     }
@@ -195,7 +196,8 @@ final class notificationQueue {
         $state=$this->current($device);
         foreach (($state['items']??[]) as $item) {
             if ($item['id']===$id)
-                return ['return'=>$this->url($device,$id,'return'),'id'=>$id];
+                return ['return'=>$this->url($device,$id,'return'),
+                        'clear'=>$this->url($device,$id,'dismiss'),'id'=>$id];
         }
         return null;
     }
