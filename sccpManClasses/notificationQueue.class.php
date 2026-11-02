@@ -54,7 +54,7 @@ final class notificationQueue {
      * One generic notification contract for every producer. Renderers own their
      * XML and actions; this manager owns the Clear softkey and navigation state.
      */
-    public function enqueue($device,$url) {
+    public function enqueue($device,$url,array $providedActions=[]) {
         if (!phonevoicemail::validDevice($device) || !filter_var($url,FILTER_VALIDATE_URL))
             throw new \InvalidArgumentException('Invalid queued notification');
         $endpoint=$this->module->phonecontent->publicPath().'/notification-queue.php';
@@ -65,6 +65,11 @@ final class notificationQueue {
         $id=bin2hex(random_bytes(12));
         $snapshot=null;
         $actions=[];
+        foreach ($providedActions as $label=>$target) {
+            if (count($actions)===3) break;
+            if (is_string($label) && trim($label)!=='' && is_string($target) && trim($target)!=='')
+                $actions[]=['name'=>substr(trim($label),0,12),'url'=>$target];
+        }
         $parts=parse_url($url);
         if (isset($parts['path']) && basename($parts['path'])==='notification-display.php') {
             parse_str((string)($parts['query']??''),$params);
@@ -81,7 +86,7 @@ final class notificationQueue {
                                 if ($key->parentNode!==$root) continue;
                                 $name=$key->getElementsByTagName('Name')->item(0);
                                 $target=$key->getElementsByTagName('URL')->item(0);
-                                if ($name && $target && !in_array(strtolower(trim($name->textContent)),['exit','dismiss','clear'],true)) {
+                                if (!$providedActions && $name && $target && count($actions)<3 && !in_array(strtolower(trim($name->textContent)),['exit','dismiss','clear'],true)) {
                                     $actions[]=['name'=>trim($name->textContent),'url'=>$target->textContent];
                                 }
                                 $root->removeChild($key);
