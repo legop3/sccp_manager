@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.120</version>
+	<version>17.1.121</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.121 * - Flush voicemail XML before playback and keep notification-launched voicemail menus from closing the application
 		 * Version 17.1.120 * - Restore rendered missed-call image XML in shared notification delivery
 		 * Version 17.1.119 * - Fix FreePBX module boot failure by moving notification value object outside component scan
 		 * Version 17.1.118 * - Unified notification API, generic app navigation, XML validation, and service screen regression tests
