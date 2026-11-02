@@ -5,8 +5,8 @@ require_once __DIR__.'/notificationMessage.php';
 require_once __DIR__.'/notificationNavigation.php';
 
 /**
- * Shared per-handset push queue. Stores references to already generated XML or
- * service URLs; notification producers do not need to understand queue state.
+ * Shared per-handset push queue. Stores generated image XML and sender actions;
+ * notification producers do not need to understand queue state.
  */
 final class notificationQueue {
     private $module;
@@ -40,7 +40,9 @@ final class notificationQueue {
         $items=array_values(array_filter((array)$items,static function($v)use($now) {
             return is_array($v) && isset($v['at'],$v['id'],$v['url']) &&
                 (int)$v['at']>$now-self::MAX_AGE &&
-                preg_match('/^[a-f0-9]{24}$/D',(string)$v['id']);
+                preg_match('/^[a-f0-9]{24}$/D',(string)$v['id']) &&
+                is_string($v['xml']??null) &&
+                str_contains($v['xml'],'<CiscoIPPhoneImageFile>');
         }));
         return array_slice($items,-self::MAX_ITEMS);
     }
