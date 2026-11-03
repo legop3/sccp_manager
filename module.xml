@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.155</version>
+	<version>17.1.156</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.156 * - Fix alarms app scheduler lint path in release packaging
 		 * Version 17.1.155 * - Complete notification appearance test relocation for unified services
 		 * Version 17.1.154 * - Update service notification regression tests for the unified handler location
 		 * Version 17.1.153 * - Move Weather, Messages, Alarms, News and Games into the shared service registry without changing existing state or controls
