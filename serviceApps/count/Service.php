@@ -7,7 +7,7 @@ return static function(array $ctx,array $q) {
         if ($op==='increment') $s['count']++;
         return $s['count'];
     });
-    return $ctx['menu']('Biggest Number: '.$count,[
+    return $ctx['menu']('count: '.$count,[
         ['Add 1',$ctx['route'](['op'=>'increment'])],
         ['Refresh',$ctx['route']()]
     ]);
