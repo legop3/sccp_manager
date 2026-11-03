@@ -25,13 +25,13 @@ final class phoneNotifications
     }
 
     /** Render a compact graphical notification for the 7945G screen. */
-    public static function graphic($module, array $fields, array $settings, $device = null)
+    public static function graphic($module, array $fields, array $settings, $device = null, $preview = false)
     {
         if (!function_exists('imagecreatetruecolor') || !function_exists('imagettftext') || !function_exists('imagettfbbox'))
             throw new \RuntimeException('Notification images require PHP GD with FreeType support');
         $dir=$module->phonecontent->publicPath();
         $base=$module->phonecontent->baseUrl($device);
-        if (!is_dir($dir) || is_link($dir) || $base==='') return null;
+        if (!$preview && (!is_dir($dir) || is_link($dir) || $base==='')) return null;
         $im=imagecreatetruecolor(296,156);
         $presets=[
             'ocean'=>['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],
@@ -168,6 +168,15 @@ final class phoneNotifications
                 $draw($detail,max(165,286-$detailWidth),101,121,13,$colors['details_label'],10);
             }
             $draw($timestamp,10,129,276,16,$colors['details_text'],10);
+        }
+        if ($preview) {
+            // Identical GD renderer, but stream bytes to the authenticated
+            // admin AJAX response. Never publish preview files or LAN URLs.
+            ob_start();
+            try { $ok=imagepng($im); $png=ob_get_contents(); }
+            finally { ob_end_clean(); imagedestroy($im); }
+            if (!$ok || !is_string($png)) throw new \RuntimeException('Preview rendering failed');
+            return $png;
         }
         $id=bin2hex(random_bytes(12));
         $filename='notification-'.$id.'.png';
