@@ -20,7 +20,7 @@ checkAppearance(str_contains($worker,'$appearance=$config->appearance()') && sub
 checkAppearance(substr_count($worker,'phoneNotifications::graphic(')===1,'All events use one render call');
 checkAppearance(str_contains($service,'->appearance()'),'Service sends use shared design');
 $view=file_get_contents(__DIR__.'/../views/content.notifications.php');
-checkAppearance(substr_count($view,'Design & layout')===1,'Single design editor');
+checkAppearance(substr_count($view,'Theme & colors')===1,'Single design editor');
 checkAppearance(str_contains($view,'notifications[appearance][theme]'),'Editor submits shared theme');
 $renderer=file_get_contents(__DIR__.'/../sccpManClasses/phoneNotifications.class.php');
 $graphic=substr($renderer,strpos($renderer,'public static function graphic('));
