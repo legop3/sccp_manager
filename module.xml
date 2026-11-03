@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.158</version>
+	<version>17.1.159</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.159 * - Correct service notification failure-isolation regression assertion
 		 * Version 17.1.158 * - Route every Services notification through shared themed renderer and persistent notification queue; remove duplicated legacy sender
 		 * Version 17.1.157 * - Manifest-driven Services editor, validated per-app settings, preserved Weather and News settings, working controls
 		 * Version 17.1.156 * - Fix alarms app scheduler lint path in release packaging

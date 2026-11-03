@@ -104,13 +104,11 @@ namespace {
         $messages->send(['title'=>'Bad'],'SEP000000000001',['A'=>'Dial:1'],'invalid-sound');
         throw new RuntimeException('Unknown ringtone accepted');
     } catch(InvalidArgumentException $expected) {}
-    try {
-        $messages->send(['title'=>'Bad'],'SEP000000000001',
-            ['A'=>'Dial:1','B'=>'Dial:2','C'=>'Dial:3','D'=>'Dial:4']);
-        throw new RuntimeException('More than three actions accepted');
-    } catch(InvalidArgumentException $expected) {
-        // notificationMessage owns this validation, not the app adapter.
-    }
+    $before=count(Queue::$sent);
+    [$sent,$total]=$messages->send(['title'=>'Bad'],'SEP000000000001',
+        ['A'=>'Dial:1','B'=>'Dial:2','C'=>'Dial:3','D'=>'Dial:4']);
+    verifyNotify($sent===0 && $total===1 && count(Queue::$sent)===$before,
+        'Invalid actions must not bypass notificationMessage validation');
     $legacy=file_get_contents(__DIR__.'/../sccpManClasses/serviceLegacySupport.php');
     verifyNotify(!str_contains($legacy,'function push(') &&
         !str_contains($legacy,'phoneNotifications::graphic(') &&
