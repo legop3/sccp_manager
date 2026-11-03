@@ -53,6 +53,8 @@ verify(strpos($source, 'usleep(') === false && strpos($source, 'sleep(') === fal
     'Voicemail playback scheduling has no artificial timer');
 verify(strpos($source, 'register_shutdown_function') !== false,
     'Playback still follows HTTP XML response completion');
+verify(strpos($source, '$this->assertNotOnCall($line)') === false,
+    'No preflight busy-channel check may block voicemail playback');
 verify($orig['CallerID'] === '"Alicia Q" <15005550124>', 'Dynamic caller ID preserved');
 verify($orig['Async'] === 'false', 'Synchronous extension originate is required for Asterisk 22.6 PreDialGoSub');
 $m['name'] = "Evil\r\nAction: Hangup";
