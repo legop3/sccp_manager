@@ -16,7 +16,7 @@ $palettes=[
  'ace'=>['#000000','#A3A3A3','#FFFFFF','#800080'],
  'custom'=>[]
 ];
-$colorLabels=['background'=>'Main background','header'=>'Header background','header_text'=>'Header text','name_text'=>'Primary text','secondary_text'=>'Secondary text','details_background'=>'Details background','details_label'=>'Extra detail','details_text'=>'Timestamp','accent'=>'Divider accent'];
+$colorLabels=['background'=>'Main background','header'=>'Header background','header_text'=>'Header text','name_text'=>'Primary text','secondary_text'=>'Secondary text','details_background'=>'Details background','details_label'=>'Extra detail','details_text'=>'Timestamp','accent'=>'Divider accent','border'=>'Border'];
 
 ?>
 <style>
@@ -33,7 +33,7 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
 .sccp-notify-editor .ne-screen{display:block;width:296px;height:156px;max-width:100%;image-rendering:pixelated;border:2px solid #666;border-radius:4px}.sccp-notify-editor .ne-preview-controls{margin-bottom:12px}.sccp-notify-editor .ne-preview-status{min-height:20px;margin-top:8px}
 .sccp-notify-editor .ne-stripes{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .sccp-notify-editor .ne-stripe-row{display:inline-flex;padding:4px;border:1px solid #999;border-radius:4px}
-.sccp-notify-editor .ne-preset{margin:3px}.sccp-notify-editor .ne-help{font-size:12px;opacity:.75}
+.sccp-notify-editor .ne-number-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sccp-notify-editor .ne-color-field{display:flex;align-items:center;gap:12px}.sccp-notify-editor .ne-preset{margin:3px}.sccp-notify-editor .ne-help{font-size:12px;opacity:.75}
 @media(max-width:850px){.sccp-notify-editor .ne-grid{grid-template-columns:1fr}}
 </style>
 <div class="container-fluid sccp-notify-editor">
@@ -63,22 +63,79 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
 
 <?php $settings=$appearance;?>
 
-     <div class="ne-card"><h4>Design & layout</h4>
+     <div class="ne-card"><h4>Theme & colors</h4>
       <div class="form-group"><label>Base theme</label><select class="form-control ne-theme" name="notifications[appearance][theme]">
        <?php foreach (['cisco'=>'Cisco Classic','ocean'=>'Ocean','charcoal'=>'Charcoal','plum'=>'Plum','forest'=>'Forest','custom'=>'Custom'] as $value=>$label):?>
        <option value="<?php echo $value;?>" <?php echo $settings['theme']===$value?'selected':'';?>><?php echo $label;?></option><?php endforeach;?></select></div>
       <h4 style="margin-top:18px">Section colors</h4><div class="ne-colors">
        <?php $themes=['cisco'=>['#D5E2ED','#1E568F','#101C2A','#233849','#FFFFFF'],'ocean'=>['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],'charcoal'=>['#181B20','#30343C','#FFFFFF','#BFC6D0','#FFD084'],'plum'=>['#301C3F','#513162','#FFFFFF','#DFC6EC','#FF9BC8'],'forest'=>['#123C31','#245C48','#F5FFF8','#C1E9D2','#91E7B1']];
        $palette=$themes[$settings['theme']]??$themes['ocean'];
-       $defaults=['background'=>$palette[0],'header'=>$palette[1],'header_text'=>$palette[4],'name_text'=>$palette[2],'secondary_text'=>$palette[3],'details_background'=>$palette[0],'details_label'=>$palette[3],'details_text'=>$palette[2],'accent'=>$palette[4]];
+       $defaults=['background'=>$palette[0],'header'=>$palette[1],'header_text'=>$palette[4],'name_text'=>$palette[2],'secondary_text'=>$palette[3],'details_background'=>$palette[0],'details_label'=>$palette[3],'details_text'=>$palette[2],'accent'=>$palette[4],'border'=>$palette[4]];
        foreach ($colorLabels as $key=>$label): ?>
        <label><?php echo $label;?><input type="color" name="notifications[appearance][colors][<?php echo $key;?>]" value="<?php echo $esc($settings['colors'][$key]??$defaults[$key]);?>"></label>
        <?php endforeach;?></div>
      </div>
+     <div class="ne-card"><h4>Background image</h4>
+      <p class="ne-help">Choose an existing Phone Content wallpaper; it stays behind the fixed notification content. Upload new images through Phone Content → Wallpapers.</p>
+      <div class="form-group"><label>Artwork</label>
+      <select class="form-control" name="notifications[appearance][background_image]">
+       <option value="">Solid color / gradient only</option>
+       <?php foreach ($this->phonecontent->wallpapers() as $wall):
+        $wallId=(string)($wall['id']??'');
+        if (!preg_match('/^[a-f0-9]{16}$/D',$wallId)) continue; ?>
+        <option value="<?php echo $esc($wallId);?>" <?php echo ($settings['background_image']??'')===$wallId?'selected':'';?>><?php echo $esc($wall['name']??'Wallpaper');?></option>
+       <?php endforeach;?>
+      </select></div>
+      <div class="form-group"><label>Fit</label><select class="form-control" name="notifications[appearance][background_fit]">
+       <?php foreach (['cover'=>'Fill / crop','contain'=>'Fit whole image','stretch'=>'Stretch'] as $value=>$label):?>
+        <option value="<?php echo $value;?>" <?php echo ($settings['background_fit']??'cover')===$value?'selected':'';?>><?php echo $label;?></option>
+       <?php endforeach;?>
+      </select></div>
+      <div class="form-group"><label>Image opacity (%)</label>
+       <input class="form-control" type="number" min="0" max="100" name="notifications[appearance][background_opacity]" value="<?php echo (int)($settings['background_opacity']??100);?>"></div>
+     </div>
+     <div class="ne-card"><h4>Gradients</h4>
+      <div class="form-group"><label>Apply gradient to</label><select class="form-control" name="notifications[appearance][gradient_target]">
+       <?php foreach (['off'=>'Off','background'=>'Background','header'=>'Header'] as $v=>$label):?>
+        <option value="<?php echo $v;?>" <?php echo ($settings['gradient_target']??'off')===$v?'selected':'';?>><?php echo $label;?></option>
+       <?php endforeach;?></select></div>
+      <div class="form-group"><label>Direction</label><select class="form-control" name="notifications[appearance][gradient_direction]">
+       <?php foreach (['vertical'=>'Top to bottom','horizontal'=>'Left to right'] as $v=>$label):?>
+        <option value="<?php echo $v;?>" <?php echo ($settings['gradient_direction']??'vertical')===$v?'selected':'';?>><?php echo $label;?></option>
+       <?php endforeach;?></select></div>
+      <label class="ne-color-field">End color <input type="color" name="notifications[appearance][gradient_end]" value="<?php echo $esc($settings['gradient_end']??'#536D87');?>"></label>
+     </div>
+     <div class="ne-card"><h4>Frame & details</h4>
+      <div class="ne-number-grid">
+       <?php foreach (['border_width'=>['Outer border thickness',0,6],
+         'separator_width'=>['Header separator thickness',0,6],
+         'panel_radius'=>['Details panel corner radius',0,12]] as $key=>$attrs):?>
+       <div class="form-group"><label><?php echo $attrs[0];?> (px)</label>
+       <input class="form-control" type="number" name="notifications[appearance][<?php echo $key;?>]"
+        min="<?php echo $attrs[1];?>" max="<?php echo $attrs[2];?>"
+        value="<?php echo (int)($settings[$key]??0);?>"></div>
+       <?php endforeach;?>
+      </div>
+      <p class="ne-help">Borders, rounding, and separator lines are decorative only. Text and image positions never move.</p>
+     </div>
      <div class="ne-card"><h4>Stripes & pride palettes</h4>
       <div class="form-group"><label>Placement</label><select class="form-control" name="notifications[appearance][stripe_position]">
-       <?php foreach (['off'=>'None','header'=>'Header','top'=>'Top accent','bottom'=>'Bottom accent','background'=>'Background with readable content panel'] as $value=>$label):?>
+       <?php foreach (['off'=>'None','header'=>'Header','top'=>'Top accent','bottom'=>'Bottom accent','left'=>'Left edge','right'=>'Right edge','background'=>'Full background with readable content panel'] as $value=>$label):?>
        <option value="<?php echo $value;?>" <?php echo ($settings['stripe_position']??'off')===$value?'selected':'';?>><?php echo $label;?></option><?php endforeach;?></select></div>
+      <div class="ne-number-grid">
+       <div class="form-group"><label>Stripe direction</label><select class="form-control" name="notifications[appearance][stripe_direction]">
+        <?php foreach (['horizontal'=>'Horizontal','vertical'=>'Vertical','diagonal'=>'Diagonal'] as $value=>$label):?>
+         <option value="<?php echo $value;?>" <?php echo ($settings['stripe_direction']??'horizontal')===$value?'selected':'';?>><?php echo $label;?></option>
+        <?php endforeach;?></select></div>
+       <div class="form-group"><label>Palette repeats</label><input class="form-control" type="number" min="1" max="6"
+        name="notifications[appearance][stripe_repeat]" value="<?php echo (int)($settings['stripe_repeat']??1);?>"></div>
+       <div class="form-group"><label>Stripe opacity (%)</label><input class="form-control" type="number" min="0" max="100"
+        name="notifications[appearance][stripe_opacity]" value="<?php echo (int)($settings['stripe_opacity']??100);?>"></div>
+       <div class="form-group"><label>Edge band thickness (px)</label><input class="form-control" type="number" min="2" max="32"
+        name="notifications[appearance][stripe_thickness]" value="<?php echo (int)($settings['stripe_thickness']??7);?>"></div>
+      </div>
+      <label><input type="checkbox" name="notifications[appearance][stripe_reverse]" value="1"
+       <?php echo !empty($settings['stripe_reverse'])?'checked':'';?>> Reverse stripe color order</label>
       <div><strong>Color presets</strong></div>
       <?php foreach (['rainbow'=>'Rainbow','progress'=>'Progress','trans'=>'Trans','bi'=>'Bisexual','pan'=>'Pansexual','lesbian'=>'Lesbian','nonbinary'=>'Nonbinary','ace'=>'Asexual'] as $name=>$label): ?>
        <button type="button" class="btn btn-default btn-sm ne-preset" data-preset="<?php echo $name;?>" data-kind="appearance"><?php echo $label;?></button>
@@ -170,13 +227,11 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
    const payload={module:'sccp_manager',command:'notification_preview',sample:sample.value};
    const fd=new FormData(appearancePanel.closest('form'));
    for(const [name,value] of fd.entries()){
-     const m=/^notifications\[appearance\]\[(theme|stripe_position)\]$/.exec(name);
-     if(m)payload['appearance['+m[1]+']']=value;
-     const c=/^notifications\[appearance\]\[colors\]\[([^\]]+)\]$/.exec(name);
-     if(c)payload['appearance[colors]['+c[1]+']']=value;
-     const stripe=/^notifications\[appearance\]\[stripes\]\[(\d+)\]$/.exec(name);
-     if(stripe)payload['appearance[stripes]['+stripe[1]+']']=value;
+     if(!name.startsWith('notifications[appearance]'))continue;
+     payload['appearance'+name.slice('notifications[appearance]'.length)]=value;
    }
+   if(!appearancePanel.querySelector('[name="notifications[appearance][stripe_reverse]"]').checked)
+     payload['appearance[stripe_reverse]']='';
    previewRequest=jQuery.ajax({
      url:'ajax.php',method:'POST',data:payload,dataType:'json'
    }).done(function(response){
@@ -206,7 +261,7 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
   const panel=select.closest('.ne-panel');
   const values={background:t[0],header:t[1],header_text:t[4],name_text:t[2],
    secondary_text:t[3],details_background:t[0],details_label:t[3],
-   details_text:t[2],accent:t[4]};
+   details_text:t[2],accent:t[4],border:t[4]};
   Object.keys(values).forEach(key=>{const input=panel.querySelector('[name$="[colors]['+key+']"]');if(input)input.value=values[key];});
 
  }));
