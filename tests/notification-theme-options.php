@@ -73,8 +73,8 @@ try {
  $settings['background_image']='';
  $vertical=phoneNotifications::graphic($module,$fields,$settings,null,true);
  $v=imagecreatefromstring($vertical);
- $first=imagecolorsforindex($v,imagecolorat($v,294,40));
- $second=imagecolorsforindex($v,imagecolorat($v,294,120));
+ $first=imagecolorsforindex($v,imagecolorat($v,294,15));
+ $second=imagecolorsforindex($v,imagecolorat($v,294,55));
  themedAssert($first!==$second,'Repeated right-edge horizontal stripes work');
  imagedestroy($v);
  $ui=file_get_contents(__DIR__.'/../views/content.notifications.php');
