@@ -53,7 +53,7 @@ try {
     previewCheck(count(glob($path.'/*'))===0,'Image preview must not publish files');
     $view=file_get_contents(__DIR__.'/../views/content.notifications.php');
     previewCheck(str_contains($view,"command:'notification_preview'"),'Live preview must call authenticated AJAX endpoint');
-    previewCheck(str_contains($view,"const stripe=/^notifications"),'Preview must include stripe input settings');
+    previewCheck(str_contains($view,"name.startsWith('notifications[appearance]')"),'Preview must include stripe input settings');
     previewCheck(str_contains($view,"<option value=\"image\">"),'Image sample must be available');
     previewCheck(!str_contains($view,'Shared design preview'),'Static LAN-only preview must be removed');
     $ajax=file_get_contents(__DIR__.'/../sccpManTraits/ajaxHelper.php');
