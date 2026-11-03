@@ -80,9 +80,10 @@ try {
  $ui=file_get_contents(__DIR__.'/../views/content.notifications.php');
  foreach(['background_image','background_fit','background_opacity',
   'stripe_direction','stripe_repeat','stripe_opacity','stripe_thickness',
-  'stripe_reverse','content_overlay','gradient_target','gradient_direction','gradient_end',
-  'border_width','separator_width','panel_radius'] as $key)
+  'stripe_reverse','content_overlay','gradient_target','gradient_direction','gradient_end'] as $key)
    themedAssert(str_contains($ui,'notifications[appearance]['.$key.']'),'Missing appearance editor: '.$key);
+ foreach(['border_width','separator_width','panel_radius'] as $key)
+   themedAssert(str_contains($ui,"'".$key."'=>["),'Missing generated frame control: '.$key);
  themedAssert(str_contains($ui,"payload['appearance'+name.slice("),'All new controls must be sent to live preview');
 } finally {
  foreach(glob($path.'/*')?:[] as $file)unlink($file);
