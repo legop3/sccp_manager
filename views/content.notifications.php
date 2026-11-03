@@ -3,6 +3,7 @@ $esc=static function($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');
 $notificationConfig=new \FreePBX\modules\Sccp_manager\notificationConfig($this);
 $notifications=$notificationConfig->all();
 $appearance=$notificationConfig->appearance();
+$helpButton=$notificationConfig->helpButton();
 $rings=$this->phonecontent->ringtones();
 $palettes=[
  'rainbow'=>['#E40303','#FF8C00','#FFED00','#008026','#24408E','#732982'],
@@ -46,6 +47,20 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
  <form method="post" action="config.php?display=sccp_content#notifications" id="ne-form">
  <input type="hidden" name="content_action" value="notifications_save">
 <section class="ne-panel active" data-ne-panel="appearance"><div class="ne-grid"><div>
+     <div class="ne-card"><h4>Help Button</h4>
+      <div class="form-group"><label>Help Button Action</label>
+       <select class="form-control" name="notifications[help_button][action]">
+        <?php foreach (['default'=>'Default (Cisco Help)','notifications'=>'Open Notifications','custom'=>'Custom URL'] as $value=>$label): ?>
+         <option value="<?php echo $value;?>" <?php echo $helpButton['action']===$value?'selected':'';?>><?php echo $label;?></option>
+        <?php endforeach;?>
+       </select>
+      </div>
+      <div class="form-group"><label>Custom URL</label><input class="form-control" type="url"
+       name="notifications[help_button][url]" value="<?php echo $esc($helpButton['url']);?>"
+       placeholder="https://example.com/phone-help"></div>
+      <p class="ne-help">Global setting for SCCP phones. Open Notifications uses each phone's existing queue and shows an empty message if none are stored. Saving regenerates signed phone configurations; phones may need a restart to use the new mapping.</p>
+     </div>
+
 <?php $settings=$appearance;?>
 
      <div class="ne-card"><h4>Design & layout</h4>
