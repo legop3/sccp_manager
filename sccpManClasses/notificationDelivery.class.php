@@ -77,6 +77,18 @@ final class notificationDelivery {
             $title=notificationSources::text($options['title_url'],$title);
             $message=notificationSources::text($options['message_url'],$message);
         }
+        // Any sender may supply an optional image; scheduled feeds are the
+        // first producers. Fetch once, then share the decoded bytes between
+        // per-device renders. Never place remote URLs in Cisco XML.
+        $image=$fields['image']??null;
+        if ($kind==='scheduled') {
+            $imageUrl=$builtIn['image_url']??($options['image_url']??'');
+            if ($imageUrl!=='') {
+                $image=notificationSources::image($imageUrl);
+                if ($image===null)
+                    throw new \RuntimeException('Scheduled notification image could not be loaded');
+            }
+        }
         $sound=$this->configuredSound($options['sound']);
         // Every visible notification is rendered by the same themed image builder.
         // Settings may still describe a source/sound, but not a second XML layout.
@@ -93,7 +105,8 @@ final class notificationDelivery {
             $actions=[];
             $renderFields=[
                 'title'=>$title,'primary'=>$message,'secondary'=>'',
-                'detail'=>'','timestamp'=>date('m/d/Y g:i A')
+                'detail'=>'','timestamp'=>date('m/d/Y g:i A'),
+                'image'=>$image
             ];
             if ($kind==='voicemail') {
                 $actions=[];
@@ -141,6 +154,7 @@ final class notificationDelivery {
                 if (preg_match('/^[0-9]{1,6}$/D',$renderFields['secondary']))
                     $renderFields['secondary']='Ext. '.$renderFields['secondary'];
             }
+            if ($image!==null) $renderFields['image']=$image;
             $graphic=phoneNotifications::graphic($this->module,$renderFields,$appearance,$device);
             if (!$graphic) throw new \RuntimeException('Graphical notification generation failed');
             $delivery=(new notificationQueue($this->module))->send($device,$ip,
