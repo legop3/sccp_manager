@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.147</version>
+	<version>17.1.148</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.148 * - Rename modular services to catdog, carrot try, and count; no settings migration
 		 * Version 17.1.147 * - Experimental concurrent SCCP call audio and 32-frame authenticated Cisco image push benchmark
 		 * Version 17.1.146 * - Modular animal broadcasts, shared notification APIs, per-user cooldowns, carrot roulette, and spoken clock calls
 		 * Version 17.1.145 * - Fix nested service app lint paths in release packaging
