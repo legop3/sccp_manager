@@ -133,9 +133,9 @@ final class phoneNotifications
         $draw($primary,9,72,278,26,$colors['name_text'],15);
         $draw($secondary,10,101,$detail!==''?160:276,17,$colors['secondary_text'],10);
         if ($detail!=='') {
-            $detailWidth=($font!==null && function_exists('imagettfbbox'))
-                ? (imagettfbbox(13,0,$font,$detail)[2] ?? strlen($detail)*9)
-                : strlen($detail)*9;
+            $detailBox=imagettfbbox(13,0,$font,$detail);
+            if ($detailBox===false) throw new \RuntimeException('Unable to measure notification text');
+            $detailWidth=$detailBox[2]-$detailBox[0];
             $draw($detail,max(165,286-$detailWidth),101,121,13,$colors['details_label'],10);
         }
         $draw($timestamp,10,129,276,16,$colors['details_text'],10);
