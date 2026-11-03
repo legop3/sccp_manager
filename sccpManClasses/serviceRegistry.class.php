@@ -9,7 +9,7 @@ namespace FreePBX\modules\Sccp_manager;
 final class serviceRegistry {
     private $module;
     private $root;
-    public function __construct($module) {
+    public function __construct($module=null) {
         $this->module=$module;
         $this->root=dirname(__DIR__).'/serviceApps';
     }
