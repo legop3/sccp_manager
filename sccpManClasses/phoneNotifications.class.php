@@ -149,7 +149,7 @@ final class phoneNotifications
             .'<CiscoIPPhoneImageFile><Title>'.self::xml($heading).'</Title>'
             .'<LocationX>0</LocationX><LocationY>0</LocationY><URL>'
             .self::xml($base.'/'.$filename).'</URL>';
-        $positioxml.'</CiscoIPPhoneImageFile>';
+        return $xml.'</CiscoIPPhoneImageFile>';
     }
 
 }
