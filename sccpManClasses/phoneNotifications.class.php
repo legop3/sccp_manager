@@ -27,7 +27,8 @@ final class phoneNotifications
     /** Render a compact graphical notification for the 7945G screen. */
     public static function graphic($module, array $fields, array $settings, $device = null)
     {
-        if (!function_exists('imagecreatetruecolor')) return null;
+        if (!function_exists('imagecreatetruecolor') || !function_exists('imagettftext') || !function_exists('imagettfbbox'))
+            throw new \RuntimeException('Notification images require PHP GD with FreeType support');
         $dir=$module->phonecontent->publicPath();
         $base=$module->phonecontent->baseUrl($device);
         if (!is_dir($dir) || is_link($dir) || $base==='') return null;
@@ -92,11 +93,12 @@ final class phoneNotifications
         ] as $candidate) {
             if (is_readable($candidate)) { $font=$candidate; break; }
         }
+        if ($font===null) throw new \RuntimeException('Notification images require a readable TrueType font');
         $draw=static function($text,$x,$baseline,$maxWidth,$size,$hex,$minSize=10) use($im,$font,$color) {
             $text=trim((string)$text);
             if ($text==='') return;
             $ink=$color($hex);
-            if ($font!==null && function_exists('imagettftext')) {
+            {
                 for ($point=$size;$point>=$minSize;$point-=0.5) {
                     $box=imagettfbbox($point,0,$font,$text);
                     if ($box!==false && ($box[2]-$box[0])<=$maxWidth) {
@@ -118,9 +120,7 @@ final class phoneNotifications
                 imagettftext($im,$minSize,0,$x,$baseline,$ink,$font,$text);
                 return;
             }
-            // Safe fallback if FreePBX lacks GD FreeType or system fonts.
-            $chars=max(1,(int)floor($maxWidth/imagefontwidth(5)));
-            imagestring($im,5,$x,$baseline-15,substr($text,0,$chars),$ink);
+
         };
         // The renderer accepts semantic-free display slots. Producers decide
         // what belongs in them; no notification type is interpreted here.
