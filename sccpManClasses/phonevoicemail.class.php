@@ -391,7 +391,6 @@ class phonevoicemail
         if (!is_file($dialplan)) {
             throw new \RuntimeException('SCCP voicemail dialplan is missing; reinstall SCCP Manager as root.');
         }
-        $this->assertNotOnCall($line);
         $this->ami(self::originateFields($line, $message, $mailbox));
         // Originate succeeded: record this voicemail as heard via the same
         // AMI move action used by the visual voicemail menu. The stable ID
@@ -413,7 +412,6 @@ class phonevoicemail
      */
     public function queuePlayback($line, array $message, $mailbox)
     {
-        $this->assertNotOnCall($line);
         ignore_user_abort(true);
         register_shutdown_function(function () use ($line, $message, $mailbox) {
             // Complete the HTTP response before originating the SCCP call.
