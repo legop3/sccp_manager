@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.142</version>
+	<version>17.1.143</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.143 * - Add instant Screen Off action as the first built-in phone service
 		 * Version 17.1.142 * - Expanded universal notification themes: wallpapers, readability, stripes, gradients and framing without moving layouts
 		 * Version 17.1.141 * - Remove voicemail playback channel busy prechecks; let Asterisk handle origination
 		 * Version 17.1.140 * - Fix stale Down channels falsely blocking SCCP voicemail playback and add busy-channel diagnostics
