@@ -143,12 +143,12 @@ final class notificationQueue {
         $device=(string)($q['phone']??'');
         $key=(string)($q['key']??'');
         $id=(string)($q['id']??'');
+        $op=(string)($q['op']??'show');
         if (!phonevoicemail::validDevice($device) || !preg_match('/^[a-f0-9]{64}$/D',$key) ||
             !hash_equals($this->module->phonevoicemail->tokenForDevice($device),$key) ||
-            !preg_match('/^[a-f0-9]{24}$/D',$id)) {
+            ($op!=='list' && !preg_match('/^[a-f0-9]{24}$/D',$id))) {
             http_response_code(403); return;
         }
-        $op=(string)($q['op']??'show');
         if ($op==='activate') {
             // Follow only a stored action, never an URL supplied in the
             // request. Dismiss the selected notification before launching.
@@ -168,6 +168,19 @@ final class notificationQueue {
             $safe=htmlspecialchars($target,ENT_XML1|ENT_QUOTES,'UTF-8');
             echo '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneExecute><ExecuteItem URL="'.$safe.'"/></CiscoIPPhoneExecute>';
             return;
+        }
+        if ($op==='list') {
+            $state=$this->current($device);
+            if (!$state['entry']) {
+                echo '<?xml version="1.0" encoding="UTF-8"?>'.
+                    '<CiscoIPPhoneText><Title>Notifications</Title>'.
+                    '<Text>No notifications</Text>'.
+                    '<SoftKeyItem><Name>Exit</Name><URL>SoftKey:Exit</URL>'.
+                    '<Position>4</Position></SoftKeyItem></CiscoIPPhoneText>';
+                return;
+            }
+            // Use the exact same queue rendering path as pushed notifications.
+            $id=$state['entry']['id'];
         }
         $state=$this->current($device,$op==='dismiss'?$id:null);
         if (($q['op']??'')==='return') {
