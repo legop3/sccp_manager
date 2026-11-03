@@ -132,10 +132,18 @@ class phoneservices {
         $app=(string)($q['app']??'');$op=(string)($q['op']??'');
         if($app==='' || $app==='home') {
             $catalog=['weather'=>'Weather','messages'=>'Messages','alarms'=>'Alarms & Reminders','news'=>'News & RSS','games'=>'Games'];
-            $entries=[];
+            // Always offer the immediate LCD-off action first, independently
+            // of the optional services toggled in the admin UI.
+            $entries=[['Screen Off',$route(['app'=>'screenoff'])]];
             foreach($catalog as $id=>$name)if(!empty($flags[$id]))$entries[]=[$name,$route(['app'=>$id])];
-            if(!$entries){$this->xml('Services','No services enabled.');return;}
             $this->menu('Services',$entries);return;
+        }
+        if($app==='screenoff') {
+            // The 7945G accepts this Display URI even though Cisco's published
+            // compatibility table lists the model as unsupported.
+            echo '<?xml version="1.0" encoding="UTF-8"?>'.
+                '<CiscoIPPhoneExecute><ExecuteItem URL="Display:Off:0"/></CiscoIPPhoneExecute>';
+            return;
         }
         if(empty($flags[$app])){$this->xml('Services','This service is disabled.');return;}
         if($app==='weather') {
