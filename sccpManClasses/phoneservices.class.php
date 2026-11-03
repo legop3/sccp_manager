@@ -128,6 +128,8 @@ class phoneservices {
         $root=['phone'=>$device,'key'=>(string)$q['key']];
         $root=array_merge($root,$this->notificationNavigation->fields());
         $route=function($fields)use($root){return $this->requestUrl(array_merge($root,$fields));};
+        require_once __DIR__.'/serviceRegistry.class.php';
+        $registry=new serviceRegistry($this->module);
         $flags=$this->module->phonemenus->serviceFlags();
         $app=(string)($q['app']??'');$op=(string)($q['op']??'');
         if($app==='' || $app==='home') {
@@ -136,6 +138,8 @@ class phoneservices {
             // of the optional services toggled in the admin UI.
             $entries=[['Screen Off',$route(['app'=>'screenoff'])]];
             foreach($catalog as $id=>$name)if(!empty($flags[$id]))$entries[]=[$name,$route(['app'=>$id])];
+            foreach($registry->manifests() as $id=>$meta)
+                if(!empty($flags[$id]))$entries[]=[(string)$meta['name'],$route(['app'=>$id])];
             $this->menu('Services',$entries);return;
         }
         if($app==='screenoff') {
@@ -146,6 +150,10 @@ class phoneservices {
             return;
         }
         if(empty($flags[$app])){$this->xml('Services','This service is disabled.');return;}
+        if(isset($registry->manifests()[$app])) {
+            $registry->handle($app,$q,$device,$identity,$route);
+            return;
+        }
         if($app==='weather') {
             $settings=$this->module->getConfig('phonecontent_weather');
             if(!is_array($settings))$settings=['name'=>'Columbus, OH','lat'=>39.9612,'lon'=>-82.9988];

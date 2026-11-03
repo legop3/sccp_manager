@@ -1,0 +1,6 @@
+{
+  "id": "media-player",
+  "name": "Media Player",
+  "description": "Call-based audio with rapidly updated image frames (experimental)",
+  "enabledByDefault": false
+}

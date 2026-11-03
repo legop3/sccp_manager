@@ -1,0 +1,6 @@
+{
+  "id": "shared-counter",
+  "name": "Biggest Number",
+  "description": "One shared number for every connected handset",
+  "enabledByDefault": false
+}

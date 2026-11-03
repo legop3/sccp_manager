@@ -1,0 +1,6 @@
+{
+  "id": "talking-clock",
+  "name": "Talking Clock",
+  "description": "Shows the exact current server time; voice support follows with audio sessions",
+  "enabledByDefault": false
+}

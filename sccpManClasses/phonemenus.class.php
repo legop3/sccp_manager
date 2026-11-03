@@ -59,6 +59,9 @@ class phonemenus
         $saved = $this->parent->getConfig('phonecontent_builtin_services');
         $defaults = array('weather' => true, 'messages' => true, 'alarms' => true,
             'news' => false, 'games' => false);
+        require_once __DIR__.'/serviceRegistry.class.php';
+        foreach ((new serviceRegistry($this->parent))->manifests() as $id=>$meta)
+            $defaults[$id]=($meta['enabledByDefault']??false)===true;
         if (!is_array($saved)) return $defaults;
         foreach ($defaults as $id => $enabled) {
             if (array_key_exists($id, $saved)) $defaults[$id] = $saved[$id] === true;
