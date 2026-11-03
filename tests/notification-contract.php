@@ -21,6 +21,27 @@ $message=new notificationMessage([
     'Listen'=>$base, 'Messages'=>'http://10.254.77.1/sccp-manager/service.php?app=messages'
 ],'<CiscoIPPhoneImageFile><Title>Test</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>http://127.0.0.1/test.png</URL></CiscoIPPhoneImageFile>');
 assertSameValue(2,count($message->payload()['actions']),'Sender-provided actions remain independent of content');
+$clearAction=new notificationMessage([
+    'Listen'=>['url'=>$base,'clear'=>true],
+    'Details'=>$base
+],'<CiscoIPPhoneImageFile><Title>Test</Title><URL>http://127.0.0.1/test.png</URL></CiscoIPPhoneImageFile>');
+assertSameValue(true,$clearAction->payload()['actions']['Listen']['clear'],'Action may opt into clear-on-activate');
+assertSameValue($base,$clearAction->payload()['actions']['Details'],'Default action stays unchanged');
+foreach ([
+    ['url'=>$base,'clear'=>'yes'],
+    ['url'=>$base,'clear'=>true,'extra'=>true],
+    ['clear'=>true]
+] as $invalid) {
+    try {
+        new notificationMessage(['Bad'=>$invalid], '<CiscoIPPhoneImageFile><URL>http://127.0.0.1/test.png</URL></CiscoIPPhoneImageFile>');
+        throw new RuntimeException('Invalid action options accepted');
+    } catch (InvalidArgumentException $expected) {}
+}
+assertSameValue(true,notificationQueue::validActionTarget($base),'Valid application URL can be activated');
+assertSameValue(true,notificationQueue::validActionTarget('Dial:111'),'Valid native dial URL can be activated');
+assertSameValue(false,notificationQueue::validActionTarget('javascript:alert(1)'),'Unsafe action URL rejected');
+assertSameValue(false,notificationQueue::validActionTarget('file:///etc/passwd'),'Local file URL rejected');
+
 $selfContained=new notificationMessage([], '<CiscoIPPhoneImageFile><Title>Standalone</Title><LocationX>0</LocationX><LocationY>0</LocationY><URL>http://127.0.0.1/standalone.png</URL></CiscoIPPhoneImageFile>');
 assertSameValue(false, array_key_exists('url',$selfContained->payload()), 'Notification contract has no URL-only mode');
 try {new notificationMessage(['A'=>'Dial:1','B'=>'Dial:2','C'=>'Dial:3','D'=>'Dial:4'], '<CiscoIPPhoneImageFile><URL>http://127.0.0.1/x.png</URL></CiscoIPPhoneImageFile>');throw new RuntimeException('Four sender actions accepted');}
