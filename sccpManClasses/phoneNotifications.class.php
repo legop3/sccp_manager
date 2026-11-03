@@ -58,6 +58,31 @@ final class phoneNotifications
         };
         $bg=$color($colors['background']);
         imagefilledrectangle($im,0,0,295,155,$bg);
+        $gradientTarget=(string)($settings['gradient_target']??'off');
+        $gradientDirection=(string)($settings['gradient_direction']??'vertical');
+        $gradientEnd=(string)($settings['gradient_end']??'#536D87');
+        // Simple two-stop gradient, drawn within the existing fixed regions.
+        $paintGradient=static function($y0,$y1,$start,$end) use($im,$gradientDirection) {
+            if (!preg_match('/^#[0-9a-f]{6}$/i',$start) ||
+                !preg_match('/^#[0-9a-f]{6}$/i',$end)) return;
+            $parts=static function($hex) {
+                return [hexdec(substr($hex,1,2)),hexdec(substr($hex,3,2)),hexdec(substr($hex,5,2))];
+            };
+            $a=$parts($start);$b=$parts($end);
+            $horizontal=$gradientDirection==='horizontal';
+            $total=$horizontal?296:$y1-$y0;
+            for($k=0;$k<$total;$k++) {
+                $t=$total>1?$k/($total-1):0;
+                $ink=imagecolorallocate($im,
+                    (int)round($a[0]+($b[0]-$a[0])*$t),
+                    (int)round($a[1]+($b[1]-$a[1])*$t),
+                    (int)round($a[2]+($b[2]-$a[2])*$t));
+                if($horizontal) imageline($im,$k,$y0,$k,$y1-1,$ink);
+                else imageline($im,0,$y0+$k,295,$y0+$k,$ink);
+            }
+        };
+        if ($gradientTarget==='background')
+            $paintGradient(0,156,$colors['background'],$gradientEnd);
         // Reuse uploaded phone wallpapers as full-card artwork. The phone's
         // own notification image (when present) remains a separate fixed slot.
         $wallpaper=(string)($settings['background_image']??'');
@@ -123,6 +148,7 @@ final class phoneNotifications
         };
         if ($position==='background') $drawStripes(0,0,296,156);
         imagefilledrectangle($im,0,0,295,28,$color($colors['header']));
+        if ($gradientTarget==='header') $paintGradient(0,29,$colors['header'],$gradientEnd);
         if ($position==='header') $drawStripes(0,0,296,29);
         if ($position==='top') $drawStripes(0,0,296,$thickness);
         if ($position==='bottom') $drawStripes(0,156-$thickness,296,156);
@@ -133,7 +159,18 @@ final class phoneNotifications
             // undermine readability. Text and image geometry do not move.
             imagefilledrectangle($im,4,31,291,145,$bg);
         }
-        imagefilledrectangle($im,4,111,291,143,$color($colors['details_background']));
+        $radius=max(0,min(12,(int)($settings['panel_radius']??0)));
+        $panelInk=$color($colors['details_background']);
+        if ($radius===0) imagefilledrectangle($im,4,111,291,143,$panelInk);
+        else {
+            // Rounded corners affect the decoration only; the text/image
+            // coordinates remain untouched.
+            imagefilledrectangle($im,4+$radius,111,291-$radius,143,$panelInk);
+            imagefilledrectangle($im,4,111+$radius,291,143-$radius,$panelInk);
+            foreach ([[4+$radius,111+$radius],[291-$radius,111+$radius],
+                      [4+$radius,143-$radius],[291-$radius,143-$radius]] as $corner)
+                imagefilledellipse($im,$corner[0],$corner[1],$radius*2+1,$radius*2+1,$panelInk);
+        }
         $separatorWidth=max(0,min(6,(int)($settings['separator_width']??2)));
         if ($separatorWidth) imagefilledrectangle($im,0,28,295,27+$separatorWidth,$color($colors['accent']));
         // Cisco screen: large caller name, with number and time side by side.
