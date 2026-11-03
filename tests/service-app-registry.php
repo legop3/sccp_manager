@@ -15,6 +15,9 @@ foreach(['catdog','carrot-try','talking-clock'] as $id){
     $ctx=['route'=>static function($v=[]){return 'http://localhost/?'.http_build_query($v);},
           'menu'=>[serviceRegistry::class,'menu'],
           'text'=>[serviceRegistry::class,'text']];
+    $meta=json_decode(file_get_contents(__DIR__.'/../serviceApps/'.$id.'/manifest.json'),true);
+    $ctx['config']=[];
+    foreach(($meta['settings']??[]) as $key=>$field)$ctx['config'][$key]=$field['default'];
     $doc=new DOMDocument();
     if(!@$doc->loadXML($fn($ctx,[]),LIBXML_NONET))
         throw new RuntimeException('Invalid '.$id.' home menu');
@@ -42,7 +45,10 @@ echo "Service capabilities and cooldown regression checks passed\n";
 
 /* Exercise the actual registry dispatch path, not only direct app callbacks. */
 require_once __DIR__.'/../sccpManClasses/phonevoicemail.class.php';
-$fakeModule=new stdClass();
+$fakeModule=new class {
+    public function getConfig($key){return null;}
+    public function setConfig($key,$value){}
+};
 $registry=new serviceRegistry($fakeModule);
 foreach(['catdog','carrot-try','talking-clock','media-player'] as $id) {
     ob_start();

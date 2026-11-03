@@ -4,5 +4,19 @@
   "description": "Built-in News & RSS service",
   "enabledByDefault": false,
   "builtin": true,
-  "order": 40
+  "order": 40,
+  "settings": {
+    "feed": {
+      "type": "select",
+      "label": "RSS source",
+      "default": "https://feeds.bbc.co.uk/news/rss.xml",
+      "options": {
+        "https://feeds.bbci.co.uk/news/rss.xml": "BBC News",
+        "https://feeds.bbci.co.uk/news/world/rss.xml": "BBC World",
+        "https://feeds.bbci.co.uk/news/technology/rss.xml": "BBC Technology",
+        "https://feeds.bbci.co.uk/sport/rss.xml": "BBC Sport",
+        "https://feeds.npr.org/1001/rss.xml": "NPR"
+      }
+    }
+  }
 }

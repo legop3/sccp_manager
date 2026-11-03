@@ -9,6 +9,8 @@ ini_set('display_errors','0');
 if(PHP_SAPI!=='cli')exit(1);
 $device=(string)($argv[1]??'');
 if(!preg_match('/^SEP[A-F0-9]{12}$/D',$device))exit(1);
+$frames=filter_var($argv[2]??32,FILTER_VALIDATE_INT,['options'=>['min_range'=>1,'max_range'=>120]]);
+if($frames===false)exit(1);
 $lockPath='/var/spool/asterisk/sccp-media-test-'.$device.'.lock';
 if(is_link($lockPath))exit(1);
 $lock=@fopen($lockPath,'c+');
@@ -33,7 +35,7 @@ try {
     $start=microtime(true);
     $sent=0;
     try {
-        for($n=0;$n<32;$n++) {
+        for($n=0;$n<$frames;$n++) {
             $im=imagecreatetruecolor(296,156);
             $bg=imagecolorallocate($im,10,22,38);
             $fg=imagecolorallocate($im,70+($n*5)%175,185,240);
@@ -42,7 +44,7 @@ try {
             $x=12+($n*8)%260;
             imagefilledellipse($im,$x,76,52,52,$fg);
             imagestring($im,5,16,10,'SCCP VIDEO TEST',$white);
-            imagestring($im,4,16,136,'Frame '.($n+1).'/32',$white);
+            imagestring($im,4,16,136,'Frame '.($n+1).'/'.$frames,$white);
             ob_start();
             try { $ok=imagepng($im);$frame=ob_get_contents(); }
             finally { ob_end_clean(); imagedestroy($im); }
@@ -53,7 +55,7 @@ try {
         }
         $seconds=max(0.001,microtime(true)-$start);
         error_log(sprintf('SCCP media frame test %s: %d/32 accepted in %.2fs (%.2f push/s)',
-            $device,$sent,$seconds,$sent/$seconds));
+            $device,$sent,$frames,$seconds,$sent/$seconds));
     } finally {
         // Allow the phone time to fetch the final image before cleanup.
         sleep(10);

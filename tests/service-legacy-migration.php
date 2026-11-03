@@ -4,7 +4,11 @@ require_once __DIR__.'/../sccpManClasses/serviceRegistry.class.php';
 require_once __DIR__.'/../sccpManClasses/serviceLegacySupport.php';
 require_once __DIR__.'/../sccpManClasses/phonevoicemail.class.php';
 use FreePBX\modules\Sccp_manager\serviceRegistry;
-$registry=new serviceRegistry(new stdClass());
+$fixtureModule=new class {
+    public function getConfig($key){return null;}
+    public function setConfig($key,$value){}
+};
+$registry=new serviceRegistry($fixtureModule);
 $manifests=$registry->manifests();
 $expected=['weather','messages','alarms','news','games'];
 if(array_slice(array_keys($manifests),0,5)!==$expected)

@@ -2,5 +2,16 @@
   "id": "talking-clock",
   "name": "Talking Clock",
   "description": "Shows the exact current server time; voice support follows with audio sessions",
-  "enabledByDefault": false
+  "enabledByDefault": false,
+  "settings": {
+    "format": {
+      "type": "select",
+      "label": "Spoken time format",
+      "default": "12h",
+      "options": {
+        "12h": "12-hour AM/PM",
+        "24h": "24-hour"
+      }
+    }
+  }
 }

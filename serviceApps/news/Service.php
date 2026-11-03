@@ -9,10 +9,10 @@ return static function(array $ctx,array $q) {
     $op=(string)($q['op']??'');
     ob_start();
     try {
-        $render=static function()use($legacy,$device,$line,$route,$app,$op,$q) {
+        $ctxSettings=$ctx['config'];
+        $render=static function()use($legacy,$device,$line,$route,$app,$op,$q,$ctxSettings) {
         if($app==='news') {
-            $feed=(string)$legacy->module->getConfig('phonecontent_news_feed');
-            if($feed==='')$feed='https://feeds.bbci.co.uk/news/rss.xml';
+            $feed=(string)$ctxSettings['feed'];
             $raw=$legacy->fetch($feed);
             libxml_use_internal_errors(true);
             $rss=$raw!==''?simplexml_load_string($raw,'SimpleXMLElement',LIBXML_NONET):false;

@@ -9,10 +9,17 @@ final class serviceAppNotifications {
         $this->module=$module;
         $this->id=$id;
     }
-    public function broadcast($title,$caption,$image) {
+    public function broadcast($title,$caption,$image,$scope='all',$requester=null) {
         if (!is_string($image) || $image==='')
             throw new \InvalidArgumentException('Broadcast requires image bytes');
         $devices=(new notificationDelivery($this->module))->devices();
+        if(!in_array($scope,['all','self'],true))
+            throw new \InvalidArgumentException('Invalid delivery scope');
+        if($scope==='self') {
+            if(!is_string($requester) || !array_key_exists($requester,$devices))
+                return [0,0];
+            $devices=[$requester=>$devices[$requester]];
+        }
         if (!$devices) return [0,0];
         $theme=(new notificationConfig($this->module))->appearance();
         $queue=new notificationQueue($this->module);

@@ -2,5 +2,14 @@
   "id": "media-player",
   "name": "Media Player",
   "description": "Call-based audio with rapidly updated image frames (experimental)",
-  "enabledByDefault": false
+  "enabledByDefault": false,
+  "settings": {
+    "test_frames": {
+      "type": "integer",
+      "label": "Benchmark image frames",
+      "default": 32,
+      "min": 1,
+      "max": 120
+    }
+  }
 }

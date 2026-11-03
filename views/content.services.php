@@ -1,43 +1,74 @@
 <?php
-$flags = $this->phonemenus->serviceFlags();
-$weather = $this->getConfig('phonecontent_weather');
-if (!is_array($weather)) $weather = array('name'=>'Columbus, OH','lat'=>39.9612,'lon'=>-82.9988);
-$names = array();
-require_once __DIR__.'/../sccpManClasses/serviceRegistry.class.php';
-foreach ((new \FreePBX\modules\Sccp_manager\serviceRegistry($this))->manifests() as $id=>$meta)
-    $names[$id]=(string)$meta['name'];
+require_once __DIR__.'/../sccpManClasses/serviceAppConfig.php';
+$config=new \FreePBX\modules\Sccp_manager\serviceAppConfig($this);
+$definitions=$config->definitions();
+$manifests=(new \FreePBX\modules\Sccp_manager\serviceRegistry($this))->manifests();
+$flags=$this->phonemenus->serviceFlags();
+$escape=static function($value){return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');};
 ?>
 <div class="container-fluid">
-<h3><?php echo _('Built-in Services'); ?></h3>
-<p>Enabled services appear automatically under the physical Services button. The Messages button always opens visual voicemail, and Directories always opens Favorites.</p>
+<h3>Phone Services</h3>
+<p>Enable services and configure them here. The Services button shows enabled apps; Messages and Directories keep their dedicated phone menus.</p>
 <form method="post" action="config.php?display=sccp_content#services">
 <input type="hidden" name="content_action" value="services_save">
-<?php foreach ($names as $id => $label): ?>
-<div class="checkbox"><label><input type="checkbox" name="services[<?php echo $id; ?>]" value="1" <?php echo !empty($flags[$id]) ? 'checked' : ''; ?>>
-<?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?></label></div>
-<?php endforeach; ?>
-<hr>
-<h4>Weather location</h4>
-<p class="help-block">Set the shared forecast location. Coordinates use decimal degrees.</p>
+<div class="panel-group" id="service-app-settings">
+<?php foreach($manifests as $id=>$manifest):
+    $fields=$definitions[$id];
+    $values=$config->get($id);
+?>
+<details class="panel panel-default" style="margin-bottom:10px" <?php echo !empty($fields)?'':'open'; ?>>
+<summary class="panel-heading" style="cursor:pointer;list-style-position:inside">
+<strong><?php echo $escape($manifest['name']); ?></strong>
+<span class="text-muted"> — <?php echo $escape($manifest['description']??'Phone service'); ?></span>
+<span class="pull-right text-muted"><?php echo !empty($flags[$id])?'Enabled':'Disabled'; ?></span>
+</summary>
+<div class="panel-body">
+<div class="checkbox"><label>
+<input type="checkbox" name="services[<?php echo $escape($id); ?>]" value="1" <?php echo !empty($flags[$id])?'checked':''; ?> />
+<strong>Enabled in phone Services menu</strong>
+</label></div>
+<?php if($fields): ?>
 <div class="row">
-<div class="col-sm-4"><label>Location name<input class="form-control" name="weather_name" required maxlength="64" value="<?php echo htmlspecialchars($weather['name'],ENT_QUOTES,'UTF-8'); ?>"></label></div>
-<div class="col-sm-3"><label>Latitude<input class="form-control" name="weather_lat" type="number" step="any" min="-90" max="90" required value="<?php echo htmlspecialchars((string)$weather['lat'],ENT_QUOTES,'UTF-8'); ?>"></label></div>
-<div class="col-sm-3"><label>Longitude<input class="form-control" name="weather_lon" type="number" step="any" min="-180" max="180" required value="<?php echo htmlspecialchars((string)$weather['lon'],ENT_QUOTES,'UTF-8'); ?>"></label></div>
+<?php foreach($fields as $key=>$field):
+    $type=$field['type'];$name='app_settings['.$id.']['.$key.']';
+    $value=$values[$key];
+?>
+<div class="col-sm-6 col-md-4">
+<div class="form-group">
+<?php if($type==='toggle'): ?>
+<label class="checkbox"><input type="checkbox" name="<?php echo $escape($name); ?>" value="1" <?php echo $value?'checked':''; ?> /> <?php echo $escape($field['label']); ?></label>
+<?php else: ?>
+<label for="<?php echo $escape('svc_'.$id.'_'.$key); ?>"><?php echo $escape($field['label']); ?></label>
+<?php if($type==='select'): ?>
+<select class="form-control" id="<?php echo $escape('svc_'.$id.'_'.$key); ?>" name="<?php echo $escape($name); ?>">
+<?php foreach($field['options'] as $choice=>$description): ?>
+<option value="<?php echo $escape($choice); ?>" <?php echo (string)$value===(string)$choice?'selected':''; ?>><?php echo $escape($description); ?></option>
+<?php endforeach; ?></select>
+<?php else: ?>
+<input class="form-control" type="<?php echo in_array($type,['number','integer'],true)?'number':'text'; ?>"
+id="<?php echo $escape('svc_'.$id.'_'.$key); ?>" name="<?php echo $escape($name); ?>"
+value="<?php echo $escape($value); ?>"
+<?php if(isset($field['min'])): ?>min="<?php echo $escape($field['min']); ?>"<?php endif; ?>
+<?php if(isset($field['max'])): ?>max="<?php echo $escape($field['max']); ?>"<?php endif; ?>
+<?php if(isset($field['maxLength'])): ?>maxlength="<?php echo (int)$field['maxLength']; ?>"<?php endif; ?>
+<?php if(isset($field['minLength'])): ?>minlength="<?php echo (int)$field['minLength']; ?>"<?php endif; ?>
+<?php if(in_array($type,['number','integer'],true)): ?>step="<?php echo $escape($field['step']??($type==='integer'?1:'any')); ?>"<?php endif; ?>
+required />
+<?php endif; ?>
+<?php endif; ?>
+<?php if(!empty($field['description'])): ?><p class="help-block"><?php echo $escape($field['description']); ?></p><?php endif; ?>
 </div>
-<h4>News feed</h4>
-<?php $currentFeed = (string) $this->getConfig('phonecontent_news_feed'); ?>
-<div class="form-group"><label>RSS source<select class="form-control" name="news_feed">
-<?php foreach (array(
-    'bbc' => array('BBC News', 'https://feeds.bbci.co.uk/news/rss.xml'),
-    'bbc-world' => array('BBC World', 'https://feeds.bbci.co.uk/news/world/rss.xml'),
-    'bbc-technology' => array('BBC Technology', 'https://feeds.bbci.co.uk/news/technology/rss.xml'),
-    'bbc-sport' => array('BBC Sport', 'https://feeds.bbci.co.uk/sport/rss.xml'),
-    'npr' => array('NPR', 'https://feeds.npr.org/1001/rss.xml')
-) as $id => $feed): ?>
-<option value="<?php echo htmlspecialchars($id, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $currentFeed === $feed[1] ? 'selected' : ''; ?>><?php echo htmlspecialchars($feed[0], ENT_QUOTES, 'UTF-8'); ?></option>
+</div>
 <?php endforeach; ?>
-</select></label></div>
+</div>
+<?php else: ?>
+<p class="text-muted">This service has no additional settings.</p>
+<?php endif; ?>
+</div>
+</details>
+<?php endforeach; ?>
+</div>
 <button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> Save Services</button>
 </form>
-<p class="help-block" style="margin-top:12px">Menu changes apply on the next Services button press. Changes to physical button destinations require updated signed phone provisioning.</p>
+<p class="help-block" style="margin-top:12px">Application settings apply on the next action. Services menu changes appear on the next press. Signed phone settings are refreshed on save.</p>
 </div>

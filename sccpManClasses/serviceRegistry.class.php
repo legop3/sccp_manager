@@ -57,8 +57,11 @@ final class serviceRegistry {
         foreach(['serviceAppStorage','serviceAppNotifications','serviceAppAudio',
                  'serviceAppMedia','serviceAppInput'] as $class)
             require_once __DIR__.'/'.$class.'.php';
+        require_once __DIR__.'/serviceAppConfig.php';
+        $settings=(new serviceAppConfig($this->module))->get($id);
         $ctx=[
             'device'=>$device,
+            'config'=>$settings,
             'user'=>(string)($identity['extension']??$device),
             'route'=>function(array $params=[])use($route,$id){
                 return $route(array_merge(['app'=>$id],$params));

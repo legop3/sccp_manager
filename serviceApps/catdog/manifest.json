@@ -2,5 +2,33 @@
   "id": "catdog",
   "name": "catdog",
   "description": "Broadcast cats or dogs once per user per hour",
-  "enabledByDefault": false
+  "enabledByDefault": false,
+  "settings": {
+    "cooldown_minutes": {
+      "type": "integer",
+      "label": "Cooldown per user (minutes)",
+      "default": 60,
+      "min": 1,
+      "max": 1440
+    },
+    "allow_cats": {
+      "type": "toggle",
+      "label": "Allow cats",
+      "default": true
+    },
+    "allow_dogs": {
+      "type": "toggle",
+      "label": "Allow dogs",
+      "default": true
+    },
+    "delivery": {
+      "type": "select",
+      "label": "Image delivery",
+      "default": "all",
+      "options": {
+        "all": "All connected phones",
+        "self": "Only requesting phone"
+      }
+    }
+  }
 }

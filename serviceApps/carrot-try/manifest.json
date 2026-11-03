@@ -2,5 +2,23 @@
   "id": "carrot-try",
   "name": "carrot try",
   "description": "One in 235 chance of a carrot",
-  "enabledByDefault": false
+  "enabledByDefault": false,
+  "settings": {
+    "one_in": {
+      "type": "integer",
+      "label": "Winning chance (1 in N)",
+      "default": 235,
+      "min": 2,
+      "max": 100000
+    },
+    "delivery": {
+      "type": "select",
+      "label": "Winning image delivery",
+      "default": "all",
+      "options": {
+        "all": "All connected phones",
+        "self": "Only requesting phone"
+      }
+    }
+  }
 }

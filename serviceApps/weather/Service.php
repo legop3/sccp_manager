@@ -9,10 +9,10 @@ return static function(array $ctx,array $q) {
     $op=(string)($q['op']??'');
     ob_start();
     try {
-        $render=static function()use($legacy,$device,$line,$route,$app,$op,$q) {
+        $ctxSettings=$ctx['config'];
+        $render=static function()use($legacy,$device,$line,$route,$app,$op,$q,$ctxSettings) {
         if($app==='weather') {
-            $settings=$legacy->module->getConfig('phonecontent_weather');
-            if(!is_array($settings))$settings=['name'=>'Columbus, OH','lat'=>39.9612,'lon'=>-82.9988];
+            $settings=$ctxSettings;
             $lat=(float)($settings['lat']??39.9612);$lon=(float)($settings['lon']??-82.9988);
             $api='https://api.open-meteo.com/v1/forecast?'.http_build_query([
                 'latitude'=>$lat,'longitude'=>$lon,'current'=>'temperature_2m,relative_humidity_2m,wind_speed_10m',

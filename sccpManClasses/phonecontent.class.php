@@ -1117,31 +1117,23 @@ PHP;
         switch ($action) {
             case 'address': $this->setAddress($post['pbx_address'] ?? ''); return 'Directory URL updated.';
             case 'services_save':
-                $this->parent->phonemenus->saveServices($post['services'] ?? array());
-                if (isset($post['weather_name'], $post['weather_lat'], $post['weather_lon'])) {
-                    $name = trim((string) $post['weather_name']);
-                    $lat = filter_var($post['weather_lat'], FILTER_VALIDATE_FLOAT);
-                    $lon = filter_var($post['weather_lon'], FILTER_VALIDATE_FLOAT);
-                    if ($name === '' || strlen($name) > 64 ||
-                        $lat === false || $lat < -90 || $lat > 90 ||
-                        $lon === false || $lon < -180 || $lon > 180) {
-                        throw new \InvalidArgumentException('Invalid weather location or coordinates.');
-                    }
-                    $this->parent->setConfig('phonecontent_weather',
-                        array('name' => $name, 'lat' => $lat, 'lon' => $lon));
+                require_once __DIR__.'/serviceAppConfig.php';
+                $settings=new serviceAppConfig($this->parent);
+                // Validate the complete form before changing enable flags or
+                // other FreePBX settings.
+                $prepared=$settings->prepare($post['app_settings']??[]);
+                $previousFlags=$this->parent->getConfig('phonecontent_builtin_services');
+                $previousSettings=[];
+                try {
+                    $previousSettings=$settings->apply($prepared);
+                    $this->parent->phonemenus->saveServices($post['services']??[]);
+                    $this->parent->phoneContentRegenerate(false);
+                } catch(\Throwable $e) {
+                    $settings->restore($previousSettings);
+                    $this->parent->setConfig('phonecontent_builtin_services',$previousFlags);
+                    throw $e;
                 }
-                $feeds = array(
-                    'bbc' => 'https://feeds.bbci.co.uk/news/rss.xml',
-                    'bbc-world' => 'https://feeds.bbci.co.uk/news/world/rss.xml',
-                    'bbc-technology' => 'https://feeds.bbci.co.uk/news/technology/rss.xml',
-                    'bbc-sport' => 'https://feeds.bbci.co.uk/sport/rss.xml',
-                    'npr' => 'https://feeds.npr.org/1001/rss.xml'
-                );
-                $feedId = (string) ($post['news_feed'] ?? 'bbc');
-                if (!isset($feeds[$feedId])) throw new \InvalidArgumentException('Invalid news feed selection.');
-                $this->parent->setConfig('phonecontent_news_feed', $feeds[$feedId]);
-                $this->parent->phoneContentRegenerate(false);
-                return 'Services updated; signed phone configurations refreshed (reboot phones to load new button destinations).';
+                return 'Services and app settings saved; phone configurations refreshed.';
             case 'save_menus': $this->parent->phonemenus->save($post['menu_config'] ?? '');
                 return 'Services and Messages menus published.';
             case 'directory_text': $this->saveDirectoryLabels($post['directory_text'] ?? null);
