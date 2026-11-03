@@ -14,9 +14,12 @@ if (str_contains($queue,'notification-display.php') || str_contains($queue,'soun
     throw new RuntimeException('Queue must not retain old URL-based or sound-only paths');
 if (str_contains($config,'readfile($file)'))
     throw new RuntimeException('Old XML display endpoint still generated');
-$service=file_get_contents(__DIR__.'/../sccpManClasses/serviceLegacySupport.php');
-if (!str_contains($service,"new notificationMessage(['Open'=>\$url],\$graphic)"))
-    throw new RuntimeException('Migrated services must send inline graphical notifications');
+$service=file_get_contents(__DIR__.'/../sccpManClasses/serviceAppNotifications.php');
+$legacy=file_get_contents(__DIR__.'/../sccpManClasses/serviceLegacySupport.php');
+if (!str_contains($service,"new notificationMessage(\$deviceActions,\$graphic,\$sound)") ||
+    !str_contains($service,'$queue->send(') ||
+    str_contains($legacy,'function push('))
+    throw new RuntimeException('All services must share the existing graphical notification queue');
 $imageRenderer=file_get_contents(__DIR__.'/../sccpManClasses/phoneNotifications.class.php');
 $source=file_get_contents(__DIR__.'/../sccpManClasses/notificationSources.class.php');
 $admin=file_get_contents(__DIR__.'/../sccpManTraits/bmoFunctions.php');

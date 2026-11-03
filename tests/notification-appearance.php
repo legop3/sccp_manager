@@ -14,7 +14,7 @@ $m->data['phonecontent_notification_appearance']=['theme'=>'forest','colors'=>['
 checkAppearance($c->appearance()['theme']==='forest','Shared appearance overrides per-type themes');
 checkAppearance($c->appearance()['colors']['header']==='#ABCDEF','Shared custom colors persist');
 $worker=file_get_contents(__DIR__.'/../sccpManClasses/notificationDelivery.class.php');
-$service=file_get_contents(__DIR__.'/../sccpManClasses/serviceLegacySupport.php');
+$service=file_get_contents(__DIR__.'/../sccpManClasses/serviceAppNotifications.php');
 checkAppearance(str_contains($worker,'$appearance=$config->appearance()') && substr_count($worker,'$renderFields,$appearance,$device)')===1,
  'Voicemail and missed-call renderers use shared design');
 checkAppearance(substr_count($worker,'phoneNotifications::graphic(')===1,'All events use one render call');

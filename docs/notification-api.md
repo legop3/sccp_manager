@@ -39,3 +39,27 @@ $result=(new notificationQueue($module))->send($device,$sessionIp,$message);
 ```
 
 All actual handset behavior still needs verification on the Cisco phones.
+
+## Service applications
+
+All phone Services notifications use serviceAppNotifications, which delegates to
+the same phoneNotifications::graphic, notificationMessage and
+notificationQueue::send components used by voicemail and missed calls. The queue
+owns stacking, Clear, sounds and authenticated navigation. An application owns
+only its event content, recipients and optional actions.
+
+The service context exposes a notifications adapter. Call its send method with
+an array of renderer fields, target scope ('all', 'self', SEP device ID, or
+device ID array), an array of up to three actions or a per-device action
+callback, and optionally an uploaded sound ID and requesting device.
+
+Per-device action callbacks receive the recipient's device ID and should
+generate recipient-specific service URLs containing that device's token.
+The existing notificationMessage clear-on-activation action form is supported.
+
+The adapter reports [accepted push count, connected target count]. Queue
+storage occurs before phone push; an unaccepted push does not necessarily mean
+the history entry was lost. Each recipient is processed independently.
+
+No application should implement its own graphical renderer, notification
+queue, or CGI push. The alarm cron task uses the same adapter.

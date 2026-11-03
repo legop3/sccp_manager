@@ -9,7 +9,8 @@ return static function(array $ctx,array $q) {
     $op=(string)($q['op']??'');
     ob_start();
     try {
-        $render=static function()use($legacy,$device,$line,$route,$app,$op,$q) {
+        $ctxNotifications=$ctx['notifications'];
+        $render=static function()use($legacy,$device,$line,$route,$app,$op,$q,$ctxNotifications) {
         if($app==='messages'){
             if($op==='compose'){
                 $entries=[];
@@ -35,7 +36,14 @@ return static function(array $ctx,array $q) {
                     $s['messages'][]=['id'=>$id,'time'=>$now,'from'=>$device,'line'=>$line,'to'=>$target,'toLine'=>$recipientLine,'text'=>$message];
                     $s['messages']=array_slice($s['messages'],-500);
                 });
-                $legacy->push($target,$legacy->url($target).'&app=messages&op=read&id='.$id);
+                $ctxNotifications->send(
+                    ['title'=>'New message','primary'=>'You have a new message',
+                     'secondary'=>'From ext '.$line],
+                    $target,
+                    static function($phone)use($legacy,$id) {
+                        return ['Open'=>$legacy->url($phone).'&app=messages&op=read&id='.$id];
+                    }
+                );
                 $legacy->xml('Messages','Message sent to ext '.$others[$target]['line']);return;
             }
             if($op==='read'){

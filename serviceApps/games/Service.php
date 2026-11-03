@@ -9,7 +9,8 @@ return static function(array $ctx,array $q) {
     $op=(string)($q['op']??'');
     ob_start();
     try {
-        $render=static function()use($legacy,$device,$line,$route,$app,$op,$q) {
+        $ctxNotifications=$ctx['notifications'];
+        $render=static function()use($legacy,$device,$line,$route,$app,$op,$q,$ctxNotifications) {
         if($app==='games') {
             if($op==='coin'){$legacy->xml('Coin Flip',random_int(0,1)?'Heads':'Tails');return;}
             if($op==='dice'){$legacy->xml('Dice Roll','You rolled '.random_int(1,6));return;}
@@ -52,7 +53,13 @@ return static function(array $ctx,array $q) {
                     $s['games'][$id]=['players'=>[$device,$other],'board'=>array_fill(0,9,'-'),
                         'turn'=>$device,'winner'=>null,'created'=>time()];
                 });
-                $legacy->push($other,$legacy->url($other).'&app=games&op=ttt-board&other='.$device);
+                $ctxNotifications->send(
+                    ['title'=>'Game invitation','primary'=>'You have a game invitation'],
+                    $other,
+                    static function($phone)use($legacy,$device) {
+                        return ['Open'=>$legacy->url($phone).'&app=games&op=ttt-board&other='.$device];
+                    }
+                );
                 $legacy->menu('Tic-Tac-Toe',[['Open Game',$route(['app'=>'games','op'=>'ttt-board','other'=>$other])]]);return;
             }
             if($op==='ttt-board' || $op==='ttt-move') {
