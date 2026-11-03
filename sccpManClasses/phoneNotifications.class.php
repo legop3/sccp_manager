@@ -129,16 +129,49 @@ final class phoneNotifications
         $secondary=(string)($fields['secondary']??'');
         $detail=(string)($fields['detail']??'');
         $timestamp=(string)($fields['timestamp']??'');
-        $draw($heading,9,22,278,15,$colors['header_text'],12);
-        $draw($primary,9,72,278,26,$colors['name_text'],15);
-        $draw($secondary,10,101,$detail!==''?160:276,17,$colors['secondary_text'],10);
-        if ($detail!=='') {
-            $detailBox=imagettfbbox(13,0,$font,$detail);
-            if ($detailBox===false) throw new \RuntimeException('Unable to measure notification text');
-            $detailWidth=$detailBox[2]-$detailBox[0];
-            $draw($detail,max(165,286-$detailWidth),101,121,13,$colors['details_label'],10);
+        // All notification producers use the same five text slots.
+        // The optional image field contains decoded/validated image bytes from
+        // the sender's source layer, never a remote URL fetched by the renderer.
+        $image=$fields['image']??null;
+        if ($image!==null && (!is_string($image) || $image===''))
+            throw new \InvalidArgumentException('Notification image must contain image bytes');
+        $picture=null;
+        if ($image!==null) {
+            if (strlen($image)>1048576) throw new \InvalidArgumentException('Notification image exceeds 1 MiB');
+            $info=@getimagesizefromstring($image);
+            if (!$info || $info[0]<1 || $info[1]<1 || $info[0]>4096 || $info[1]>4096 ||
+                !in_array($info[2],[IMAGETYPE_PNG,IMAGETYPE_JPEG,IMAGETYPE_GIF],true))
+                throw new \InvalidArgumentException('Unsupported notification image');
+            $picture=@imagecreatefromstring($image);
+            if ($picture===false) throw new \InvalidArgumentException('Cannot decode notification image');
         }
-        $draw($timestamp,10,129,276,16,$colors['details_text'],10);
+        $draw($heading,9,22,278,15,$colors['header_text'],12);
+        if ($picture!==null) {
+            // Shift all text to the right of a 112x104 photo area. A full-width
+            // footer holds the timestamp; no text slot is lost.
+            $pw=imagesx($picture);$ph=imagesy($picture);
+            $scale=min(112/$pw,104/$ph);
+            $rw=max(1,(int)round($pw*$scale));$rh=max(1,(int)round($ph*$scale));
+            $px=8+(int)floor((112-$rw)/2);
+            $py=34+(int)floor((104-$rh)/2);
+            imagefilledrectangle($im,7,33,121,139,$color($colors['details_background']));
+            imagecopyresampled($im,$picture,$px,$py,0,0,$rw,$rh,$pw,$ph);
+            imagedestroy($picture);
+            $draw($primary,130,54,158,17,$colors['name_text'],10);
+            $draw($secondary,130,77,158,12,$colors['secondary_text'],9);
+            $draw($detail,130,100,158,11,$colors['details_label'],9);
+            $draw($timestamp,130,128,158,11,$colors['details_text'],9);
+        } else {
+            $draw($primary,9,72,278,26,$colors['name_text'],15);
+            $draw($secondary,10,101,$detail!==''?160:276,17,$colors['secondary_text'],10);
+            if ($detail!=='') {
+                $detailBox=imagettfbbox(13,0,$font,$detail);
+                if ($detailBox===false) throw new \RuntimeException('Unable to measure notification text');
+                $detailWidth=$detailBox[2]-$detailBox[0];
+                $draw($detail,max(165,286-$detailWidth),101,121,13,$colors['details_label'],10);
+            }
+            $draw($timestamp,10,129,276,16,$colors['details_text'],10);
+        }
         $id=bin2hex(random_bytes(12));
         $filename='notification-'.$id.'.png';
         $ok=imagepng($im,$dir.'/'.$filename);
