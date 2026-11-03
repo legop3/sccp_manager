@@ -144,6 +144,26 @@ final class serviceRegistry {
         });
     }
 
+
+    /**
+     * Launch a bounded, standalone experimental frame-push worker.
+     * The worker handles call audio and GUI pushes independently.
+     */
+    public function mediaTest($device) {
+        if(!phonevoicemail::validDevice($device))
+            throw new \InvalidArgumentException('Invalid media target');
+        $script=dirname(__DIR__).'/scripts/phone-media-test.php';
+        if(!is_file($script))throw new \RuntimeException('Media worker missing');
+        register_shutdown_function(static function()use($device,$script){
+            if(function_exists('fastcgi_finish_request'))fastcgi_finish_request();
+            else {while(ob_get_level()>0)@ob_end_flush();@flush();}
+            $cmd='/usr/bin/php '.escapeshellarg($script).' '.escapeshellarg($device);
+            // All arguments are validated; keep the short diagnostic worker
+            // independent of the HTTP request and the audio call lifetime.
+            exec($cmd.' >/dev/null 2>&1 </dev/null &');
+        });
+    }
+
     public function handle($id,array $query,$device,array $identity,callable $route) {
         $meta=$this->manifests();
         if (!isset($meta[$id])) throw new \InvalidArgumentException('Unknown service');
@@ -160,7 +180,8 @@ final class serviceRegistry {
             'cooldown'=>function($seconds)use($id,$identity,$device){return $this->cooldown($id,$identity['extension']??$device,$seconds);},
             'animal'=>function($type){return $this->animal($type);},
             'broadcast'=>function($title,$caption,$image)use($id){return $this->broadcast($id,$title,$caption,$image);},
-            'clockCall'=>function()use($identity){return $this->clockCall($identity['line']??'');}
+            'clockCall'=>function()use($identity){return $this->clockCall($identity['line']??'');},
+            'mediaTest'=>function()use($device){return $this->mediaTest($device);}
         ];
         $xml=$handler($ctx,$query);
         if (!is_string($xml) || strlen($xml)>65536)
