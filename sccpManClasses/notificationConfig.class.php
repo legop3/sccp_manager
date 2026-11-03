@@ -10,7 +10,8 @@ final class notificationConfig {
             'stripe_direction'=>'horizontal','stripe_repeat'=>1,'stripe_opacity'=>100,
             'stripe_thickness'=>7,'stripe_reverse'=>false,
             'background_image'=>'','background_fit'=>'cover','background_opacity'=>100,
-            'border_width'=>0,'separator_width'=>2];
+            'border_width'=>0,'separator_width'=>2,'panel_radius'=>0,
+            'gradient_target'=>'off','gradient_direction'=>'vertical','gradient_end'=>'#536D87'];
         $saved=$this->module->getConfig('phonecontent_notification_appearance');
         if (is_array($saved)) return array_merge($defaults,array_intersect_key($saved,$defaults));
         return $defaults;
@@ -28,7 +29,7 @@ final class notificationConfig {
             $settings['colors'][$key]=$value;
         }
         $position=(string)($post['stripe_position']??$settings['stripe_position']);
-        if (!in_array($position,['off','header','top','bottom','background'],true))
+        if (!in_array($position,['off','header','top','bottom','left','right','background'],true))
             throw new \InvalidArgumentException('Invalid stripe placement');
         $settings['stripe_position']=$position;
         $direction=(string)($post['stripe_direction']??$settings['stripe_direction']);
@@ -37,7 +38,8 @@ final class notificationConfig {
         $settings['stripe_direction']=$direction;
         foreach (['stripe_repeat'=>[1,6],'stripe_opacity'=>[0,100],
                   'stripe_thickness'=>[2,32],'background_opacity'=>[0,100],
-                  'border_width'=>[0,6],'separator_width'=>[0,6]] as $field=>$limits) {
+                  'border_width'=>[0,6],'separator_width'=>[0,6],
+                  'panel_radius'=>[0,12]] as $field=>$limits) {
             $value=$post[$field]??$settings[$field];
             if (filter_var($value,FILTER_VALIDATE_INT)===false ||
                 (int)$value<$limits[0] || (int)$value>$limits[1])
@@ -58,6 +60,18 @@ final class notificationConfig {
                 throw new \InvalidArgumentException('Background image is not an uploaded wallpaper');
         }
         $settings['background_image']=$image;
+        $gradientTarget=(string)($post['gradient_target']??$settings['gradient_target']);
+        if (!in_array($gradientTarget,['off','background','header'],true))
+            throw new \InvalidArgumentException('Invalid gradient target');
+        $settings['gradient_target']=$gradientTarget;
+        $gradientDirection=(string)($post['gradient_direction']??$settings['gradient_direction']);
+        if (!in_array($gradientDirection,['vertical','horizontal'],true))
+            throw new \InvalidArgumentException('Invalid gradient direction');
+        $settings['gradient_direction']=$gradientDirection;
+        $gradientEnd=(string)($post['gradient_end']??$settings['gradient_end']);
+        if (!preg_match('/^#[0-9a-fA-F]{6}$/D',$gradientEnd))
+            throw new \InvalidArgumentException('Invalid gradient color');
+        $settings['gradient_end']=$gradientEnd;
         $settings['stripes']=[];
         foreach (array_slice((array)($post['stripes']??[]),0,10) as $color) {
             if ($color==='' || $color===null) continue;
