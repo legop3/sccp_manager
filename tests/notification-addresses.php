@@ -25,8 +25,8 @@ if (str_contains($imageRenderer,'public static function execute(') ||
     str_contains($imageRenderer,'function previewFields(') ||
     str_contains($imageRenderer,'SoftKeyItem'))
     throw new RuntimeException('Renderer contains old push, preview, or softkey implementation');
-if (str_contains($source,'public static function image('))
-    throw new RuntimeException('Second scheduled image generator remains');
+if (!str_contains($source,'public static function image(') || str_contains($source,'imagepng('))
+    throw new RuntimeException('Source layer must fetch image bytes, not render another notification');
 if (str_contains($admin,'notifications_preview') || str_contains($admin,'previewFields('))
     throw new RuntimeException('Obsolete AJAX preview handler remains');
 if (str_contains($nav,'notification_entry') || str_contains($queue,'notification_entry'))
