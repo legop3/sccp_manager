@@ -30,7 +30,7 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
 .sccp-notify-editor .ne-card h4{margin:0 0 15px}.sccp-notify-editor .ne-colors{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .sccp-notify-editor .ne-colors label,.sccp-notify-editor .ne-stripe-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .sccp-notify-editor input[type=color]{min-width:60px;width:70px;height:35px;padding:2px;cursor:pointer}
-.sccp-notify-editor .ne-screen{display:block;width:100%;max-width:592px;aspect-ratio:296/156;image-rendering:auto;border-radius:5px;border:3px solid #666}
+.sccp-notify-editor .ne-screen{display:block;width:296px;height:156px;max-width:100%;image-rendering:pixelated;border:2px solid #666;border-radius:4px}.sccp-notify-editor .ne-preview-controls{margin-bottom:12px}.sccp-notify-editor .ne-preview-status{min-height:20px;margin-top:8px}
 .sccp-notify-editor .ne-stripes{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .sccp-notify-editor .ne-stripe-row{display:inline-flex;padding:4px;border:1px solid #999;border-radius:4px}
 .sccp-notify-editor .ne-preset{margin:3px}.sccp-notify-editor .ne-help{font-size:12px;opacity:.75}
@@ -91,14 +91,17 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
        <?php endfor;?>
       </div>
      </div>
-    </div><div><div class="ne-card"><h4>Shared design preview</h4>
-<?php $sampleCard=['title'=>'Notification','primary'=>'Example message',
- 'secondary'=>'Additional information', 'detail'=>'Extra detail',
- 'timestamp'=>'11/02/2026 3:45 PM'];
-$xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,$sampleCard,$appearance);
-$preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match)) $preview=html_entity_decode($match[1],ENT_QUOTES,'UTF-8'); ?>
-<?php if ($preview):?><img class="ne-screen" src="<?php echo $esc($preview);?>" alt="Shared appearance preview"><?php endif;?>
-<p class="ne-help">Image notifications use the same colors with a smaller text layout alongside the picture.</p>
+    </div><div><div class="ne-card"><h4>Live appearance preview</h4>
+<div class="form-group ne-preview-controls"><label for="ne-preview-sample">Example notification</label>
+<select id="ne-preview-sample" class="form-control">
+<option value="voicemail">Voicemail</option>
+<option value="missed">Missed call</option>
+<option value="scheduled">Scheduled text</option>
+<option value="image">Scheduled image + text</option>
+</select></div>
+<img class="ne-screen" id="ne-live-preview" alt="Live notification preview (296 by 156 pixels)" width="296" height="156">
+<p class="ne-help">Actual 296 × 156 output from the same renderer used on Cisco phones. Changes appear here without saving; Save notification settings applies them to phones.</p>
+<p id="ne-preview-status" class="ne-help ne-preview-status" role="status" aria-live="polite"></p>
 </div></div></div></section>
  <?php foreach ($notifications as $kind=>$settings): ?>
  <section class="ne-panel " data-ne-panel="<?php echo $kind;?>">
@@ -151,6 +154,46 @@ $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match
   root.querySelectorAll('[data-ne-panel]').forEach(p=>p.classList.toggle('active',p.dataset.nePanel===button.dataset.neTab));
  }));
  const palettes=<?php echo json_encode($palettes,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);?>;
+ const appearancePanel=root.querySelector('[data-ne-panel="appearance"]');
+ const preview=root.querySelector('#ne-live-preview');
+ const previewStatus=root.querySelector('#ne-preview-status');
+ const sample=root.querySelector('#ne-preview-sample');
+ let previewTimer=null,previewRequest=null,previewSequence=0;
+ function queuePreview(){
+   clearTimeout(previewTimer);
+   previewTimer=setTimeout(updatePreview,160);
+ }
+ function updatePreview(){
+   const seq=++previewSequence;
+   if(previewRequest)previewRequest.abort();
+   previewStatus.textContent='Updating preview…';
+   const payload={module:'sccp_manager',command:'notification_preview',sample:sample.value};
+   const fd=new FormData(appearancePanel.closest('form'));
+   for(const [name,value] of fd.entries()){
+     const m=/^notifications\\[appearance\\]\\[(theme|stripe_position)\\]$/.exec(name);
+     if(m)payload['appearance['+m[1]+']']=value;
+     const c=/^notifications\\[appearance\\]\\[colors\\]\\[([^\\]]+)\\]$/.exec(name);
+     if(c)payload['appearance[colors]['+c[1]+']']=value;
+     const stripe=/^notifications\\[appearance\\]\\[stripes\\]\\[(\\d+)\\]$/.exec(name);
+     if(stripe)payload['appearance[stripes]['+stripe[1]+']']=value;
+   }
+   previewRequest=jQuery.ajax({
+     url:'ajax.php',method:'POST',data:payload,dataType:'json'
+   }).done(function(response){
+     if(seq!==previewSequence)return;
+     if(!response||response.status!==true||!response.image){
+       previewStatus.textContent='Preview unavailable: invalid response';return;
+     }
+     preview.src=response.image;
+     previewStatus.textContent='Preview updated — unsaved changes';
+   }).fail(function(xhr,status){
+     if(seq!==previewSequence||status==='abort')return;
+     previewStatus.textContent='Preview unavailable. Check the FreePBX log or browser console.';
+   });
+ }
+ sample.addEventListener('change',queuePreview);
+ appearancePanel.addEventListener('input',queuePreview);
+ appearancePanel.addEventListener('change',queuePreview);
  const themes={
   cisco:['#D5E2ED','#1E568F','#101C2A','#233849','#FFFFFF'],
   ocean:['#13293D','#1E425B','#FAFCFF','#A8CEE5','#5AC4F5'],
@@ -181,5 +224,6 @@ $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match
 
  }));
 
+ queuePreview();
 })();
 </script>
