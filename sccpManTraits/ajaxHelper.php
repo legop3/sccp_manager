@@ -8,6 +8,7 @@ trait ajaxHelper {
         // Called first by BMO. Must return true or request will be aborted.
         // See https://wiki.freepbx.org/display/FOP/BMO+Ajax+Calls
         switch ($req) {
+            case 'notification_preview':
             case 'backupsettings':
             case 'savesettings':
             case 'save_device':
@@ -54,6 +55,46 @@ trait ajaxHelper {
         $msg = array();
         $cmd_id = $request['command'];
         switch ($cmd_id) {
+            case 'notification_preview':
+                $config=new \FreePBX\modules\Sccp_manager\notificationConfig($this);
+                $appearance=$config->previewAppearance((array)($request['appearance']??[]));
+                $sample=(string)($request['sample']??'voicemail');
+                $examples=[
+                    'voicemail'=>['title'=>'New voicemail','primary'=>'Alex Morgan',
+                        'secondary'=>'Ext. 150','detail'=>'Length: 0:42',
+                        'timestamp'=>'11/03/2026 8:45 PM'],
+                    'missed'=>['title'=>'Missed call','primary'=>'Jordan Lee',
+                        'secondary'=>'(555) 014-2398','detail'=>'',
+                        'timestamp'=>'11/03/2026 8:45 PM'],
+                    'scheduled'=>['title'=>'Reminder','primary'=>'Package delivered',
+                        'secondary'=>'Front porch','detail'=>'',
+                        'timestamp'=>'11/03/2026 8:45 PM'],
+                    'image'=>['title'=>'Random Dog','primary'=>'Golden Retriever',
+                        'secondary'=>'Breed: Golden Retriever','detail'=>'Photo',
+                        'timestamp'=>'11/03/2026 8:45 PM']
+                ];
+                if (!isset($examples[$sample])) throw new \InvalidArgumentException('Unknown preview sample');
+                $fields=$examples[$sample];
+                if ($sample==='image') {
+                    // In-memory sample image exercises the real image layout
+                    // without contacting external feeds or publishing files.
+                    $picture=imagecreatetruecolor(160,120);
+                    imagefilledrectangle($picture,0,0,159,119,
+                        imagecolorallocate($picture,58,112,151));
+                    imagefilledellipse($picture,83,58,91,73,
+                        imagecolorallocate($picture,237,190,121));
+                    imagefilledellipse($picture,52,39,30,56,
+                        imagecolorallocate($picture,153,95,55));
+                    imagefilledellipse($picture,113,39,30,56,
+                        imagecolorallocate($picture,153,95,55));
+                    ob_start();
+                    imagepng($picture);
+                    $fields['image']=ob_get_clean();
+                    imagedestroy($picture);
+                }
+                $png=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic(
+                    $this,$fields,$appearance,null,true);
+                return ['status'=>true,'image'=>'data:image/png;base64,'.base64_encode($png)];
             case 'savesettings':
                 // Consolidate this into a separate method to improve legibility
                 $this->handleSubmit($request);
