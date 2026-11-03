@@ -11,7 +11,7 @@ final class notificationConfig {
         if (is_array($saved)) return array_merge($defaults,array_intersect_key($saved,$defaults));
         return $defaults;
     }
-    private function saveAppearance(array $post) {
+    public function previewAppearance(array $post) {
         $settings=$this->appearance();
         $theme=(string)($post['theme']??$settings['theme']);
         if (!in_array($theme,['cisco','ocean','charcoal','plum','forest','custom'],true))
@@ -34,7 +34,11 @@ final class notificationConfig {
                 throw new \InvalidArgumentException('Invalid stripe color');
             $settings['stripes'][]=$color;
         }
-        $this->module->setConfig('phonecontent_notification_appearance',$settings);
+        return $settings;
+    }
+    private function saveAppearance(array $post) {
+        $this->module->setConfig('phonecontent_notification_appearance',
+            $this->previewAppearance($post));
     }
     /** Global hardware Help button mapping; independent of notification kinds. */
     public function helpButton() {
