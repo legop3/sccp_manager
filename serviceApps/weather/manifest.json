@@ -1,0 +1,8 @@
+{
+  "id": "weather",
+  "name": "Weather",
+  "description": "Built-in Weather service",
+  "enabledByDefault": true,
+  "builtin": true,
+  "order": 10
+}

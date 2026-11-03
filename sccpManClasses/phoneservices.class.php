@@ -1,10 +1,10 @@
 <?php
 namespace FreePBX\modules\Sccp_manager;
 
-/** Built-in Cisco services. Service actions use the existing per-handset voicemail bearer token. */
+/** Phone-service entrypoint: authentication, catalog, and single registry. */
 class phoneservices {
     private $module;
-    private $notificationNavigation = null;
+    private $notificationNavigation=null;
     private function queueSoftkey($type='text') {
         if ($this->notificationNavigation && $this->notificationNavigation->active())
             return notificationNavigation::xmlSoftkeys($this->notificationNavigation->softkeys($type));
@@ -29,23 +29,6 @@ class phoneservices {
         echo '<CiscoIPPhoneInput><Title>'.$this->esc($title).'</Title><Prompt>'.$this->esc($label).'</Prompt><URL>'.$this->esc($url).'</URL>';
         echo '<InputItem><DisplayName>'.$this->esc($label).'</DisplayName><QueryString>'.$this->esc($param).'</QueryString><InputFlags>'.$this->esc($mode).'</InputFlags></InputItem>'.$this->queueSoftkey('input').'</CiscoIPPhoneInput>';
     }
-    private function statePath() {return '/var/spool/asterisk/sccp-manager-services.json';}
-    private function transact($callback) {
-        $path=$this->statePath();
-        $handle=@fopen($path,'c+');
-        if(!$handle) throw new \RuntimeException('Services storage cannot be opened.');
-        try {
-            if(!flock($handle,LOCK_EX)) throw new \RuntimeException('Unable to lock service storage.');
-            rewind($handle);
-            $state=json_decode(stream_get_contents($handle),true);
-            if(!is_array($state))$state=['messages'=>[],'alarms'=>[]];
-            $result=$callback($state);
-            rewind($handle);ftruncate($handle,0);
-            fwrite($handle,json_encode($state,JSON_UNESCAPED_SLASHES));fflush($handle);
-            flock($handle,LOCK_UN);
-            return $result;
-        } finally {fclose($handle);}
-    }
     private function requestUrl($query) {
         $base=$this->module->phonecontent->requestBaseUrl();
         return $base.'/service.php?'.http_build_query($query,'','&',PHP_QUERY_RFC3986);
@@ -67,357 +50,49 @@ class phoneservices {
             throw new \RuntimeException('Invalid handset credentials.');
         return [$device,$this->module->phonevoicemail->destinationForDevice($device)];
     }
-    private function recipients($me) {
-        $found=[];
-        foreach ((new notificationDelivery($this->module))->devices() as $device=>$ip) {
-            try {
-                $identity=$this->module->phonevoicemail->destinationForDevice($device);
-                $found[$device]=['line'=>$identity['extension'],'ip'=>$ip];
-            } catch(\Throwable $e){}
-        }
-        return $found;
-    }
-    private function push($device,$url) {
-        $all=(new notificationDelivery($this->module))->devices();
-        if (!isset($all[$device])) return false;
-        // Service alerts use the same theme and graphical notification document
-        // as voicemail/missed calls. The service owns the Open action and its menus.
-        $query=[];
-        parse_str((string)(parse_url($url,PHP_URL_QUERY)??''),$query);
-        $app=(string)($query['app']??'service');
-        $labels=['messages'=>'New message','alarms'=>'Reminder','games'=>'Game invitation'];
-        $heading=$labels[$app]??'Notification';
-        $message=$app==='alarms'?(string)($query['note']??'Reminder') :
-            ($app==='messages'?'You have a new message':($app==='games'?'You have a game invitation':'Open service'));
-        $theme=(new notificationConfig($this->module))->appearance();
-        $graphic=phoneNotifications::graphic($this->module,[
-            'title'=>$heading,'primary'=>$message,'timestamp'=>date('m/d/Y g:i A')
-        ],$theme,$device);
-        if (!$graphic) throw new \RuntimeException('Unable to render service notification image');
-        $result=(new notificationQueue($this->module))->send($device,$all[$device],
-            new notificationMessage(['Open'=>$url],$graphic));
-        return $result['ok'];
-    }
-    private function fetch($url) {
-        // Cache public forecast and RSS data so multiple phones do not
-        // re-fetch it for each menu navigation.
-        $cache='/var/spool/asterisk/sccp-svc-'.hash('sha256',$url).'.cache';
-        $ttl=strpos($url,'open-meteo.com')!==false?900:600;
-        if(is_file($cache) && !is_link($cache) && filemtime($cache)>time()-$ttl) {
-            $cached=@file_get_contents($cache);
-            if($cached!==false && $cached!=='')return $cached;
-        }
-        $context=stream_context_create(['http'=>['timeout'=>5,'follow_location'=>0,
-            'user_agent'=>'SCCP-Manager/17.1.84']]);
-        $raw=@file_get_contents($url,false,$context,0,180000);
-        if($raw!==false && $raw!=='') {
-            if(!is_link($cache))@file_put_contents($cache,$raw,LOCK_EX);
-            return $raw;
-        }
-        // Stale data is preferable to a blank phone when an external API fails.
-        $cached=(!is_link($cache) && is_file($cache))?@file_get_contents($cache):false;
-        return $cached===false?'':$cached;
-    }
     public function handle($q) {
         header('Content-Type: text/xml; charset=UTF-8');
-        header('Cache-Control: no-store');header('Expires: Thu, 01 Jan 1970 00:00:01 GMT');
+        header('Cache-Control: no-store');
+        header('Expires: Thu, 01 Jan 1970 00:00:01 GMT');
         header('X-Content-Type-Options: nosniff');
         [$device,$identity]=$this->auth($q);
         $this->notificationNavigation=new notificationNavigation($this->module,$device,$q);
-        $line=$identity['extension'];
         $root=['phone'=>$device,'key'=>(string)$q['key']];
         $root=array_merge($root,$this->notificationNavigation->fields());
-        $route=function($fields)use($root){return $this->requestUrl(array_merge($root,$fields));};
+        $route=function(array $fields)use($root){
+            return $this->requestUrl(array_merge($root,$fields));
+        };
         require_once __DIR__.'/serviceRegistry.class.php';
         $registry=new serviceRegistry($this->module);
         $flags=$this->module->phonemenus->serviceFlags();
-        $app=(string)($q['app']??'');$op=(string)($q['op']??'');
+        $app=(string)($q['app']??'');
         if($app==='' || $app==='home') {
-            $catalog=['weather'=>'Weather','messages'=>'Messages','alarms'=>'Alarms & Reminders','news'=>'News & RSS','games'=>'Games'];
-            // Always offer the immediate LCD-off action first, independently
-            // of the optional services toggled in the admin UI.
             $entries=[['Screen Off',$route(['app'=>'screenoff'])]];
-            foreach($catalog as $id=>$name)if(!empty($flags[$id]))$entries[]=[$name,$route(['app'=>$id])];
             foreach($registry->manifests() as $id=>$meta)
                 if(!empty($flags[$id]))$entries[]=[(string)$meta['name'],$route(['app'=>$id])];
-            $this->menu('Services',$entries);return;
+            $this->menu('Services',$entries);
+            return;
         }
         if($app==='screenoff') {
-            // The 7945G accepts this Display URI even though Cisco's published
-            // compatibility table lists the model as unsupported.
             echo '<?xml version="1.0" encoding="UTF-8"?>'.
                 '<CiscoIPPhoneExecute><ExecuteItem URL="Display:Off:0"/></CiscoIPPhoneExecute>';
             return;
         }
-        if(empty($flags[$app])){$this->xml('Services','This service is disabled.');return;}
-        if(isset($registry->manifests()[$app])) {
-            $registry->handle($app,$q,$device,$identity,$route);
+        if(empty($flags[$app])) {
+            $this->xml('Services','This service is disabled.');
             return;
         }
-        if($app==='weather') {
-            $settings=$this->module->getConfig('phonecontent_weather');
-            if(!is_array($settings))$settings=['name'=>'Columbus, OH','lat'=>39.9612,'lon'=>-82.9988];
-            $lat=(float)($settings['lat']??39.9612);$lon=(float)($settings['lon']??-82.9988);
-            $api='https://api.open-meteo.com/v1/forecast?'.http_build_query([
-                'latitude'=>$lat,'longitude'=>$lon,'current'=>'temperature_2m,relative_humidity_2m,wind_speed_10m',
-                'daily'=>'temperature_2m_max,temperature_2m_min','temperature_unit'=>'fahrenheit',
-                'wind_speed_unit'=>'mph','timezone'=>'auto','forecast_days'=>4]);
-            $data=json_decode($this->fetch($api),true);
-            if(!is_array($data)||!isset($data['current'])){$this->xml('Weather','Forecast unavailable.');return;}
-            $c=$data['current'];$d=$data['daily']??[];
-            $rows=[(string)($settings['name']??'Weather'),'Current: '.($c['temperature_2m']??'?').' F',
-                'Humidity: '.($c['relative_humidity_2m']??'?').'%',
-                'Wind: '.($c['wind_speed_10m']??'?').' mph','Forecast:'];
-            foreach(($d['time']??[]) as $i=>$date)$rows[]=$date.' '.($d['temperature_2m_min'][$i]??'?').' - '.($d['temperature_2m_max'][$i]??'?').' F';
-            $this->xml('Weather',implode("\n",$rows));return;
+        if(!isset($registry->manifests()[$app])) {
+            $this->xml('Services','Unknown service.');
+            return;
         }
-        if($app==='news') {
-            $feed=(string)$this->module->getConfig('phonecontent_news_feed');
-            if($feed==='')$feed='https://feeds.bbci.co.uk/news/rss.xml';
-            $raw=$this->fetch($feed);
-            libxml_use_internal_errors(true);
-            $rss=$raw!==''?simplexml_load_string($raw,'SimpleXMLElement',LIBXML_NONET):false;
-            if(!$rss || !isset($rss->channel->item)){$this->xml('News','Feed unavailable.');return;}
-            $items=$rss->channel->item;
-            if($op==='story') {
-                $n=filter_var($q['id']??null,FILTER_VALIDATE_INT);
-                if($n===false||$n===null||$n<0||$n>=min(15,count($items))){$this->xml('News','Story unavailable.');return;}
-                $this->xml('News',substr((string)$items[$n]->title."\n\n".strip_tags((string)$items[$n]->description),0,950));return;
-            }
-            $entries=[];
-            foreach($items as $i=>$story){if($i>=15)break;$entries[]=[(string)$story->title,$route(['app'=>'news','op'=>'story','id'=>$i])];}
-            $this->menu('News',$entries);return;
-        }
-        if($app==='games') {
-            if($op==='coin'){$this->xml('Coin Flip',random_int(0,1)?'Heads':'Tails');return;}
-            if($op==='dice'){$this->xml('Dice Roll','You rolled '.random_int(1,6));return;}
-            if($op==='eight'){$answers=['Yes','No','Probably','Ask again later','Definitely','Unlikely','Outlook good','Cannot predict now'];$this->xml('Magic 8 Ball',$answers[random_int(0,count($answers)-1)]);return;}
-            $trivia=[
-                ['How many days in a leap year?',['365','366','364','367'],1],
-                ['Which planet is known as the Red Planet?',['Venus','Mars','Saturn','Mercury'],1],
-                ['How many sides does a hexagon have?',['5','6','7','8'],1],
-                ['What color do blue and yellow make?',['Purple','Orange','Green','Red'],2],
-                ['Which ocean is the largest?',['Atlantic','Indian','Arctic','Pacific'],3],
-                ['What is 12 times 12?',['124','144','142','154'],1],
-                ['Which gas do plants absorb?',['Oxygen','Helium','Carbon Dioxide','Nitrogen'],2],
-                ['How many minutes are in an hour?',['30','90','100','60'],3]
-            ];
-            if($op==='trivia'){
-                $n=isset($q['id']) ? filter_var($q['id'],FILTER_VALIDATE_INT) : random_int(0,count($trivia)-1);
-                if($n===false || $n<0 || $n>=count($trivia)){$this->xml('Trivia','Question unavailable.');return;}
-                if(isset($q['answer'])){
-                    $a=filter_var($q['answer'],FILTER_VALIDATE_INT);
-                    $this->xml('Trivia',$a===$trivia[$n][2]?'Correct!':'Not quite. Answer: '.$trivia[$n][1][$trivia[$n][2]]);
-                    return;
-                }
-                $entries=[];
-                foreach($trivia[$n][1] as $a=>$choice)$entries[]=[$choice,$route(['app'=>'games','op'=>'trivia','id'=>$n,'answer'=>$a])];
-                $this->menu('Trivia: '.$trivia[$n][0],$entries);return;
-            }
-            if($op==='ttt-start') {
-                $entries=[];
-                foreach($this->recipients($device) as $other=>$info)
-                    $entries[]=['Extension '.$info['line'],$route(['app'=>'games','op'=>'ttt-new','other'=>$other])];
-                if(!$entries){$this->xml('Tic-Tac-Toe','No other SCCP phones connected.');return;}
-                $this->menu('Challenge a phone',$entries);return;
-            }
-            if($op==='ttt-new') {
-                $other=(string)($q['other']??'');
-                if(!isset($this->recipients($device)[$other])){$this->xml('Tic-Tac-Toe','Other phone unavailable.');return;}
-                $pair=[$device,$other];sort($pair,SORT_STRING);
-                $id=implode('-',$pair);
-                $this->transact(function(&$s)use($id,$device,$other){
-                    $s['games'][$id]=['players'=>[$device,$other],'board'=>array_fill(0,9,'-'),
-                        'turn'=>$device,'winner'=>null,'created'=>time()];
-                });
-                $this->push($other,$this->url($other).'&app=games&op=ttt-board&other='.$device);
-                $this->menu('Tic-Tac-Toe',[['Open Game',$route(['app'=>'games','op'=>'ttt-board','other'=>$other])]]);return;
-            }
-            if($op==='ttt-board' || $op==='ttt-move') {
-                $other=(string)($q['other']??'');
-                if(!phonevoicemail::validDevice($other)){$this->xml('Tic-Tac-Toe','Invalid opponent.');return;}
-                $pair=[$device,$other];sort($pair,SORT_STRING);$id=implode('-',$pair);
-                $move=($op==='ttt-move')?filter_var($q['cell']??null,FILTER_VALIDATE_INT):null;
-                $game=$this->transact(function(&$s)use($id,$device,$move){
-                    $game=$s['games'][$id]??null;
-                    if(!is_array($game) || !in_array($device,$game['players']??[],true))return null;
-                    if($move!==null && $move!==false && $move>=0 && $move<9 &&
-                        $game['winner']===null && $game['turn']===$device && $game['board'][$move]==='-'){
-                        $mark=$device===$game['players'][0]?'X':'O';
-                        $game['board'][$move]=$mark;
-                        $wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-                        foreach($wins as $row)if($game['board'][$row[0]]===$mark &&
-                            $game['board'][$row[1]]===$mark && $game['board'][$row[2]]===$mark)$game['winner']=$device;
-                        if($game['winner']===null && !in_array('-', $game['board'],true))$game['winner']='draw';
-                        $game['turn']=$device===$game['players'][0]?$game['players'][1]:$game['players'][0];
-                        $s['games'][$id]=$game;
-                    }
-                    return $game;
-                });
-                if(!$game){$this->xml('Tic-Tac-Toe','No game with that phone.');return;}
-                $board=$game['board'];
-                $state=$game['winner']==='draw'?'Draw!':($game['winner']!==null
-                    ? ($game['winner']===$device?'You win!':'You lose!') :
-                    ($game['turn']===$device?'Your turn':'Their turn'));
-                $entries=[];
-                for($i=0;$i<9;$i++)$entries[]=[
-                    'Cell '.($i+1).' ['.$board[$i].']',
-                    $route(['app'=>'games','op'=>'ttt-move','other'=>$other,'cell'=>$i])];
-                $entries[]=['Refresh',$route(['app'=>'games','op'=>'ttt-board','other'=>$other])];
-                $this->menu('Tic-Tac-Toe: '.$state,$entries);return;
-            }
-            $rows=[['Trivia',$route(['app'=>'games','op'=>'trivia'])],
-                ['Tic-Tac-Toe',$route(['app'=>'games','op'=>'ttt-start'])],
-                ['Flip a Coin',$route(['app'=>'games','op'=>'coin'])],
-                ['Roll a Die',$route(['app'=>'games','op'=>'dice'])],
-                ['Magic 8 Ball',$route(['app'=>'games','op'=>'eight'])]];
-            $this->menu('Games',$rows);return;
-        }
-        if($app==='messages'){
-            if($op==='compose'){
-                $entries=[];
-                foreach($this->recipients($device) as $target=>$info)
-                    $entries[]=[$target===$device?'My Phone ('.$info['line'].')':'Ext '.$info['line'],$route(['app'=>'messages','op'=>'write','target'=>$target])];
-                if(!$entries){$this->xml('Messages','No other SCCP phones connected.');return;}
-                $this->menu('Send to', $entries);return;
-            }
-            if($op==='write'){
-                $target=(string)($q['target']??'');
-                if(!isset($this->recipients($device)[$target])){$this->xml('Messages','Recipient not connected.');return;}
-                $this->form('New Message',$route(['app'=>'messages','op'=>'send','target'=>$target]),
-                    'Message (max 160)', 'text','A');return;
-            }
-            if($op==='send'){
-                $target=(string)($q['target']??'');$message=trim((string)($q['text']??''));
-                $others=$this->recipients($device);
-                if(!isset($others[$target]) || $message==='' || strlen($message)>160 ||
-                    preg_match('/[\x00-\x1F\x7F]/',$message)){$this->xml('Messages','Invalid recipient or message.');return;}
-                $id=bin2hex(random_bytes(8));$now=time();
-                $recipientLine=$others[$target]['line'];
-                $this->transact(function(&$s)use($id,$now,$device,$line,$target,$message,$recipientLine){
-                    $s['messages'][]=['id'=>$id,'time'=>$now,'from'=>$device,'line'=>$line,'to'=>$target,'toLine'=>$recipientLine,'text'=>$message];
-                    $s['messages']=array_slice($s['messages'],-500);
-                });
-                $this->push($target,$this->url($target).'&app=messages&op=read&id='.$id);
-                $this->xml('Messages','Message sent to ext '.$others[$target]['line']);return;
-            }
-            if($op==='read'){
-                $id=(string)($q['id']??'');
-                $record=$this->transact(function(&$s)use($device,$id){
-                    foreach(($s['messages']??[]) as $m)if($m['id']===$id && ($m['to']===$device || $m['from']===$device))return $m;
-                    return null;
-                });
-                $this->xml('Message',$record?'From '.$record['line']."\n".$record['text']:'Message unavailable.');return;
-            }
-            if($op==='inbox' || $op==='sent') {
-                $messages=$this->transact(function(&$s)use($device,$op){
-                    $key=$op==='sent'?'from':'to';
-                    return array_reverse(array_values(array_filter($s['messages']??[],
-                        function($m)use($device,$key){return ($m[$key]??'')===$device;})));
-                });
-                if(!$messages){$this->xml('Messages','No messages here.');return;}
-                $rows=[];
-                foreach(array_slice($messages,0,20) as $m) {
-                    $label=$op==='sent'?'To ext '.($m['toLine']??'?'):'From ext '.$m['line'];
-                    $rows[]=[$label.': '.substr($m['text'],0,20),
-                        $route(['app'=>'messages','op'=>'read','id'=>$m['id']])];
-                }
-                $this->menu($op==='sent'?'Sent Messages':'Inbox',$rows);return;
-            }
-            $this->menu('Messages',[
-                ['Compose',$route(['app'=>'messages','op'=>'compose'])],
-                ['Inbox',$route(['app'=>'messages','op'=>'inbox'])],
-                ['Sent',$route(['app'=>'messages','op'=>'sent'])]
-            ]);return;
-        }
-        if($app==='alarms'){
-            if($op==='set'){
-                $this->form('New Alarm',$route(['app'=>'alarms','op'=>'save']),'Time HHMM (24h)','time','N');return;
-            }
-            if($op==='reminder'){
-                $this->form('New Reminder',$route(['app'=>'alarms','op'=>'reminder-time']),
-                    'Reminder text','note','A');return;
-            }
-            if($op==='reminder-time') {
-                $note=trim((string)($q['note']??''));
-                if($note==='' || strlen($note)>120 || preg_match('/[\x00-\x1F\x7F]/',$note)){
-                    $this->xml('Reminder','Text must be 1-120 characters.');return;
-                }
-                $this->form('Reminder Time',$route(['app'=>'alarms','op'=>'save','note'=>$note]),
-                    'Time HHMM (24h)','time','N');return;
-            }
-            if($op==='save'){
-                $time=(string)($q['time']??'');
-                $note=trim((string)($q['note']??'Wake-up alarm'));
-                if(!preg_match('/^([01][0-9]|2[0-3])([0-5][0-9])$/D',$time) ||
-                    $note==='' || strlen($note)>120 || preg_match('/[\x00-\x1F\x7F]/',$note)){
-                    $this->xml('Alarm','Invalid time or reminder. Use HHMM.');return;
-                }
-                $when=strtotime('today '.substr($time,0,2).':'.substr($time,2,2));
-                if($when<=time())$when=strtotime('tomorrow '.substr($time,0,2).':'.substr($time,2,2));
-                $id=bin2hex(random_bytes(6));
-                $ok=$this->transact(function(&$s)use($device,$line,$when,$note,$id){
-                    if(!isset($s['alarms'][$device]) || !is_array($s['alarms'][$device]))
-                        $s['alarms'][$device]=[];
-                    if(count($s['alarms'][$device])>=15)return false;
-                    $s['alarms'][$device][$id]=['line'=>$line,'when'=>$when,'note'=>$note,'id'=>$id];
-                    return true;
-                });
-                $this->xml('Alarm',$ok?'Scheduled for '.date('M j g:i A',$when):'Maximum of 15 alarms.');return;
-            }
-            if($op==='notice'){
-                $this->xml('Reminder',substr((string)($q['note']??'Alarm'),0,120));return;
-            }
-            if($op==='cancel') {
-                $id=(string)($q['id']??'');
-                $this->transact(function(&$s)use($device,$id){
-                    if(preg_match('/^[a-f0-9]{12}$/D',$id))unset($s['alarms'][$device][$id]);
-                });
-                $this->xml('Alarms','Alarm cancelled.');return;
-            }
-            $alarms=$this->transact(function(&$s)use($device){return $s['alarms'][$device]??[];});
-            $entries=[
-                ['Set Alarm',$route(['app'=>'alarms','op'=>'set'])],
-                ['Set Reminder',$route(['app'=>'alarms','op'=>'reminder'])]
-            ];
-            foreach(array_slice((array)$alarms,0,15) as $id=>$alarm) {
-                if(!is_array($alarm)||!isset($alarm['when']))continue;
-                $entries[]=['Cancel '.date('M j g:i A',$alarm['when']).' '.substr((string)($alarm['note']??''),0,14),
-                    $route(['app'=>'alarms','op'=>'cancel','id'=>$id])];
-            }
-            $this->menu('Alarms & Reminders',$entries);return;
-        }
-        $this->xml('Services','Unknown service.');
+        $registry->handle($app,$q,$device,$identity,$route,$this->notificationNavigation);
     }
+
+    /** Keep the scheduled entrypoint stable; the alarms app owns the task. */
     public function tick() {
-        $due=$this->transact(function(&$s){
-            $due=[];
-            foreach(($s['alarms']??[]) as $device=>$alarms) {
-                if(!phonevoicemail::validDevice($device)||!is_array($alarms))continue;
-                foreach($alarms as $id=>$alarm){
-                    if(($alarm['when']??PHP_INT_MAX)<=time()){
-                        if(($alarm['when']??0)>=time()-600)$due[]=array_merge($alarm,['device'=>$device]);
-                        unset($s['alarms'][$device][$id]);
-                    }
-                }
-            }
-            return $due;
-        });
-        foreach($due as $alarm) {
-            $device=$alarm['device'];
-            try {
-                // Alarms target the physical handset, not a shared public number.
-                $line=$this->module->phonevoicemail->lineForDevice($device);
-                if(!preg_match('/^[0-9]{1,16}$/D',$line))continue;
-                $message=(string)($alarm['note']??'Wake-up alarm');
-                $this->push($device,$this->url($device).'&app=alarms&op=notice&note='.rawurlencode($message));
-                $cmd='/usr/sbin/asterisk -rx '.escapeshellarg(
-                    'channel originate Local/'.$line.'@from-internal extension s@sccp-manager-services-alarm');
-                $out=[];$status=0;exec($cmd.' 2>&1',$out,$status);
-                if($status!==0)error_log('SCCP alarm originate failed for '.$line.': '.implode(' ',array_slice($out,-3)));
-            } catch(\Throwable $e) {
-                error_log('SCCP alarm notification: '.$e->getMessage());
-            }
-        }
+        $tick=require __DIR__.'/../serviceApps/alarms/Tick.php';
+        if(!is_callable($tick))throw new \RuntimeException('Alarms scheduler unavailable');
+        $tick($this->module);
     }
 }

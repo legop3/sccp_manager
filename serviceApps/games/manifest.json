@@ -1,0 +1,8 @@
+{
+  "id": "games",
+  "name": "Games",
+  "description": "Built-in Games service",
+  "enabledByDefault": false,
+  "builtin": true,
+  "order": 50
+}

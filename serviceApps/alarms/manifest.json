@@ -1,0 +1,8 @@
+{
+  "id": "alarms",
+  "name": "Alarms & Reminders",
+  "description": "Built-in Alarms & Reminders service",
+  "enabledByDefault": true,
+  "builtin": true,
+  "order": 30
+}

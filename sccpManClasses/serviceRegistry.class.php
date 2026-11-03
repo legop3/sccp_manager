@@ -26,7 +26,12 @@ final class serviceRegistry {
                 strlen($meta['name'])>48 || !is_file(dirname($path).'/Service.php')) continue;
             $found[$id]=$meta;
         }
-        ksort($found);
+        // Keep the existing built-in service order, then other installed apps.
+        uasort($found,static function($a,$b) {
+            $left=(int)($a['order']??100);
+            $right=(int)($b['order']??100);
+            return $left<=>$right ?: strcmp((string)$a['id'],(string)$b['id']);
+        });
         return $found;
     }
     public static function text($title,$body) {
@@ -43,7 +48,7 @@ final class serviceRegistry {
                 '</Name><URL>'.$e($item[1]).'</URL></MenuItem>';
         return $xml.'</CiscoIPPhoneMenu>';
     }
-    public function handle($id,array $query,$device,array $identity,callable $route) {
+    public function handle($id,array $query,$device,array $identity,callable $route,$navigation=null) {
         $meta=$this->manifests();
         if (!isset($meta[$id])) throw new \InvalidArgumentException('Unknown service');
         $file=$this->root.'/'.$id.'/Service.php';
@@ -66,6 +71,10 @@ final class serviceRegistry {
             'media'=>new serviceAppMedia($device),
             'input'=>new serviceAppInput()
         ];
+        if(!empty($meta[$id]['builtin'])) {
+            require_once __DIR__.'/serviceLegacySupport.php';
+            $ctx['legacy']=new serviceLegacySupport($this->module,$navigation);
+        }
         $xml=$handler($ctx,$query);
         if (!is_string($xml) || strlen($xml)>65536)
             throw new \RuntimeException('Invalid service response');

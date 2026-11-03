@@ -2,8 +2,7 @@
 $flags = $this->phonemenus->serviceFlags();
 $weather = $this->getConfig('phonecontent_weather');
 if (!is_array($weather)) $weather = array('name'=>'Columbus, OH','lat'=>39.9612,'lon'=>-82.9988);
-$names = array('weather' => 'Weather', 'messages' => 'Messages',
-    'alarms' => 'Alarms & Reminders', 'news' => 'News & RSS', 'games' => 'Games');
+$names = array();
 require_once __DIR__.'/../sccpManClasses/serviceRegistry.class.php';
 foreach ((new \FreePBX\modules\Sccp_manager\serviceRegistry($this))->manifests() as $id=>$meta)
     $names[$id]=(string)$meta['name'];

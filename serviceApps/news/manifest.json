@@ -1,0 +1,8 @@
+{
+  "id": "news",
+  "name": "News & RSS",
+  "description": "Built-in News & RSS service",
+  "enabledByDefault": false,
+  "builtin": true,
+  "order": 40
+}
