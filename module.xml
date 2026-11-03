@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.145</version>
+	<version>17.1.146</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.146 * - Modular animal broadcasts, shared notification APIs, per-user cooldowns, carrot roulette, and spoken clock calls
 		 * Version 17.1.145 * - Fix nested service app lint paths in release packaging
 		 * Version 17.1.144 * - Add manifest-driven isolated Services app registry, per-app atomic storage, and initial experimental app catalog
 		 * Version 17.1.143 * - Add instant Screen Off action as the first built-in phone service

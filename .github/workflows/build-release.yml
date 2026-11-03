@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.145') || github.ref_name }}
+      TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.146') || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
       - name: Validate module metadata and PHP before creating a release tag
@@ -33,7 +33,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          grep -q '<version>17.1.145</version>' module.xml
+          grep -q '<version>17.1.146</version>' module.xml
           for file in Sccp_manager.class.php page.sccp_content.php sccpManClasses/phonecontent.class.php sccpManClasses/phonemenus.class.php sccpManClasses/phoneservices.class.php sccpManClasses/serviceRegistry.class.php sccpManClasses/phonevoicemail.class.php sccpManClasses/notificationDelivery.class.php sccpManClasses/notificationWorker.class.php sccpManClasses/notificationCallEvents.class.php sccpManClasses/notificationQueue.class.php sccpManClasses/notificationMessage.php services/notification-queue-entry.php views/content.services.php services/service-entry.php scripts/phone-services-tick.php install.php uninstall.php serviceApps/*/Service.php; do
             if ! php -l "$file"; then
               gh api "repos/${{ github.repository }}/statuses/${{ github.sha }}" -f state=failure -f context="sccp/lint/$file" -f description="PHP lint failed" >/dev/null
@@ -65,6 +65,7 @@ jobs:
           php tests/notification-help-button.php
           php tests/notification-preview.php
           php tests/notification-theme-options.php
+          php tests/service-app-registry.php
 
       - name: Record source validation result
         if: always()
@@ -116,7 +117,7 @@ jobs:
           path: sccp_manager
           # Bundle the source the release tag actually points at, not
           # whatever the default branch happens to be at dispatch time.
-          ref: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.145') || github.ref_name }}
+          ref: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.146') || github.ref_name }}
 
       - name: Validate PHP module syntax
         run: |
@@ -167,7 +168,7 @@ jobs:
         id: upload
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.145') || github.ref_name }}
+          TAG: ${{ inputs.tag || (github.ref_type == 'branch' && 'v17.1.146') || github.ref_name }}
         run: |
           # --repo is required, not optional: gh normally infers it from the
           # git remote of the working directory, but the checkout lives in a

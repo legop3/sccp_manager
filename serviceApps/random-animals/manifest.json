@@ -1,0 +1,6 @@
+{
+  "id": "random-animals",
+  "name": "Random Animals",
+  "description": "Broadcast cats or dogs once per user per hour",
+  "enabledByDefault": false
+}
