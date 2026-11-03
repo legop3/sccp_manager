@@ -40,4 +40,9 @@ checkAppearance(strpos($renderer,'public static function text(')===false &&
     'No competing text/status notification renderers');
 checkAppearance(str_contains($graphic,"return \$xml.'</CiscoIPPhoneImageFile>';"),'Image renderer must return its completed XML');
 checkAppearance(!str_contains($graphic,'$positioxml'),'Old broken renderer variable must not recur');
+checkAppearance(str_contains($graphic,"\$fields['image']??null"),'Shared renderer supports optional image field');
+checkAppearance(str_contains($graphic,'imagecopyresampled('),'Shared renderer places image into compact layout');
+checkAppearance(str_contains($worker,"notificationSources::image(\$imageUrl)"),'Scheduled source fetches image once');
+checkAppearance(str_contains($view,"notifications[scheduled][<?php echo \$key;?>]"),'Scheduled content uses saved fields');
+checkAppearance(str_contains(file_get_contents(__DIR__.'/../sccpManClasses/notificationConfig.class.php'),"'image_url'=>'") ,'Scheduled image URL is configurable');
 echo "Shared notification appearance tests passed\n";
