@@ -6,7 +6,11 @@ final class notificationConfig {
     private $module;
     public function __construct($module) { $this->module=$module; }
     public function appearance() {
-        $defaults=['theme'=>'cisco','colors'=>[],'stripes'=>[],'stripe_position'=>'off'];
+        $defaults=['theme'=>'cisco','colors'=>[],'stripes'=>[],'stripe_position'=>'off',
+            'stripe_direction'=>'horizontal','stripe_repeat'=>1,'stripe_opacity'=>100,
+            'stripe_thickness'=>7,'stripe_reverse'=>false,
+            'background_image'=>'','background_fit'=>'cover','background_opacity'=>100,
+            'border_width'=>0,'separator_width'=>2];
         $saved=$this->module->getConfig('phonecontent_notification_appearance');
         if (is_array($saved)) return array_merge($defaults,array_intersect_key($saved,$defaults));
         return $defaults;
@@ -17,7 +21,7 @@ final class notificationConfig {
         if (!in_array($theme,['cisco','ocean','charcoal','plum','forest','custom'],true))
             throw new \InvalidArgumentException('Invalid notification theme');
         $settings['theme']=$theme;
-        foreach (['background','header','header_text','name_text','secondary_text','details_background','details_label','details_text','accent'] as $key) {
+        foreach (['background','header','header_text','name_text','secondary_text','details_background','details_label','details_text','accent','border'] as $key) {
             $value=(string)($post['colors'][$key]??$settings['colors'][$key]??'');
             if ($value!=='' && !preg_match('/^#[0-9a-fA-F]{6}$/D',$value))
                 throw new \InvalidArgumentException('Invalid notification color');
@@ -27,6 +31,33 @@ final class notificationConfig {
         if (!in_array($position,['off','header','top','bottom','background'],true))
             throw new \InvalidArgumentException('Invalid stripe placement');
         $settings['stripe_position']=$position;
+        $direction=(string)($post['stripe_direction']??$settings['stripe_direction']);
+        if (!in_array($direction,['horizontal','vertical','diagonal'],true))
+            throw new \InvalidArgumentException('Invalid stripe direction');
+        $settings['stripe_direction']=$direction;
+        foreach (['stripe_repeat'=>[1,6],'stripe_opacity'=>[0,100],
+                  'stripe_thickness'=>[2,32],'background_opacity'=>[0,100],
+                  'border_width'=>[0,6],'separator_width'=>[0,6]] as $field=>$limits) {
+            $value=$post[$field]??$settings[$field];
+            if (filter_var($value,FILTER_VALIDATE_INT)===false ||
+                (int)$value<$limits[0] || (int)$value>$limits[1])
+                throw new \InvalidArgumentException('Invalid notification appearance '.$field);
+            $settings[$field]=(int)$value;
+        }
+        $settings['stripe_reverse']=!empty($post['stripe_reverse']);
+        $fit=(string)($post['background_fit']??$settings['background_fit']);
+        if (!in_array($fit,['cover','contain','stretch'],true))
+            throw new \InvalidArgumentException('Invalid background fit');
+        $settings['background_fit']=$fit;
+        $image=(string)($post['background_image']??$settings['background_image']);
+        if ($image!=='' && !preg_match('/^[a-f0-9]{16}$/D',$image))
+            throw new \InvalidArgumentException('Invalid background image selection');
+        if ($image!=='') {
+            $ids=array_column($this->module->phonecontent->wallpapers(),'id');
+            if (!in_array($image,$ids,true))
+                throw new \InvalidArgumentException('Background image is not an uploaded wallpaper');
+        }
+        $settings['background_image']=$image;
         $settings['stripes']=[];
         foreach (array_slice((array)($post['stripes']??[]),0,10) as $color) {
             if ($color==='' || $color===null) continue;
