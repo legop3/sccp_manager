@@ -1455,6 +1455,18 @@ class Sccp_manager extends \FreePBX_Helpers implements \BMO {
                     }
                 }
 
+                // The Help key is driven by informationURL. Keep the old
+                // global/per-device setting untouched for Default.
+                $help=(new \FreePBX\modules\Sccp_manager\notificationConfig($this))->helpButton();
+                if ($help['action']==='notifications') {
+                    $token=$this->phonevoicemail->tokenForDevice($dev_id);
+                    $dev_config['dev_informationURL']=$base.'/notification-queue.php?'.
+                        http_build_query(['phone'=>$dev_id,'key'=>$token,'op'=>'list'],
+                            '','&',PHP_QUERY_RFC3986);
+                } elseif ($help['action']==='custom') {
+                    $dev_config['dev_informationURL']=$help['url'];
+                }
+
                 if ($this->getConfig('phonecontent_push_secret')) {
                     $authSuffix = '/notification-auth.php';
                     $managedAuth = static function ($value) use ($knownBases, $authSuffix) {
