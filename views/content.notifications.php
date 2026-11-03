@@ -33,8 +33,8 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
 .sccp-notify-editor .ne-screen{display:block;width:296px;height:156px;max-width:100%;image-rendering:pixelated;border:2px solid #666;border-radius:4px}.sccp-notify-editor .ne-preview-controls{margin-bottom:12px}.sccp-notify-editor .ne-preview-status{min-height:20px;margin-top:8px}
 .sccp-notify-editor .ne-stripes{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .sccp-notify-editor .ne-stripe-row{display:inline-flex;padding:4px;border:1px solid #999;border-radius:4px}
-.sccp-notify-editor .ne-number-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sccp-notify-editor .ne-color-field{display:flex;align-items:center;gap:12px}.sccp-notify-editor .ne-preset{margin:3px}.sccp-notify-editor .ne-help{font-size:12px;opacity:.75}
-@media(max-width:850px){.sccp-notify-editor .ne-grid{grid-template-columns:1fr}}
+.sccp-notify-editor .ne-preview-card{position:sticky;top:12px}.sccp-notify-editor .ne-number-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sccp-notify-editor .ne-color-field{display:flex;align-items:center;gap:12px}.sccp-notify-editor .ne-preset{margin:3px}.sccp-notify-editor .ne-help{font-size:12px;opacity:.75}
+@media(max-width:850px){.sccp-notify-editor .ne-grid{grid-template-columns:1fr}.sccp-notify-editor .ne-preview-card{position:static}}
 </style>
 <div class="container-fluid sccp-notify-editor">
  <div class="ne-top"><h2>Notification Designer</h2><p>One shared appearance for every notification type. Graphical alerts are rendered as 296 × 156 PNG images by the PBX; softkeys remain actual Cisco phone controls.</p></div>
@@ -93,6 +93,10 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
       </select></div>
       <div class="form-group"><label>Image opacity (%)</label>
        <input class="form-control" type="number" min="0" max="100" name="notifications[appearance][background_opacity]" value="<?php echo (int)($settings['background_opacity']??100);?>"></div>
+      <div class="form-group"><label>Content readability overlay (%)</label>
+       <input class="form-control" type="number" min="0" max="100" name="notifications[appearance][content_overlay]" value="<?php echo (int)($settings['content_overlay']??65);?>">
+       <p class="ne-help">Adds an adjustable background-color wash beneath the fixed text content; 0 leaves artwork unobstructed.</p>
+      </div>
      </div>
      <div class="ne-card"><h4>Gradients</h4>
       <div class="form-group"><label>Apply gradient to</label><select class="form-control" name="notifications[appearance][gradient_target]">
@@ -148,7 +152,7 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
        <?php endfor;?>
       </div>
      </div>
-    </div><div><div class="ne-card"><h4>Live appearance preview</h4>
+    </div><div><div class="ne-card ne-preview-card"><h4>Live appearance preview</h4>
 <div class="form-group ne-preview-controls"><label for="ne-preview-sample">Example notification</label>
 <select id="ne-preview-sample" class="form-control">
 <option value="voicemail">Voicemail</option>
