@@ -66,7 +66,17 @@ final class notificationSources {
         if (!$parts || ($parts['scheme']??'')!=='https' || ($parts['host']??'')!==$host ||
             !empty($parts['user']) || !empty($parts['pass']) || isset($parts['port'])) return null;
         return ['title'=>substr($title,0,120),
-            'message'=>substr($caption,0,500)];
+            'message'=>substr($caption,0,500),'image_url'=>$url];
+    }
+    /** Fetch and validate images on the PBX. Never send external image URLs to phones. */
+    public static function image($url) {
+        $body=self::fetch($url,1048576,['image/png','image/jpeg','image/gif']);
+        if ($body===null) return null;
+        $info=@getimagesizefromstring($body);
+        if (!$info || $info[0]<1 || $info[1]<1 || $info[0]>4096 || $info[1]>4096 ||
+            !in_array($info[2],[IMAGETYPE_PNG,IMAGETYPE_JPEG,IMAGETYPE_GIF],true))
+            return null;
+        return $body;
     }
     public static function text($url,$default) {
         $content=self::fetch($url,16384,['text/plain','text/html','application/json']);
