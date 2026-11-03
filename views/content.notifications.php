@@ -104,7 +104,7 @@ $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match
     <?php if ($kind==='scheduled'): ?>
      <div class="ne-card"><h4>Content & schedule</h4>
       <div class="form-group"><label>Source</label><select class="form-control" name="notifications[scheduled][source]">
-       <?php foreach (['custom'=>'Custom URLs or text','dog'=>'Random dog photo and breed','xkcd'=>'Latest xkcd comic and caption'] as $value=>$label):?>
+       <?php foreach (['custom'=>'Custom URLs or text','dog'=>'Random dog breed (text)','xkcd'=>'Latest xkcd title and caption (text)'] as $value=>$label):?>
        <option value="<?php echo $value;?>" <?php echo ($settings['source']??'custom')===$value?'selected':'';?>><?php echo $esc($label);?></option><?php endforeach;?></select></div>
       <div class="row"><div class="col-sm-6 form-group"><label>Interval in minutes</label><input class="form-control" type="number" min="1" max="10080" name="notifications[scheduled][interval]" value="<?php echo (int)$settings['interval'];?>"></div>
       <div class="col-sm-6 form-group"><label>Or daily time</label><input class="form-control" type="time" name="notifications[scheduled][time]" value="<?php echo $esc($settings['time']);?>"></div></div>
