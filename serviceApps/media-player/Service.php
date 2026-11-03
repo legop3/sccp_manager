@@ -5,10 +5,8 @@
  */
 return static function(array $ctx,array $q) {
     if(($q['op']??'')==='benchmark'){
-        $wait=$ctx['cooldown'](60);
-        if($wait>0)return $ctx['text']('Media Player','Test available again in '.$wait.' seconds.');
         try {
-            $ctx['mediaTest']();
+            $ctx['media']->benchmark();
             return $ctx['text']('Media Player',
                 'Starting audio call and 32-image speed test. Check the screen and PBX logs for actual frame rate.');
         }catch(\Throwable $e){

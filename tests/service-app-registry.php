@@ -20,3 +20,22 @@ foreach(['catdog','carrot-try','talking-clock'] as $id){
         throw new RuntimeException('Invalid '.$id.' home menu');
 }
 echo "Service registry and app menus OK\n";
+
+foreach(['serviceAppStorage','serviceAppNotifications','serviceAppAudio',
+         'serviceAppMedia','serviceAppInput','serviceAppScreens'] as $name) {
+    require_once __DIR__.'/../sccpManClasses/'.$name.'.php';
+    $class='FreePBX\\modules\\Sccp_manager\\'.$name;
+    if(!class_exists($class))throw new RuntimeException('Missing capability '.$name);
+}
+foreach(['animal','clockCall','mediaTest','broadcast','cooldown','transaction'] as $method) {
+    if(method_exists(serviceRegistry::class,$method))
+        throw new RuntimeException('Registry still owns application-specific logic '.$method);
+}
+$media=file_get_contents(__DIR__.'/../serviceApps/media-player/Service.php');
+if(strpos($media,'cooldown')!==false)
+    throw new RuntimeException('Media benchmark must not have a cooldown');
+$inputs=new \FreePBX\modules\Sccp_manager\serviceAppInput();
+$xml=new DOMDocument();
+if(!@$xml->loadXML($inputs->prompt('Example','Enter value','http://localhost/','Value','value'),LIBXML_NONET))
+    throw new RuntimeException('Invalid Cisco input document');
+echo "Service capabilities and cooldown regression checks passed\n";
