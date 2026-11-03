@@ -170,11 +170,11 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
    const payload={module:'sccp_manager',command:'notification_preview',sample:sample.value};
    const fd=new FormData(appearancePanel.closest('form'));
    for(const [name,value] of fd.entries()){
-     const m=/^notifications\\[appearance\\]\\[(theme|stripe_position)\\]$/.exec(name);
+     const m=/^notifications\[appearance\]\[(theme|stripe_position)\]$/.exec(name);
      if(m)payload['appearance['+m[1]+']']=value;
-     const c=/^notifications\\[appearance\\]\\[colors\\]\\[([^\\]]+)\\]$/.exec(name);
+     const c=/^notifications\[appearance\]\[colors\]\[([^\]]+)\]$/.exec(name);
      if(c)payload['appearance[colors]['+c[1]+']']=value;
-     const stripe=/^notifications\\[appearance\\]\\[stripes\\]\\[(\\d+)\\]$/.exec(name);
+     const stripe=/^notifications\[appearance\]\[stripes\]\[(\d+)\]$/.exec(name);
      if(stripe)payload['appearance[stripes]['+stripe[1]+']']=value;
    }
    previewRequest=jQuery.ajax({
