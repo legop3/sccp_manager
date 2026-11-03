@@ -26,8 +26,14 @@ verify(!phonevoicemail::blocksVoicemailPlayback(array('ChannelStateDesc'=>'Down'
     'Context'=>'sccp-manager-voicemail-play')), 'Finished voicemail channel must not block replay');
 verify(phonevoicemail::blocksVoicemailPlayback(array('ChannelStateDesc'=>'Up',
     'Context'=>'sccp-manager-voicemail-play')), 'Active playback must block replay');
-verify(phonevoicemail::blocksVoicemailPlayback(array('ChannelStateDesc'=>'Down',
-    'Context'=>'from-internal')), 'Other channel contexts remain protected');
+verify(!phonevoicemail::blocksVoicemailPlayback(array('ChannelStateDesc'=>'Down',
+    'Context'=>'from-internal')), 'Stale Down channel must never block an idle phone');
+verify(!phonevoicemail::blocksVoicemailPlayback(array('ChannelState'=>'0',
+    'Context'=>'from-internal')), 'Numeric Asterisk Down state must not block');
+verify(phonevoicemail::blocksVoicemailPlayback(array('ChannelStateDesc'=>'Ringing',
+    'Context'=>'from-internal')), 'An actual incoming call must block playback');
+verify(phonevoicemail::blocksVoicemailPlayback(array('ChannelStateDesc'=>'Up',
+    'Context'=>'from-internal')), 'An actual connected call must block playback');
 $shared = phonevoicemail::originateFields('9111', $m, '111');
 verify($shared['Channel'] === 'SCCP/9111/aa=1w/ringer=silent',
     'Playback calls the actual SCCP phone line, not the mailbox');
