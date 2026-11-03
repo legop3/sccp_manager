@@ -83,7 +83,7 @@ $colorLabels=['background'=>'Main background','header'=>'Header background','hea
 $xml=\FreePBX\modules\Sccp_manager\phoneNotifications::graphic($this,$sampleCard,$appearance);
 $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match)) $preview=html_entity_decode($match[1],ENT_QUOTES,'UTF-8'); ?>
 <?php if ($preview):?><img class="ne-screen" src="<?php echo $esc($preview);?>" alt="Shared appearance preview"><?php endif;?>
-<p class="ne-help">All notification types use this design. Their tabs control content and delivery only.</p>
+<p class="ne-help">Image notifications use the same colors with a smaller text layout alongside the picture.</p>
 </div></div></div></section>
  <?php foreach ($notifications as $kind=>$settings): ?>
  <section class="ne-panel " data-ne-panel="<?php echo $kind;?>">
@@ -104,13 +104,13 @@ $preview='';if (is_string($xml) && preg_match('~<URL>([^<]+)</URL>~',$xml,$match
     <?php if ($kind==='scheduled'): ?>
      <div class="ne-card"><h4>Content & schedule</h4>
       <div class="form-group"><label>Source</label><select class="form-control" name="notifications[scheduled][source]">
-       <?php foreach (['custom'=>'Custom URLs or text','dog'=>'Random dog breed (text)','xkcd'=>'Latest xkcd title and caption (text)'] as $value=>$label):?>
+       <?php foreach (['custom'=>'Custom URLs or text','dog'=>'Random dog photo and breed','xkcd'=>'Latest xkcd comic and caption'] as $value=>$label):?>
        <option value="<?php echo $value;?>" <?php echo ($settings['source']??'custom')===$value?'selected':'';?>><?php echo $esc($label);?></option><?php endforeach;?></select></div>
       <div class="row"><div class="col-sm-6 form-group"><label>Interval in minutes</label><input class="form-control" type="number" min="1" max="10080" name="notifications[scheduled][interval]" value="<?php echo (int)$settings['interval'];?>"></div>
       <div class="col-sm-6 form-group"><label>Or daily time</label><input class="form-control" type="time" name="notifications[scheduled][time]" value="<?php echo $esc($settings['time']);?>"></div></div>
       <div class="form-group"><label>Title</label><input class="form-control" name="notifications[scheduled][title]" value="<?php echo $esc($settings['title']);?>"></div>
       <div class="form-group"><label>Message</label><textarea class="form-control" name="notifications[scheduled][message]" rows="3"><?php echo $esc($settings['message']);?></textarea></div>
-      <?php foreach (['title_url'=>'Title URL','message_url'=>'Message URL'] as $key=>$label):?>
+      <?php foreach (['title_url'=>'Title URL','message_url'=>'Message URL','image_url'=>'Image URL (optional)'] as $key=>$label):?>
        <div class="form-group"><label><?php echo $label;?></label><input class="form-control" type="url" name="notifications[scheduled][<?php echo $key;?>]" value="<?php echo $esc($settings[$key]);?>"></div>
       <?php endforeach;?>
      </div>
