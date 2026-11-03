@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.137</version>
+	<version>17.1.138</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.138 * - Global Help button action for notifications or custom URL, authenticated latest queue view
 		 * Version 17.1.137 * - Add opt-in notification softkey clear on activation and voicemail Listen behavior
 		 * Version 17.1.136 * - Optional notification image field and compact image-plus-text layout, with scheduled feed images
 		 * Version 17.1.135 * - Fix notification renderer XML return and UI failure
