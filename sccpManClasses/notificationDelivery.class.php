@@ -119,7 +119,7 @@ final class notificationDelivery {
                             // Resolve the event's original ID; never substitute
                             // an unrelated newer message.
                             $item=phonevoicemail::resolveMessage($vm->listMessages((string)$fields['extension']),$id);
-                            $actions['Listen']=$base.'&single=1&op=play&id='.rawurlencode($item['id']);
+                            $actions['Listen']=['url'=>$base.'&single=1&op=play&id='.rawurlencode($item['id']), 'clear'=>true];
                             $callback=phonevoicemail::callbackNumber($item);
                             if ($callback!=='')
                                 $actions['Call Back']='Dial:'.$callback;
