@@ -28,9 +28,19 @@ final class notificationMessage {
         if (count($actions)>3)
             throw new \InvalidArgumentException('Notifications support up to three custom actions');
         foreach ($actions as $name=>$destination) {
-            if (!is_string($name) || trim($name)==='' || strlen($name)>12 ||
-                !is_string($destination) || $destination==='')
-                throw new \InvalidArgumentException('Invalid notification action');
+            if (!is_string($name) || trim($name)==='' || strlen($name)>12)
+                throw new \InvalidArgumentException('Invalid notification action label');
+            // String actions retain their normal behavior. An action may opt
+            // into dismissing only its own notification before navigation.
+            if (is_array($destination)) {
+                if (array_diff(array_keys($destination),['url','clear']) ||
+                    !isset($destination['url']) ||
+                    (isset($destination['clear']) && !is_bool($destination['clear'])))
+                    throw new \InvalidArgumentException('Invalid notification action options');
+                $destination=$destination['url'];
+            }
+            if (!is_string($destination) || trim($destination)==='')
+                throw new \InvalidArgumentException('Invalid notification action URL');
         }
         if ($sound!==null && $sound!=='' &&
             !preg_match('/^[A-Za-z0-9_.-]+\\.raw$/D',(string)$sound))
