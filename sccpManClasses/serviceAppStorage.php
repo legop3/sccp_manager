@@ -33,6 +33,14 @@ final class serviceAppStorage {
             fclose($fp);
         }
     }
+    /** Release a previously claimed cooldown after a failed operation. */
+    public function releaseCooldown($user) {
+        $key=hash('sha256',(string)$user);
+        $this->transaction(static function(array &$state)use($key){
+            if(isset($state['cooldowns']) && is_array($state['cooldowns']))
+                unset($state['cooldowns'][$key]);
+        });
+    }
     /** Return seconds remaining, or 0 when this action was admitted. */
     public function cooldown($user,$seconds) {
         $seconds=max(1,min(86400,(int)$seconds));

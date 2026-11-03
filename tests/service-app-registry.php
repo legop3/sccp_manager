@@ -39,3 +39,50 @@ $xml=new DOMDocument();
 if(!@$xml->loadXML($inputs->prompt('Example','Enter value','http://localhost/','Value','value'),LIBXML_NONET))
     throw new RuntimeException('Invalid Cisco input document');
 echo "Service capabilities and cooldown regression checks passed\n";
+
+/* Exercise the actual registry dispatch path, not only direct app callbacks. */
+require_once __DIR__.'/../sccpManClasses/phonevoicemail.class.php';
+$fakeModule=new stdClass();
+$registry=new serviceRegistry($fakeModule);
+foreach(['catdog','carrot-try','talking-clock','media-player'] as $id) {
+    ob_start();
+    try {
+        $registry->handle($id,[], 'SEP000000000001',
+            ['line'=>'150','extension'=>'150'],
+            static function(array $q){return 'http://localhost/service.php?'.http_build_query($q);});
+        $result=ob_get_clean();
+    }catch(Throwable $e){ob_end_clean();throw $e;}
+    $document=new DOMDocument();
+    if(!@$document->loadXML($result,LIBXML_NONET))
+        throw new RuntimeException('Registry cannot dispatch '.$id);
+}
+$storage=new \FreePBX\modules\Sccp_manager\serviceAppStorage('count');
+$temp=tempnam(sys_get_temp_dir(),'sccp-app-test-');
+if($temp===false)throw new RuntimeException('Cannot initialize test storage');
+try {
+    $property=new ReflectionProperty($storage,'path');
+    $property->setAccessible(true);
+    $property->setValue($storage,$temp);
+    $first=$storage->transaction(static function(array &$state){
+        $state['count']=(int)($state['count']??0)+1;
+        return $state['count'];
+    });
+    $second=$storage->transaction(static function(array &$state){
+        $state['count']=(int)($state['count']??0)+1;
+        return $state['count'];
+    });
+    if($first!==1 || $second!==2)
+        throw new RuntimeException('Shared service state did not persist');
+    if($storage->cooldown('user111',3600)!==0 ||
+        $storage->cooldown('user111',3600)<=0)
+        throw new RuntimeException('Cooldown did not apply');
+    $storage->releaseCooldown('user111');
+    if($storage->cooldown('user111',3600)!==0)
+        throw new RuntimeException('Failed cooldown cannot be retried');
+} finally { @unlink($temp); }
+foreach(['carrot-try','talking-clock','media-player'] as $id) {
+    $body=file_get_contents(__DIR__.'/../serviceApps/'.$id.'/Service.php');
+    if(strpos($body,'cooldown(')!==false)
+        throw new RuntimeException('Unexpected cooldown in '.$id);
+}
+echo "Registry runtime dispatch and storage checks passed\n";

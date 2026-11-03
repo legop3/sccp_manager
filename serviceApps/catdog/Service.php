@@ -11,8 +11,13 @@ return static function(array $ctx,array $q) {
         $source=require __DIR__.'/AnimalSource.php';
         $image=$source($op);
         [$sent,$total]=$ctx['notifications']->broadcast('Random '.ucfirst($op),'A random '.$op.' has arrived!',$image);
+        if ($sent===0) {
+            $ctx['storage']->releaseCooldown($ctx['user']);
+            return $ctx['text']('catdog','No phone accepted the picture. Try again.');
+        }
         return $ctx['text']('catdog','Sent to '.$sent.' of '.$total.' phones.');
     }catch(\Throwable $e){
+        $ctx['storage']->releaseCooldown($ctx['user']);
         error_log('SCCP random animal: '.$e->getMessage());
         return $ctx['text']('catdog','Animal image unavailable; please try later.');
     }
