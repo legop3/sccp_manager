@@ -50,7 +50,12 @@ jobs:
 
       - name: Install graphics dependencies for notification render test
         run: |
-          if ! php -m | grep -qi '^gd
+          if ! php -m | grep -qi gd; then
+            sudo apt-get update -qq
+            sudo apt-get install -y php-gd fonts-dejavu-core
+          fi
+      - name: Validate unified notification appearance across all senders
+        run: |
           php tests/notification-addresses.php
           php tests/notification-contract.php
           php tests/notification-service-menus.php
