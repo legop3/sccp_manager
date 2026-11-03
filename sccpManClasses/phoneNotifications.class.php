@@ -107,6 +107,17 @@ final class phoneNotifications
                 }
             }
         }
+        if ($wallpaper!=='' && is_file($dir.'/wallpaper-'.$wallpaper.'.png')) {
+            // The wallpaper remains visible, but the original fixed content
+            // area gets a tunable solid-color wash for text legibility.
+            $wash=max(0,min(100,(int)($settings['content_overlay']??65)));
+            if ($wash) {
+                $overlay=imagecreatetruecolor(288,115);
+                imagefilledrectangle($overlay,0,0,287,114,$bg);
+                imagecopymerge($im,$overlay,4,31,0,0,288,115,$wash);
+                imagedestroy($overlay);
+            }
+        }
         $stripes=array_values(array_filter((array)($settings['stripes']??[]),static function($v) {
             return is_string($v)&&preg_match('/^#[0-9a-f]{6}$/i',$v);
         }));
