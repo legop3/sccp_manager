@@ -320,31 +320,6 @@ class phonevoicemail
         return $first;
     }
 
-    /** A Down channel is not a live call, whatever its old dialplan context. */
-    public static function blocksVoicemailPlayback(array $event)
-    {
-        $state=strtolower(trim((string)($event['ChannelStateDesc']??'')));
-        if ($state==='down' || (string)($event['ChannelState']??'')==='0') return false;
-        // Keep conservative handling for non-Down states, including ringing
-        // and any unfamiliar values, to avoid interrupting live calls.
-        return true;
-    }
-
-    private function assertNotOnCall($line)
-    {
-        $r = $this->ami(array('Action'=>'CoreShowChannels'), true);
-        foreach ($r['__events'] as $event) {
-            if (($event['Event'] ?? '') !== 'CoreShowChannel') continue;
-            if (preg_match('/^SCCP\/' . preg_quote($line, '/') . '(?:-|$|\/)/i', $event['Channel'] ?? '') && self::blocksVoicemailPlayback($event)) {
-                error_log('sccp_manager voicemail playback blocked by channel '.
-                    (string)($event['Channel']??'unknown').' state='.
-                    (string)($event['ChannelStateDesc']??'unknown').' context='.
-                    (string)($event['Context']??'unknown'));
-                throw new \RuntimeException('Phone is already on a call. Finish the call before playing voicemail.');
-            }
-        }
-    }
-
     public static function originateFields($line, array $message, $mailbox)
     {
         if (!preg_match('/^[0-9]{1,16}$/D', $line) ||
