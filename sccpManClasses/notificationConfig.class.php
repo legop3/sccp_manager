@@ -118,9 +118,5 @@ PHP;
             throw new \RuntimeException('Cannot publish Cisco push authentication endpoint.');
         chmod($path,0644);
 
-        // Remove the retired display endpoint; notifications are served by
-        // notification-queue.php and rendered from their stored image XML.
-        $oldDisplay=dirname($path).'/notification-display.php';
-        if (is_file($oldDisplay) && !is_link($oldDisplay)) @unlink($oldDisplay);
     }
 }
