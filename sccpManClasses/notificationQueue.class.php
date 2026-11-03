@@ -74,8 +74,11 @@ final class notificationQueue {
         $actions=[];
         foreach ($providedActions as $label=>$target) {
             if (count($actions)===3) break;
-            if (is_string($label) && trim($label)!=='' && is_string($target) && trim($target)!=='')
-                $actions[]=['name'=>substr(trim($label),0,12),'url'=>$target];
+            $clear=is_array($target) && ($target['clear']??false)===true;
+            $url=is_array($target)?($target['url']??''):$target;
+            if (is_string($label) && trim($label)!=='' && is_string($url) && trim($url)!=='')
+                $actions[]=['name'=>substr(trim($label),0,12),
+                    'url'=>$url,'clear'=>$clear];
         }
         $this->transaction(static function(&$state)use($device,$id,$contentXml,$actions) {
             $items=self::prune($state[$device]??[]);
@@ -145,7 +148,28 @@ final class notificationQueue {
             !preg_match('/^[a-f0-9]{24}$/D',$id)) {
             http_response_code(403); return;
         }
-        $state=$this->current($device,($q['op']??'')==='dismiss'?$id:null);
+        $op=(string)($q['op']??'show');
+        if ($op==='activate') {
+            // Follow only a stored action, never an URL supplied in the
+            // request. Dismiss the selected notification before launching.
+            $state=$this->current($device);
+            $entry=$state['entry'];
+            $index=(string)($q['action']??'');
+            if (!$entry || $entry['id']!==$id || !preg_match('/^[0-2]$/D',$index) ||
+                !isset($entry['actions'][(int)$index]) ||
+                empty($entry['actions'][(int)$index]['clear'])) {
+                http_response_code(404); return;
+            }
+            $target=(string)$entry['actions'][(int)$index]['url'];
+            if (!self::validActionTarget($target)) {
+                http_response_code(400); return;
+            }
+            $this->current($device,$id);
+            $safe=htmlspecialchars($target,ENT_XML1|ENT_QUOTES,'UTF-8');
+            echo '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneExecute><ExecuteItem URL="'.$safe.'"/></CiscoIPPhoneExecute>';
+            return;
+        }
+        $state=$this->current($device,$op==='dismiss'?$id:null);
         if (($q['op']??'')==='return') {
             foreach ($state['items'] as $item) if ($item['id']===$id) {
                 $state['entry']=$item;
@@ -172,13 +196,25 @@ final class notificationQueue {
         $actions=array_merge([['name'=>'Clear','url'=>$dismiss]],array_slice($entry['actions'],0,3));
         foreach ($actions as $position=>$action) {
             $item=$root->appendChild($doc->createElement('SoftKeyItem'));
+            $target=$action['url'];
+            if (!empty($action['clear'])) {
+                $target=$this->url($device,$entry['id'],'activate').'&action='.($position-1);
+            } else {
+                $target=self::contextLink($target,$entry['id']);
+            }
             foreach (['Name'=>$action['name'],
-                      'URL'=>self::contextLink($action['url'],$entry['id']),
+                      'URL'=>$target,
                       'Position'=>(string)($position+1)] as $tag=>$value)
                 $item->appendChild($doc->createElement($tag))
                      ->appendChild($doc->createTextNode((string)$value));
         }
         echo $doc->saveXML();
+    }
+    /** Only normal phone actions are eligible for clear-on-activate dispatch. */
+    public static function validActionTarget($url) {
+        if (preg_match('/^Dial:[+0-9*#]{1,32}$/D',(string)$url)) return true;
+        if (!filter_var($url,FILTER_VALIDATE_URL)) return false;
+        return in_array(strtolower((string)parse_url($url,PHP_URL_SCHEME)),['http','https'],true);
     }
     /** Shared lifecycle contract: internal app links carry only notification identity.
      * Content renderers stay responsible for their own pages and menus. */
