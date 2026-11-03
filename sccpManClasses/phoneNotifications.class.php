@@ -106,18 +106,15 @@ final class phoneNotifications
                         return;
                     }
                 }
-                // Shorten caller names when necessary, but never silently
-                // truncate the absolute timestamp.
-                if ($minSize>10) {
-                    while (strlen($text)>1) {
-                        $text=substr($text,0,-1);
-                        $box=imagettfbbox($minSize,0,$font,$text.'...');
-                        if ($box!==false && ($box[2]-$box[0])<=$maxWidth) break;
-                    }
-                    imagettftext($im,$minSize,0,$x,$baseline,$ink,$font,$text.'...');
-                    return;
+                // In the image layout every field has a narrower column.
+                // Never let long captions paint over the adjacent image.
+                while ($text!=='') {
+                    $box=imagettfbbox($minSize,0,$font,$text.'...');
+                    if ($box!==false && ($box[2]-$box[0])<=$maxWidth) break;
+                    $text=function_exists('mb_substr')
+                        ? mb_substr($text,0,-1,'UTF-8') : substr($text,0,-1);
                 }
-                imagettftext($im,$minSize,0,$x,$baseline,$ink,$font,$text);
+                if ($text!=='') imagettftext($im,$minSize,0,$x,$baseline,$ink,$font,$text.'...');
                 return;
             }
 
