@@ -38,4 +38,6 @@ checkAppearance(strpos($renderer,'public static function text(')===false &&
     strpos($renderer,'public static function status(')===false &&
     strpos($renderer,'public static function interactive(')===false,
     'No competing text/status notification renderers');
+checkAppearance(str_contains($graphic,"return \$xml.'</CiscoIPPhoneImageFile>';"),'Image renderer must return its completed XML');
+checkAppearance(!str_contains($graphic,'$positioxml'),'Old broken renderer variable must not recur');
 echo "Shared notification appearance tests passed\n";
