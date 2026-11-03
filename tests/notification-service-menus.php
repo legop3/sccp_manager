@@ -1,18 +1,17 @@
 <?php
-require_once __DIR__.'/../sccpManClasses/phoneservices.class.php';
-use FreePBX\modules\Sccp_manager\phoneservices;
+require_once __DIR__.'/../sccpManClasses/serviceLegacySupport.php';
+use FreePBX\modules\Sccp_manager\serviceLegacySupport;
 function check($ok,$msg){if(!$ok)throw new RuntimeException($msg);}
 require_once __DIR__.'/../sccpManClasses/notificationNavigation.php';
 $nav=(new ReflectionClass(\FreePBX\modules\Sccp_manager\notificationNavigation::class))->newInstanceWithoutConstructor();
 (new ReflectionProperty($nav,'returnUrl'))->setValue($nav,'http://127.0.0.1/notification-queue.php?id=1&op=return');
 (new ReflectionProperty($nav,'clearUrl'))->setValue($nav,'http://127.0.0.1/notification-queue.php?id=1&op=dismiss');
-$s=new phoneservices();
-(new ReflectionProperty(phoneservices::class,'notificationNavigation'))->setValue($s,$nav);
+$s=new serviceLegacySupport(new stdClass(),$nav);
 
 foreach (['xml'=>['Message','A text message'],
           'menu'=>['Messages',[['Inbox','http://127.0.0.1/service.php?x=1']]],
           'form'=>['Input','http://127.0.0.1/service.php?x=1','Text','text']] as $kind=>$args) {
-    $method=new ReflectionMethod(phoneservices::class,$kind);
+    $method=new ReflectionMethod(serviceLegacySupport::class,$kind);
     ob_start();$method->invokeArgs($s,$args);$raw=ob_get_clean();
     $dom=new DOMDocument();
     check(@$dom->loadXML($raw,LIBXML_NONET),'Valid child '.$kind.' XML');

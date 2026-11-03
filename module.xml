@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.153</version>
+	<version>17.1.154</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.154 * - Update service notification regression tests for the unified handler location
 		 * Version 17.1.153 * - Move Weather, Messages, Alarms, News and Games into the shared service registry without changing existing state or controls
 		 * Version 17.1.152 * - Service runtime audit: refund failed catdog cooldowns, resize animal images, remove extra cooldowns and expand dispatch tests
 		 * Version 17.1.151 * - Fix app-local source lint path in release packaging
