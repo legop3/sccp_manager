@@ -91,7 +91,7 @@ final class notificationQueue {
      *
      * @param string $device SEP identifier
      * @param string $ip SCCP session peer IPv4 address
-     * @param array $notification ['url'=>string,'actions'=>[label=>url],'sound'=>?string]
+     * @param array $notification ['xml'=>string,'actions'=>[label=>url],'sound'=>?string]
      */
     public function send($device,$ip,notificationMessage $message) {
         $notification=$message->payload();
