@@ -36,6 +36,12 @@ final class notificationConfig {
         }
         $this->module->setConfig('phonecontent_notification_appearance',$settings);
     }
+    /** Global hardware Help button mapping; independent of notification kinds. */
+    public function helpButton() {
+        $saved=$this->module->getConfig('phonecontent_notification_help_button');
+        $default=['action'=>'default','url'=>''];
+        return is_array($saved)?array_merge($default,array_intersect_key($saved,$default)):$default;
+    }
     public function all() {
         $defaults=[
             'voicemail'=>['enabled'=>false,'sound'=>''],
@@ -50,6 +56,18 @@ final class notificationConfig {
     }
     public function save($submitted) {
         if (!is_array($submitted)) throw new \InvalidArgumentException('Invalid notification configuration');
+        if (isset($submitted['help_button'])) {
+            $help=(array)$submitted['help_button'];
+            $action=(string)($help['action']??'default');
+            $url=trim((string)($help['url']??''));
+            if (!in_array($action,['default','notifications','custom'],true))
+                throw new \InvalidArgumentException('Unknown Help button action');
+            if ($action==='custom' && (strlen($url)>500 || !filter_var($url,FILTER_VALIDATE_URL) ||
+                !in_array(strtolower((string)parse_url($url,PHP_URL_SCHEME)),['http','https'],true)))
+                throw new \InvalidArgumentException('Enter an HTTP/HTTPS Help button URL');
+            $this->module->setConfig('phonecontent_notification_help_button',
+                ['action'=>$action,'url'=>$action==='custom'?$url:'']);
+        }
         $values=$this->all();
         if (isset($submitted['appearance']) && is_array($submitted['appearance']))
             $this->saveAppearance($submitted['appearance']);
