@@ -31,7 +31,7 @@ try {
   'stripe_position'=>'left','stripe_direction'=>'vertical',
   'stripe_repeat'=>2,'stripe_opacity'=>100,'stripe_thickness'=>12,
   'stripe_reverse'=>'1','background_image'=>'aabbccddeeff0011',
-  'background_fit'=>'cover','background_opacity'=>100,
+  'background_fit'=>'cover','background_opacity'=>100,'content_overlay'=>0,
   'gradient_target'=>'header','gradient_direction'=>'horizontal',
   'gradient_end'=>'#FFFFFF','border_width'=>2,
   'separator_width'=>3,'panel_radius'=>8
@@ -73,14 +73,14 @@ try {
  $settings['background_image']='';
  $vertical=phoneNotifications::graphic($module,$fields,$settings,null,true);
  $v=imagecreatefromstring($vertical);
- $first=imagecolorsforindex($v,imagecolorat($v,290,40));
- $second=imagecolorsforindex($v,imagecolorat($v,290,120));
+ $first=imagecolorsforindex($v,imagecolorat($v,294,40));
+ $second=imagecolorsforindex($v,imagecolorat($v,294,120));
  themedAssert($first!==$second,'Repeated right-edge horizontal stripes work');
  imagedestroy($v);
  $ui=file_get_contents(__DIR__.'/../views/content.notifications.php');
  foreach(['background_image','background_fit','background_opacity',
   'stripe_direction','stripe_repeat','stripe_opacity','stripe_thickness',
-  'stripe_reverse','gradient_target','gradient_direction','gradient_end',
+  'stripe_reverse','content_overlay','gradient_target','gradient_direction','gradient_end',
   'border_width','separator_width','panel_radius'] as $key)
    themedAssert(str_contains($ui,'notifications[appearance]['.$key.']'),'Missing appearance editor: '.$key);
  themedAssert(str_contains($ui,"payload['appearance'+name.slice("),'All new controls must be sent to live preview');
