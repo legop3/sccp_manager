@@ -11,6 +11,15 @@ There are no text, status, standalone image-source, URL-only, or sound-only noti
 
 An action URL pointing to an SCCP Manager PHP service receives `notification_id` from `notificationQueue::contextLink()`. The opened service carries that context through its own menus and uses `notificationNavigation` for the Back or Clear softkeys. Direct `Dial:` actions invoke the phone's native dialing interface; reopening a notification after hanging up is not guaranteed by Cisco's XML browser.
 
+Each sender-defined softkey may optionally dismiss its **own** notification when selected. A plain URL retains the notification. For a clear-on-activate action, use `['url'=>$target, 'clear'=>true]`. The queue authenticates the action selection, removes that notification from storage, then returns a Cisco XML Execute response that launches the original target. This is different from the queue's **Clear** softkey, which clears the notification and displays the next one. Linked menus for an automatically-cleared action are opened normally, without a stale notification return context.
+
+For example, voicemail playback uses:
+
+```php
+$actions['Listen']=['url'=>$voicemailPlaybackUrl,'clear'=>true];
+$actions['Messages']=$voicemailMenuUrl; // does not clear automatically
+```
+
 The queue shows the newest notification first. Clearing it removes only that notification and displays the next available one. The queue rejects graphical XML that contains its own prompt or softkeys: the queue owns these controls.
 
 Examples:
