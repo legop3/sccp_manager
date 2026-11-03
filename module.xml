@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.132</version>
+	<version>17.1.133</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.133 * - Require FreeType and remove notification renderer fallback
 		 * Version 17.1.132 * - Final notification pipeline audit: remove obsolete preview and duplicate delivery code
 		 * Version 17.1.131 * - Delete obsolete notification URL contract and entry navigation compatibility
 		 * Version 17.1.130 * - Remove old notification display branches and unify renderer and queue controls
