@@ -80,6 +80,10 @@ final class phoneNotifications
             // Solid panel ensures caller details remain readable over stripes.
             imagefilledrectangle($im,4,31,291,145,$bg);
         }
+        // These shared appearance controls must affect actual output as well
+        // as the live preview, in both text and image layouts.
+        imagefilledrectangle($im,4,111,291,143,$color($colors['details_background']));
+        imagefilledrectangle($im,0,28,295,29,$color($colors['accent']));
         // Cisco screen: large caller name, with number and time side by side.
         // Render directly in TrueType at native LCD resolution. Avoid scaling
         // low-resolution GD bitmap glyphs into blocky text.
