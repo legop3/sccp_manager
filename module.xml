@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.135</version>
+	<version>17.1.136</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.136 * - Optional notification image field and compact image-plus-text layout, with scheduled feed images
 		 * Version 17.1.135 * - Fix notification renderer XML return and UI failure
 		 * Version 17.1.134 * - Correct text-only scheduled source labels and require FreeType text measurement
 		 * Version 17.1.133 * - Require FreeType and remove notification renderer fallback
