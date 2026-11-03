@@ -45,7 +45,7 @@ final class phoneNotifications
         $defaults=['background'=>$p[0],'header'=>$p[1],'header_text'=>$p[4],
             'name_text'=>$p[2],'secondary_text'=>$p[3],
             'details_background'=>$p[0],'details_label'=>$p[3],
-            'details_text'=>$p[2],'accent'=>$p[4]];
+            'details_text'=>$p[2],'accent'=>$p[4],'border'=>$p[4]];
         if (($settings['theme']??'')==='cisco') {
             $defaults['details_background']='#D5E2ED';
             $defaults['details_label']='#334A5D';
@@ -58,32 +58,84 @@ final class phoneNotifications
         };
         $bg=$color($colors['background']);
         imagefilledrectangle($im,0,0,295,155,$bg);
+        // Reuse uploaded phone wallpapers as full-card artwork. The phone's
+        // own notification image (when present) remains a separate fixed slot.
+        $wallpaper=(string)($settings['background_image']??'');
+        if (preg_match('/^[a-f0-9]{16}$/D',$wallpaper)) {
+            $path=$dir.'/wallpaper-'.$wallpaper.'.png';
+            if (is_file($path) && !is_link($path) && filesize($path)<=4194304) {
+                $source=@imagecreatefrompng($path);
+                if ($source!==false) {
+                    $sw=imagesx($source);$sh=imagesy($source);
+                    $fit=(string)($settings['background_fit']??'cover');
+                    $scale=$fit==='contain'?min(296/$sw,156/$sh):max(296/$sw,156/$sh);
+                    $rw=$fit==='stretch'?296:max(1,(int)round($sw*$scale));
+                    $rh=$fit==='stretch'?156:max(1,(int)round($sh*$scale));
+                    $picture=imagecreatetruecolor(296,156);
+                    imagefilledrectangle($picture,0,0,295,155,$bg);
+                    imagecopyresampled($picture,$source,(int)floor((296-$rw)/2),
+                        (int)floor((156-$rh)/2),0,0,$rw,$rh,$sw,$sh);
+                    imagecopymerge($im,$picture,0,0,0,0,296,156,
+                        max(0,min(100,(int)($settings['background_opacity']??100))));
+                    imagedestroy($picture);
+                    imagedestroy($source);
+                }
+            }
+        }
         $stripes=array_values(array_filter((array)($settings['stripes']??[]),static function($v) {
             return is_string($v)&&preg_match('/^#[0-9a-f]{6}$/i',$v);
         }));
+        if (!empty($settings['stripe_reverse'])) $stripes=array_reverse($stripes);
         $position=(string)($settings['stripe_position']??'off');
-        $drawStripes=static function($y0,$y1) use($im,$stripes,$color) {
-            if (!$stripes) return;
-            $n=count($stripes);
-            foreach($stripes as $i=>$hex) {
-                $from=$y0+(int)floor(($y1-$y0)*$i/$n);
-                $to=$y0+(int)floor(($y1-$y0)*($i+1)/$n)-1;
-                imagefilledrectangle($im,0,$from,295,$to,$color($hex));
+        $direction=(string)($settings['stripe_direction']??'horizontal');
+        $repeat=max(1,min(6,(int)($settings['stripe_repeat']??1)));
+        $opacity=max(0,min(100,(int)($settings['stripe_opacity']??100)));
+        $thickness=max(2,min(32,(int)($settings['stripe_thickness']??7)));
+        $drawStripes=static function($x0,$y0,$x1,$y1) use($im,$stripes,$direction,$repeat,$opacity) {
+            if (!$stripes || $opacity===0 || $x1<=$x0 || $y1<=$y0) return;
+            $count=count($stripes)*$repeat;
+            $alpha=127-(int)round($opacity*127/100);
+            $inks=[];
+            foreach($stripes as $hex) {
+                $inks[]=imagecolorallocatealpha($im,hexdec(substr($hex,1,2)),
+                    hexdec(substr($hex,3,2)),hexdec(substr($hex,5,2)),$alpha);
+            }
+            $w=$x1-$x0;$h=$y1-$y0;
+            if ($direction==='vertical') {
+                for($x=$x0;$x<$x1;$x++) {
+                    $index=min($count-1,(int)floor(($x-$x0)*$count/$w))%count($inks);
+                    imageline($im,$x,$y0,$x,$y1-1,$inks[$index]);
+                }
+            } elseif ($direction==='diagonal') {
+                // Fixed 45-degree diagonal bands, clipped to the chosen
+                // stripe region. Each repeat repeats the full color palette.
+                for($y=$y0;$y<$y1;$y++) for($x=$x0;$x<$x1;$x++) {
+                    $phase=(($x-$x0)+($y-$y0))*$count/max(1,$w+$h-2);
+                    $index=min($count-1,(int)floor($phase))%count($inks);
+                    imagesetpixel($im,$x,$y,$inks[$index]);
+                }
+            } else {
+                for($y=$y0;$y<$y1;$y++) {
+                    $index=min($count-1,(int)floor(($y-$y0)*$count/$h))%count($inks);
+                    imageline($im,$x0,$y,$x1-1,$y,$inks[$index]);
+                }
             }
         };
-        if ($position==='background') $drawStripes(0,156);
+        if ($position==='background') $drawStripes(0,0,296,156);
         imagefilledrectangle($im,0,0,295,28,$color($colors['header']));
-        if ($position==='header') $drawStripes(0,29);
-        if ($position==='top') $drawStripes(0,7);
-        if ($position==='bottom') $drawStripes(149,156);
+        if ($position==='header') $drawStripes(0,0,296,29);
+        if ($position==='top') $drawStripes(0,0,296,$thickness);
+        if ($position==='bottom') $drawStripes(0,156-$thickness,296,156);
+        if ($position==='left') $drawStripes(0,0,$thickness,156);
+        if ($position==='right') $drawStripes(296-$thickness,0,296,156);
         if ($position==='background') {
-            // Solid panel ensures caller details remain readable over stripes.
+            // Preserve a solid content panel so full-surface stripes never
+            // undermine readability. Text and image geometry do not move.
             imagefilledrectangle($im,4,31,291,145,$bg);
         }
-        // These shared appearance controls must affect actual output as well
-        // as the live preview, in both text and image layouts.
         imagefilledrectangle($im,4,111,291,143,$color($colors['details_background']));
-        imagefilledrectangle($im,0,28,295,29,$color($colors['accent']));
+        $separatorWidth=max(0,min(6,(int)($settings['separator_width']??2)));
+        if ($separatorWidth) imagefilledrectangle($im,0,28,295,27+$separatorWidth,$color($colors['accent']));
         // Cisco screen: large caller name, with number and time side by side.
         // Render directly in TrueType at native LCD resolution. Avoid scaling
         // low-resolution GD bitmap glyphs into blocky text.
@@ -173,6 +225,11 @@ final class phoneNotifications
             }
             $draw($timestamp,10,129,276,16,$colors['details_text'],10);
         }
+        $borderWidth=max(0,min(6,(int)($settings['border_width']??0)));
+        if ($borderWidth) for($inset=0;$inset<$borderWidth;$inset++)
+            imagerectangle($im,$inset,$inset,295-$inset,155-$inset,
+                $color($colors['border']));
+
         if ($preview) {
             // Identical GD renderer, but stream bytes to the authenticated
             // admin AJAX response. Never publish preview files or LAN URLs.
