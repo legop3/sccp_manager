@@ -61,7 +61,7 @@ try {
  themedAssert(imagesx($img)===296 && imagesy($img)===156,'Fixed screen size');
  $border=imagecolorsforindex($img,imagecolorat($img,0,0));
  themedAssert($border['green']===255 && $border['red']===0,'Configurable border is visible');
- $wallPixel=imagecolorsforindex($img,imagecolorat($img,10,70));
+ $wallPixel=imagecolorsforindex($img,imagecolorat($img,20,70));
  themedAssert($wallPixel['red']===150 && $wallPixel['green']===45,'Wallpaper paints fixed background');
  $headerLeft=imagecolorsforindex($img,imagecolorat($img,12,15));
  $headerRight=imagecolorsforindex($img,imagecolorat($img,280,15));
