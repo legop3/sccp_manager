@@ -10,6 +10,7 @@ final class notificationConfig {
             'stripe_direction'=>'horizontal','stripe_repeat'=>1,'stripe_opacity'=>100,
             'stripe_thickness'=>7,'stripe_reverse'=>false,
             'background_image'=>'','background_fit'=>'cover','background_opacity'=>100,
+            'content_overlay'=>65,
             'border_width'=>0,'separator_width'=>2,'panel_radius'=>0,
             'gradient_target'=>'off','gradient_direction'=>'vertical','gradient_end'=>'#536D87'];
         $saved=$this->module->getConfig('phonecontent_notification_appearance');
@@ -38,6 +39,7 @@ final class notificationConfig {
         $settings['stripe_direction']=$direction;
         foreach (['stripe_repeat'=>[1,6],'stripe_opacity'=>[0,100],
                   'stripe_thickness'=>[2,32],'background_opacity'=>[0,100],
+                  'content_overlay'=>[0,100],
                   'border_width'=>[0,6],'separator_width'=>[0,6],
                   'panel_radius'=>[0,12]] as $field=>$limits) {
             $value=$post[$field]??$settings[$field];
