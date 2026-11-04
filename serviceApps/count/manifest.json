@@ -1,6 +1,6 @@
 {
   "id": "count",
   "name": "count",
-  "description": "One shared number for every connected handset",
+  "description": "One permanent shared counter; only Add 1 and Refresh",
   "enabledByDefault": false
 }
