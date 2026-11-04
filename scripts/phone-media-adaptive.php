@@ -124,9 +124,6 @@ try {
             ++$rejected;
             if($rejected===1 || $rejected%10===0)
                 $record('recovering CGI image push',$rejected.' rejected pushes');
-            // Continue immediately in normal operation. Only avoid a CPU-spinning
-            // failure loop if CGI requests are rejected instantly.
-            usleep(100000);
             continue;
         }
         ++$sent;
