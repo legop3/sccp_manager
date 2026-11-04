@@ -26,11 +26,11 @@ mediaCheck(str_contains($worker,'$until=min($deadline,microtime(true)+1.0)') &&
     !str_contains($worker,'no image GET completion; same-URL cache or fetch failure possible') &&
     str_contains($worker,'$screens->push($url)'),
     'Lost handset frame acknowledgments must retry within one second without ending playback');
-mediaCheck(str_contains($worker,"$"+"exitReason='deadline'") &&
-    str_contains($worker,"$"+"exitReason='stop_file'") &&
-    str_contains($worker,"$"+"exitReason='session_metadata_missing'") &&
-    str_contains($worker,"$"+"exitReason='cgi_push_rejected'") &&
-    str_contains($worker,"reason='.$exitReason") &&
+mediaCheck(str_contains($worker, '$exitReason=\'deadline\'') &&
+    str_contains($worker, '$exitReason=\'stop_file\'') &&
+    str_contains($worker, '$exitReason=\'session_metadata_missing\'') &&
+    str_contains($worker, '$exitReason=\'cgi_push_rejected\'') &&
+    str_contains($worker, "' retries; reason='") &&
     str_contains($worker,'$screens->push($url)'),
     'Image worker must record its exact exit condition without changing direct pushes');
 $endpoint=file_get_contents(__DIR__.'/../services/media-frame.php');
