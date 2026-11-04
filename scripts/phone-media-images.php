@@ -15,8 +15,8 @@ if(!preg_match('/^SEP[A-F0-9]{12}$/D',$device) ||
    !preg_match('/^[a-f0-9]{32}$/D',$key))exit(1);
 $root='/var/spool/asterisk';
 $metaPath=$root.'/sccp-media-'.$device.'.json';
-$frame=$root.'/sccp-media-'.$device.'-'.$run.'.png';
-$ack=$root.'/sccp-media-'.$device.'-'.$run.'.ack';
+$frame='';
+$ack='';
 $stop=$root.'/sccp-media-'.$device.'-'.$run.'.stop';
 $statusFile=$root.'/sccp-media-'.$device.'-images.json';
 $record=static function($phase,$detail='')use($statusFile,$run) {
@@ -43,6 +43,11 @@ try {
     $bootstrap_settings['freepbx_auth']=false;
     require_once '/etc/freepbx.conf';
     $module=\FreePBX::create()->Sccp_manager;
+    $publicRoot=$module->phonecontent->publicPath();
+    if(!is_dir($publicRoot) || is_link($publicRoot))
+        throw new RuntimeException('HTTP frame directory unavailable');
+    $frame=$publicRoot.'/sccp-media-'.$device.'-'.$run.'.png';
+    $ack=$publicRoot.'/sccp-media-'.$device.'-'.$run.'.ack';
     require_once __DIR__.'/../sccpManClasses/serviceAppScreens.php';
     $screens=new \FreePBX\modules\Sccp_manager\serviceAppScreens($module,$device);
     $base=$module->phonecontent->baseUrl($device);
