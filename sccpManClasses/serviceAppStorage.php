@@ -41,12 +41,21 @@ final class serviceAppStorage {
                 unset($state['cooldowns'][$key]);
         });
     }
-    /** Read cooldown state without claiming another send. */
+    /** Read without creating storage or demanding write permissions. */
     public function cooldownRemaining($user) {
-        return $this->transaction(static function(array &$state)use($user) {
+        if(is_link($this->path))throw new \RuntimeException('Invalid service storage path');
+        if(!is_file($this->path))return 0;
+        $fp=@fopen($this->path,'r');
+        if(!$fp)throw new \RuntimeException('Cannot read service storage');
+        try {
+            if(!flock($fp,LOCK_SH))throw new \RuntimeException('Cannot lock service storage');
+            $state=json_decode(stream_get_contents($fp),true);
             $key=hash('sha256',(string)$user);
             return max(0,(int)($state['cooldowns'][$key]??0)-time());
-        });
+        } finally {
+            flock($fp,LOCK_UN);
+            fclose($fp);
+        }
     }
     /** Return seconds remaining, or 0 when this action was admitted. */
     public function cooldown($user,$seconds) {
