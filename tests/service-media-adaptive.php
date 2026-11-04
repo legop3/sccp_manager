@@ -13,6 +13,7 @@ $stop='http://10.254.77.1/sccp-manager/service.php?phone=SEP001122334455&key=tok
 $controlled=serviceAppScreens::document($url,$stop);
 $stopXml=new DOMDocument();
 mediaCheck(@$stopXml->loadXML($controlled,LIBXML_NONET) &&
+    $stopXml->getElementsByTagName('Prompt')->length===1 &&
     $stopXml->getElementsByTagName('SoftKeyItem')->length===1 &&
     $stopXml->getElementsByTagName('SoftKeyItem')->item(0)
         ->getElementsByTagName('URL')->item(0)->textContent===$stop,
