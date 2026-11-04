@@ -19,7 +19,8 @@ foreach(['https://example.org/file.png','http://10.0.0.1/x.png',
     } catch(InvalidArgumentException $expected) {}
 }
 $source=file_get_contents(__DIR__.'/../sccpManClasses/serviceAppScreens.php');
-if(!str_contains($source,"http_build_query(['XML'=>$document])") ||
+$expected="http_build_query(['XML'=>" . '$document' . "])";
+if(!str_contains($source,$expected) ||
     str_contains($source,"$"."name.'.xml'"))
     throw new RuntimeException('Media transport must push ImageFile XML directly');
 $worker=file_get_contents(__DIR__.'/../scripts/phone-media-test.php');

@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.169</version>
+	<version>17.1.170</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.170 * - Correct media transport regression assertion
 		 * Version 17.1.169 * - Fix media frame HTTP delivery: direct Cisco XML push, published PNG validation, paced requests and failure cutoff
 		 * Version 17.1.168 * - Lowercase all built-in service names, menus and notification copy; catdog says a new cat is here
 		 * Version 17.1.167 * - Remove retired alarm scheduler from release lint list
