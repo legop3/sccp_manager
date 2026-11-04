@@ -41,6 +41,13 @@ final class serviceAppStorage {
                 unset($state['cooldowns'][$key]);
         });
     }
+    /** Read cooldown state without claiming another send. */
+    public function cooldownRemaining($user) {
+        return $this->transaction(static function(array &$state)use($user) {
+            $key=hash('sha256',(string)$user);
+            return max(0,(int)($state['cooldowns'][$key]??0)-time());
+        });
+    }
     /** Return seconds remaining, or 0 when this action was admitted. */
     public function cooldown($user,$seconds) {
         $seconds=max(1,min(86400,(int)$seconds));

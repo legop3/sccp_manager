@@ -1,7 +1,7 @@
 {
   "id": "catdog",
   "name": "catdog",
-  "description": "Broadcast cats or dogs once per user per hour",
+  "description": "Send cat or dog pictures with configurable cooldown and delivery",
   "enabledByDefault": false,
   "settings": {
     "cooldown_minutes": {
