@@ -13,7 +13,9 @@ if(!preg_match('/^SEP[A-F0-9]{12}$/D',$device) ||
     !preg_match('/^[a-f0-9]{32}$/D',$key)) {
     http_response_code(404); exit;
 }
-$root='/var/spool/asterisk';
+// The published endpoint lives alongside the session PNG and ticket.
+// Never traverse Asterisk's private spool from Apache.
+$root=__DIR__;
 $metaPath=$root.'/sccp-media-'.$device.'.json';
 if(!is_file($metaPath) || is_link($metaPath)) {
     error_log('SCCP adaptive media HTTP: session metadata unavailable');
