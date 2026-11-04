@@ -1,7 +1,7 @@
 {
   "id": "carrot-try",
   "name": "carrot try",
-  "description": "One in 235 chance of a carrot",
+  "description": "Roll for a carrot; winners notify every connected phone",
   "enabledByDefault": false,
   "settings": {
     "one_in": {
@@ -10,15 +10,6 @@
       "default": 235,
       "min": 2,
       "max": 100000
-    },
-    "delivery": {
-      "type": "select",
-      "label": "Winning image delivery",
-      "default": "all",
-      "options": {
-        "all": "All connected phones",
-        "self": "Only requesting phone"
-      }
     }
   }
 }
