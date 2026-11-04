@@ -28,46 +28,15 @@ final class serviceAppScreens {
      * Caller tracks file paths for cleanup; only server-generated content.
      * Success means the phone accepted the push, NOT that it displayed it.
      */
-    public static function document($url,$stopUrl=null,$menuUrl=null) {
+    public static function document($url) {
         if(!is_string($url) ||
             !preg_match('~^http://[0-9.]+/sccp-manager/(?:[a-z0-9-]+\\.png|media-frame\\.php\\?phone=SEP[A-F0-9]{12}&session=[a-f0-9]{16}&key=[a-f0-9]{32})$~D',$url))
             throw new \InvalidArgumentException('Invalid media PNG URL');
-        $softkeys='';
-        if($stopUrl!==null || $menuUrl!==null) {
-            if(!is_string($stopUrl) || !is_string($menuUrl))
-                throw new \InvalidArgumentException('Incomplete media controls');
-            // Service navigation may use the LAN endpoint while the PNG is
-            // fetched through VPN (or vice versa). They do not need to share
-            // a host, but both actions must remain on a valid PBX IPv4 URL
-            // and target the same authenticated handset as the video frame.
-            parse_str((string)parse_url($url,PHP_URL_QUERY),$frameQuery);
-            $frameDevice=(string)($frameQuery['phone']??'');
-            foreach([[$stopUrl,'stop'],[$menuUrl,'list']] as [$action,$operation]) {
-                $parts=parse_url($action);
-                if(!is_array($parts) || ($parts['scheme']??'')!=='http' ||
-                    !filter_var((string)($parts['host']??''),FILTER_VALIDATE_IP,FILTER_FLAG_IPV4) ||
-                    ($parts['path']??'')!=='/sccp-manager/service.php' ||
-                    !empty($parts['port']) || !isset($parts['query']))
-                    throw new \InvalidArgumentException('Invalid media control URL');
-                parse_str($parts['query'],$query);
-                if(($query['app']??'')!=='media-player' ||
-                    ($query['op']??'')!==$operation ||
-                    (string)($query['phone']??'')!==$frameDevice ||
-                    !preg_match('/^[a-f0-9]{64}$/D',(string)($query['key']??'')))
-                    throw new \InvalidArgumentException('Invalid media control action');
-            }
-            $esc=static function($value) {return htmlspecialchars($value,ENT_XML1|ENT_QUOTES,'UTF-8');};
-            $softkeys='<Prompt>media player</Prompt>'.
-                '<SoftKeyItem><Name>stop</Name><URL>'.$esc($stopUrl).
-                '</URL><Position>1</Position></SoftKeyItem>'.
-                '<SoftKeyItem><Name>media</Name><URL>'.$esc($menuUrl).
-                '</URL><Position>2</Position></SoftKeyItem>';
-        }
         return '<?xml version="1.0" encoding="UTF-8"?>'.
-            '<CiscoIPPhoneImageFile><Title>media player</Title>'.
+            '<CiscoIPPhoneImageFile><Title>media test</Title>'.
             '<LocationX>0</LocationX><LocationY>0</LocationY>'.
             '<URL>'.htmlspecialchars($url,ENT_XML1|ENT_QUOTES,'UTF-8').
-            '</URL>'.$softkeys.'</CiscoIPPhoneImageFile>';
+            '</URL></CiscoIPPhoneImageFile>';
     }
     public function frame($name,$png,array &$files) {
         if (!preg_match('/^[a-z0-9-]{1,90}$/D',(string)$name))
@@ -105,8 +74,8 @@ final class serviceAppScreens {
         return $this->push($url);
     }
     /** Same URL on every push. One push is issued only after the prior GET ends. */
-    public function push($url,$stopUrl=null,$menuUrl=null) {
-        $document=self::document($url,$stopUrl,$menuUrl);
+    public function push($url) {
+        $document=self::document($url);
         if(!function_exists('curl_init'))throw new \RuntimeException('cURL required for image push');
         $ch=curl_init('http://'.$this->ip.'/CGI/Execute');
         if(!$ch)throw new \RuntimeException('Cannot initialize phone push');
