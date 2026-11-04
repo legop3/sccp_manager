@@ -10,7 +10,7 @@ return static function(array $ctx,array $q) {
     if($op==='play') {
         try {
             $line=(string)($ctx['line']??'');
-            $media->play((string)($q['file']??''),$line);
+            $media->play((string)($q['file']??''),$line,$ctx['route'](['op'=>'stop']));
             return $ctx['text']('media player','starting playback. hang up to stop, or open this service again.');
         }catch(\Throwable $e) {
             error_log('SCCP media service: '.$e->getMessage());
