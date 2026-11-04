@@ -14,7 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
-		 * Version 17.1.190 * - Restore tested static PNG image publication for video and visualizers; leave AudioSocket streaming independent
+		 * Version 17.1.190 * - Restore adaptive same-URL GET-acknowledged image worker without benchmark frame pacing
 		 * Version 17.1.189 * - Actually make hashed media session ticket Apache-readable, fixing frame HTTP 404 permission mismatch
 		 * Version 17.1.188 * - Correct media endpoint regression test string literals
 		 * Version 17.1.187 * - Restore cross-user Apache access to media frame session tickets and verify original GET/ACK transport against authenticated real PNG
