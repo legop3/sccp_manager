@@ -10,11 +10,7 @@ final class serviceAppScreens {
     private $root;
     private $base;
     private $ip;
-    private $module;
-    private $device;
     public function __construct($module,$device) {
-        $this->module=$module;
-        $this->device=$device;
         if (!phonevoicemail::validDevice($device))
             throw new \InvalidArgumentException('Invalid handset');
         $ips=(new notificationDelivery($module))->devices();
@@ -32,7 +28,7 @@ final class serviceAppScreens {
      * Caller tracks file paths for cleanup; only server-generated content.
      * Success means the phone accepted the push, NOT that it displayed it.
      */
-    public static function document($url,$stopUrl=null) {
+    public static function document($url) {
         if(!is_string($url) ||
             !preg_match('~^http://[0-9.]+/sccp-manager/(?:[a-z0-9-]+\\.png|media-frame\\.php\\?phone=SEP[A-F0-9]{12}&session=[a-f0-9]{16}&key=[a-f0-9]{32})$~D',$url))
             throw new \InvalidArgumentException('Invalid media PNG URL');
@@ -40,7 +36,7 @@ final class serviceAppScreens {
             '<CiscoIPPhoneImageFile><Title>media test</Title>'.
             '<LocationX>0</LocationX><LocationY>0</LocationY>'.
             '<URL>'.htmlspecialchars($url,ENT_XML1|ENT_QUOTES,'UTF-8').
-            '</URL>'.($stopUrl!==null ? '<Prompt>media player</Prompt><SoftKeyItem><Name>Stop</Name><URL>'.htmlspecialchars($stopUrl,ENT_XML1|ENT_QUOTES,'UTF-8').'</URL><Position>1</Position></SoftKeyItem>' : '').'</CiscoIPPhoneImageFile>';
+            '</URL></CiscoIPPhoneImageFile>';
     }
     public function frame($name,$png,array &$files) {
         if (!preg_match('/^[a-z0-9-]{1,90}$/D',(string)$name))
@@ -79,16 +75,7 @@ final class serviceAppScreens {
     }
     /** Same URL on every push. One push is issued only after the prior GET ends. */
     public function push($url) {
-        // Use the working notification-style HTTP XML fetch for live frames.
-        // The call hangup stops playback; no on-screen controls are needed.
-        if(str_contains($url,'/media-frame.php?')) {
-            $xmlUrl=$url.'&view=screen';
-            $document='<CiscoIPPhoneExecute><ExecuteItem URL="'.
-                htmlspecialchars($xmlUrl,ENT_XML1|ENT_QUOTES,'UTF-8').
-                '"/></CiscoIPPhoneExecute>';
-        } else {
-            $document=self::document($url);
-        }
+        $document=self::document($url);
         if(!function_exists('curl_init'))throw new \RuntimeException('cURL required for image push');
         $ch=curl_init('http://'.$this->ip.'/CGI/Execute');
         if(!$ch)throw new \RuntimeException('Cannot initialize phone push');
