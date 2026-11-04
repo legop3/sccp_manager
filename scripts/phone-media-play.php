@@ -16,7 +16,7 @@ use FreePBX\modules\Sccp_manager\serviceMediaLibrary as Library;
 $root='/var/spool/asterisk';
 $lock=@fopen($root.'/sccp-media-test-'.$device.'.lock','c+');
 if(!$lock || !flock($lock,LOCK_EX|LOCK_NB))exit(0);
-$ff=null;$imageProcess=null;$socket=null;$server=null;$meta='';$frame='';$ack='';$stop='';
+$ff=null;$imageProcess=null;$socket=null;$server=null;$meta='';$publicMeta='';$frame='';$ack='';$stop='';
 try {
     $entry=Library::find($id);
     $source=Library::path($id);
@@ -30,10 +30,16 @@ try {
     $uuid=substr($uuid,0,8).'-'.substr($uuid,8,4).'-'.substr($uuid,12,4).'-'.substr($uuid,16,4).'-'.substr($uuid,20);
     $uuidBytes=hex2bin(str_replace('-','',$uuid));
     $meta=$root.'/sccp-media-'.$device.'.json';
-    $frame=$root.'/sccp-media-'.$device.'-'.$run.'.png';
-    $ack=$root.'/sccp-media-'.$device.'-'.$run.'.ack';
+    // HTTP-facing assets must reside where Apache can read and write them.
+    // The private media library and now-playing metadata remain in Asterisk spool.
+    $publicRoot=$module->phonecontent->publicPath();
+    if(!is_dir($publicRoot) || is_link($publicRoot) || !is_writable($publicRoot))
+        throw new RuntimeException('public media frame directory unavailable');
+    $publicMeta=$publicRoot.'/sccp-media-'.$device.'.json';
+    $frame=$publicRoot.'/sccp-media-'.$device.'-'.$run.'.png';
+    $ack=$publicRoot.'/sccp-media-'.$device.'-'.$run.'.ack';
     $stop=$root.'/sccp-media-'.$device.'-'.$run.'.stop';
-    if(is_link($meta) || is_link($frame) || is_link($ack) || is_link($stop))
+    if(is_link($meta) || is_link($publicMeta) || is_link($frame) || is_link($ack) || is_link($stop))
         throw new RuntimeException('unsafe media session path');
     $state=json_encode(['run'=>$run,'key_hash'=>hash('sha256',$secret),'expires'=>time()+max(90,(int)$entry['duration']+45),
         'file'=>$id,'name'=>$entry['name'],'started'=>time(),'device'=>$device],
@@ -42,6 +48,13 @@ try {
     if(file_put_contents($tmp,$state,LOCK_EX)!==strlen($state) ||
        !chmod($tmp,0644) || !rename($tmp,$meta))
         throw new RuntimeException('cannot register media session');
+    // Minimal HTTP ticket: no media filename, line, caller or raw URL key.
+    $httpState=json_encode(['run'=>$run,'key_hash'=>hash('sha256',$secret),
+        'expires'=>time()+max(90,(int)$entry['duration']+45)],JSON_THROW_ON_ERROR);
+    $httpTemp=$publicMeta.'.'.$run.'.tmp';
+    if(file_put_contents($httpTemp,$httpState,LOCK_EX)!==strlen($httpState) ||
+       !chmod($httpTemp,0644) || !rename($httpTemp,$publicMeta))
+        throw new RuntimeException('cannot publish HTTP media ticket');
     $server=@stream_socket_server('tcp://127.0.0.1:0',$errno,$error,STREAM_SERVER_BIND|STREAM_SERVER_LISTEN);
     if(!$server)throw new RuntimeException('cannot open local audio socket: '.$error);
     $address=stream_socket_get_name($server,false);
@@ -165,6 +178,11 @@ try {
         $saved=json_decode((string)@file_get_contents($meta),true);
         if(is_array($saved) && isset($run) && ($saved['run']??null)===$run)
             @unlink($meta);
+    }
+    if($publicMeta!=='' && is_file($publicMeta) && !is_link($publicMeta)) {
+        $saved=json_decode((string)@file_get_contents($publicMeta),true);
+        if(is_array($saved) && isset($run) && ($saved['run']??null)===$run)
+            @unlink($publicMeta);
     }
     foreach([$frame,$ack,$stop] as $p)
         if($p!=='' && is_file($p) && !is_link($p))@unlink($p);
