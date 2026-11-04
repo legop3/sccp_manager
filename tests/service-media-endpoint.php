@@ -50,41 +50,31 @@ try {
             @unlink($ackPath);
         }
     }
-    // A real frame push now opens the HTTP XML screen just like notifications.
-    // Requesting the screen must not fake a PNG GET acknowledgment.
-    $state=['run'=>$run,'expires'=>time()+120,'key_hash'=>hash('sha256',$key)];
-    file_put_contents($metaPath,json_encode($state));
+    // Notification-style image screen: XML fetch must not ACK the PNG.
+    file_put_contents($metaPath,json_encode([
+        'run'=>$run,'expires'=>time()+120,'key_hash'=>hash('sha256',$key)
+    ]));
     @unlink($ackPath);
-    $stopKey=str_repeat('a',64);
     $params=['phone'=>$device,'session'=>$run,'key'=>$key,
-        'view'=>'screen','stopkey'=>$stopKey];
-    file_put_contents($runner,"<?php\n".'
-    foreach(glob($dir.'/*')?:[] as $file)@unlink($file);
-    @rmdir($dir);
-}
-echo "Frame endpoint serves PNG with hashed and legacy sessions and refuses wrong keys\n";
-."_"."GET=".
-        var_export($params,true).";\n".'
-    foreach(glob($dir.'/*')?:[] as $file)@unlink($file);
-    @rmdir($dir);
-}
-echo "Frame endpoint serves PNG with hashed and legacy sessions and refuses wrong keys\n";
-."_"."SERVER['HTTP_HOST']='10.254.77.1';\n".
-        "require ".var_export($script,true).";\n");
+        'view'=>'screen','stopkey'=>str_repeat('a',64)];
+    $runnerCode="<?php\n".'$_GET='.var_export($params,true).";\n".
+        '$_SERVER[\'HTTP_HOST\']=\'10.254.77.1\';'."\n".
+        "require ".var_export($script,true).";\n";
+    file_put_contents($runner,$runnerCode);
     $proc=proc_open([PHP_BINARY,$runner],[0=>['file','/dev/null','r'],
         1=>['pipe','w'],2=>['pipe','w']],$pipes);
-    checkFrame(is_resource($proc),'Cannot launch image-screen XML test');
+    checkFrame(is_resource($proc),'Cannot launch XML screen test');
     $body=stream_get_contents($pipes[1]);$stderr=stream_get_contents($pipes[2]);
     fclose($pipes[1]);fclose($pipes[2]);
-    checkFrame(proc_close($proc)===0,'Image-screen response failed: '.$stderr);
-    $xml=new DOMDocument();
-    checkFrame(@$xml->loadXML($body,LIBXML_NONET) &&
-        $xml->documentElement->tagName==='CiscoIPPhoneImageFile' &&
-        $xml->getElementsByTagName('SoftKeyItem')->length===1 &&
-        $xml->getElementsByTagName('Prompt')->length===1 &&
+    checkFrame(proc_close($proc)===0,'Screen XML endpoint failed: '.$stderr);
+    $doc=new DOMDocument();
+    checkFrame(@$doc->loadXML($body,LIBXML_NONET) &&
+        $doc->documentElement->tagName==='CiscoIPPhoneImageFile' &&
+        $doc->getElementsByTagName('SoftKeyItem')->length===1 &&
+        $doc->getElementsByTagName('Prompt')->length===1 &&
         str_contains($body,'op=stop') &&
-        !file_exists($ackPath),
-        'HTTP image screen must include Stop and must not acknowledge PNG download');
+        !is_file($ackPath),
+        'Image XML response must have Stop without acknowledging image GET');
 }finally{
     foreach(glob($dir.'/*')?:[] as $file)@unlink($file);
     @rmdir($dir);
