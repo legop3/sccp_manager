@@ -21,6 +21,11 @@ foreach([$url.'&seq=2',
     catch(InvalidArgumentException $expected){}
 }
 $worker=file_get_contents(__DIR__.'/../scripts/phone-media-adaptive.php');
+mediaCheck(str_contains($worker,'$until=min($deadline,microtime(true)+1.0)') &&
+    str_contains($worker,'++$retried;') &&
+    !str_contains($worker,'no image GET completion; same-URL cache or fetch failure possible') &&
+    str_contains($worker,'$screens->push($url)'),
+    'Lost handset frame acknowledgments must retry within one second without ending playback');
 $endpoint=file_get_contents(__DIR__.'/../services/media-frame.php');
 $publisher=file_get_contents(__DIR__.'/../sccpManClasses/phonecontent.class.php');
 $media=file_get_contents(__DIR__.'/../serviceApps/media-player/Service.php');
