@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.177</version>
+	<version>17.1.178</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.178 * - Parse AudioSocket TCP frames correctly and repair live media regression check
 		 * Version 17.1.177 * - Update adaptive transport regression for real media player menu
 		 * Version 17.1.176 * - Real media player: private uploads, one FFmpeg PCM plus video/visualizer session, AudioSocket live SCCP call, adaptive frame transport and playback stop
 		 * Version 17.1.175 * - Correct synthetic frame-rate regression assertion

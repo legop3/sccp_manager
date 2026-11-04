@@ -13,13 +13,14 @@ $service=file_get_contents(__DIR__.'/../serviceApps/media-player/Service.php');
 $admin=file_get_contents(__DIR__.'/../views/content.services.php');
 $page=file_get_contents(__DIR__.'/../page.sccp_content.php');
 $install=file_get_contents(__DIR__.'/../install.php');
-playerCheck(str_contains($player,"'application AudioSocket '") &&
+playerCheck(str_contains($player,'application AudioSocket ') &&
     str_contains($player,"'pipe:1'") &&
     str_contains($player,"'-atomic_writing','1'") &&
     str_contains($player,"'-update','1'") &&
     str_contains($player,"showfreqs=s=296x156") &&
     str_contains($player,'$screens->push($url)') &&
-    str_contains($player,'if(is_file($ack))'),
+    str_contains($player,'if(is_file($ack))') &&
+    str_contains($player,"unpack('n',substr($incomingBuffer,1,2))"),
     'One-process live audio/video and fetch-driven display must be preserved');
 playerCheck(str_contains($library,'is_uploaded_file') &&
     str_contains($library,'move_uploaded_file') &&

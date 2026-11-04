@@ -94,12 +94,27 @@ try {
     $pending='';
     $sent=0;
     $startedImage=false;
-    $lastProbe=0.0;
+    $incomingBuffer='';
     while(microtime(true)<$limit && !is_file($stop)) {
-        // Drain incoming Asterisk packets so the socket never fills.
+        // AudioSocket is framed. TCP reads can split packets or begin inside
+        // arbitrary PCM samples, so never identify a hangup from raw byte 0.
         $incoming=@fread($socket,4096);
         if($incoming===false || feof($socket))break;
-        if($incoming!=='' && ord($incoming[0])===0 && strlen($incoming)>=3)break;
+        if($incoming!=='')$incomingBuffer.=$incoming;
+        $hangup=false;
+        while(strlen($incomingBuffer)>=3) {
+            $kind=ord($incomingBuffer[0]);
+            $length=unpack('n',substr($incomingBuffer,1,2))[1];
+            if(strlen($incomingBuffer)<3+$length)break;
+            $message=substr($incomingBuffer,3,$length);
+            $incomingBuffer=substr($incomingBuffer,3+$length);
+            if($kind===0 || $kind===255 ||
+                ($kind===3 && $message==='#')) {
+                $hangup=true;
+                break;
+            }
+        }
+        if($hangup || strlen($incomingBuffer)>131072)break;
         // Keep a short bounded PCM queue; no audio file or unbounded buffering.
         if(strlen($buffer)<3200 && !feof($pipes[1])) {
             $block=@fread($pipes[1],min(1280,3200-strlen($buffer)));
