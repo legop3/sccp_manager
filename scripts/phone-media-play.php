@@ -109,7 +109,7 @@ try {
     $imageStatus=$root.'/sccp-media-'.$device.'-images.json';
     if(is_link($imageStatus))throw new RuntimeException('unsafe image status path');
     @unlink($imageStatus); // retire the prior session's result
-    $imageProcess=proc_open(['/usr/bin/php',$imageWorker,$device,$run,$secret],[
+    $imageProcess=proc_open(['/usr/bin/php',$imageWorker,$device,$run,$secret,$stopUrl,$menuUrl],[
         0=>['file','/dev/null','r'],
         1=>['file','/dev/null','w'],
         2=>['file','/dev/null','w']
