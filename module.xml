@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.206</version>
+	<version>17.1.207</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.207 * - Remove escalating retry delay after rejected image pushes; always display newest live PNG
 		 * Version 17.1.206 * - Keep media video delivery alive across transient Cisco CGI push rejections; preserve direct frames and audio
 		 * Version 17.1.205 * - Record image worker exit reason in existing status, without altering video transport or audio
 		 * Version 17.1.204 * - Restore direct v17.1.198 image delivery without softkeys; hangup stops playback
