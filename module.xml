@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.162</version>
+	<version>17.1.163</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.163 * - Show catdog notification on sending handset after its Services response; include all SCCP session devices
 		 * Version 17.1.162 * - Make catdog cooldown status read-only for fresh installs and menu access
 		 * Version 17.1.161 * - Update catdog service menu test fixture for cooldown storage
 		 * Version 17.1.160 * - Complete catdog phone menu, cooldown feedback, image resilience and queued notification status

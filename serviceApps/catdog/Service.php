@@ -64,10 +64,10 @@ return static function(array $ctx,array $query) {
     }
 
     try {
-        [$accepted,$connected]=$ctx['notifications']->broadcast(
+        [$accepted,$connected,$deferred]=$ctx['notifications']->broadcast(
             'Random '.ucfirst($op),
             'A random '.$op.' has arrived!',
-            $image,$settings['delivery'],$ctx['device']
+            $image,$settings['delivery'],$ctx['device'],true
         );
     }catch(\Throwable $e) {
         // Notification errors can occur *after* the queue has saved an entry.
@@ -80,6 +80,11 @@ return static function(array $ctx,array $query) {
         // No recipient exists: nothing was placed in the queue.
         $storage->releaseCooldown($user);
         return $home('No connected target phones');
+    }
+    if($deferred>0) {
+        // The requesting handset gets its popup after the XML response
+        // finishes. Do not claim its push was already acknowledged.
+        return $home('Yours next; others accepted '.$accepted);
     }
     if($accepted===$connected) {
         return $home(ucfirst($op).' sent to '.$accepted.' phone'.($accepted===1?'':'s'));

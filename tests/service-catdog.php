@@ -18,10 +18,11 @@ class CatdogFakeStorage {
 class CatdogFakeNotifications {
     public $accepted=2;
     public $connected=2;
+    public $deferred=1;
     public $calls=[];
-    public function broadcast($title,$caption,$image,$scope,$requester) {
-        $this->calls[]=compact('title','caption','image','scope','requester');
-        return [$this->accepted,$this->connected];
+    public function broadcast($title,$caption,$image,$scope,$requester,$deferRequester=false) {
+        $this->calls[]=compact('title','caption','image','scope','requester','deferRequester');
+        return [$this->accepted,$this->connected,$this->deferred];
     }
 }
 function checkCatdog($ok,$message) {
@@ -151,17 +152,20 @@ $entries=$menu(['op'=>'cat']);
 checkCatdog($storage->remaining===3600,'Success must retain cooldown');
 checkCatdog(count($notifications->calls)===1,'Only one notification request expected');
 checkCatdog($notifications->calls[0]['scope']==='self','Scope setting ignored');
-checkCatdog(str_contains(implode(' ',array_column($entries,0)),'Cat sent to 1 phone'),
-    'Success feedback incorrect');
+checkCatdog(str_contains(implode(' ',array_column($entries,0)),'Yours next'),
+    'Sender must be told its popup follows the menu response');
+checkCatdog($notifications->calls[0]['deferRequester']===true,
+    'catdog must schedule sender popup after its XML response');
 
 $storage->remaining=0;
 $notifications->accepted=0;
 $notifications->connected=2;
+$notifications->deferred=1;
 $entries=$menu(['op'=>'dog']);
 checkCatdog($storage->refunds===0 && $storage->remaining===3600,
     'Unacknowledged deliveries must not create duplicate retries');
-checkCatdog(str_contains(implode(' ',array_column($entries,0)),'Accepted 0/2'),
-    'Partial delivery feedback incorrect');
+checkCatdog(str_contains(implode(' ',array_column($entries,0)),'Yours next'),
+    'Sender should still receive deferred popup when other pushes are rejected');
 
 $storage->remaining=0;
 $notifications->connected=0;

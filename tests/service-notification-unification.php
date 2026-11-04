@@ -124,5 +124,21 @@ namespace {
         str_contains($adapter,'new notificationMessage(') &&
         str_contains($adapter,'$queue->send('),
         'Service adapter must reuse the universal render, message and queue');
+    Queue::$sent=[];
+    [$now,$targets,$deferred]=$cat->broadcast('Random dog','A dog arrived',
+        'image-bytes','all','SEP000000000001',true);
+    verifyNotify($now===1 && $targets===2 && $deferred===1,
+        'Broadcast must include sender but postpone its push');
+    verifyNotify(count(Queue::$sent)===1 && Queue::$sent[0]['device']==='SEP000000000002',
+        'Other phones must receive push before requester');
+    register_shutdown_function(static function() {
+        verifyNotify(count(Queue::$sent)===2 &&
+            Queue::$sent[1]['device']==='SEP000000000001',
+            'Originating handset must get its own notification after XML response');
+        $action=Queue::$sent[1]['message']->payload()['actions']['Open']??'';
+        verifyNotify(str_contains($action,'SEP000000000001'),
+            'Deferred sender action must be authenticated for itself');
+        echo "Deferred sender notification fired after response flush\n";
+    });
     echo "Unified service notifications, targeting, per-phone actions and sounds passed\n";
 }

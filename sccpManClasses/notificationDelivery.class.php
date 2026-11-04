@@ -18,11 +18,13 @@ final class notificationDelivery {
                 if (!preg_match_all('/(?<![0-9])((?:[0-9]{1,3}\.){3}[0-9]{1,3})(?![0-9])/', $line,$addresses)) continue;
                 foreach ($addresses[1] as $ip) {
                     if (!filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4) || $ip==='0.0.0.0') continue;
-                    $result['SEP'.strtoupper($device[1])]=$ip;
+                    $id='SEP'.strtoupper($device[1]);
+                    // Prefer the live session address, but continue looking
+                    // through all commands for other connected handsets.
+                    if(!isset($result[$id]))$result[$id]=$ip;
                     break;
                 }
             }
-            if ($result) break;
         }
         return $result;
     }
