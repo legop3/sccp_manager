@@ -26,16 +26,19 @@ try {
     $screens=new \FreePBX\modules\Sccp_manager\serviceAppScreens($module,$device);
     $run=bin2hex(random_bytes(8));
     $secret=bin2hex(random_bytes(16));
-    $meta=$root.'/sccp-media-'.$device.'.json';
-    $frame=$root.'/sccp-media-'.$device.'-'.$run.'.png';
-    $ack=$root.'/sccp-media-'.$device.'-'.$run.'.ack';
+    $publicRoot=$module->phonecontent->publicPath();
+    if(!is_dir($publicRoot) || is_link($publicRoot) || !is_writable($publicRoot))
+        throw new RuntimeException('HTTP frame directory unavailable');
+    $meta=$publicRoot.'/sccp-media-'.$device.'.json';
+    $frame=$publicRoot.'/sccp-media-'.$device.'-'.$run.'.png';
+    $ack=$publicRoot.'/sccp-media-'.$device.'-'.$run.'.ack';
     if(is_link($frame) || is_link($meta) || is_link($ack))
         throw new RuntimeException('Unsafe media file path');
-    $state=json_encode(['run'=>$run,'key'=>$secret,'ip'=>$screens->ip(),
+    $state=json_encode(['run'=>$run,'key_hash'=>hash('sha256',$secret),'ip'=>$screens->ip(),
         'expires'=>time()+40],JSON_UNESCAPED_SLASHES);
     $tmp=$meta.'.'.$run.'.tmp';
     if(file_put_contents($tmp,$state,LOCK_EX)!==strlen($state) ||
-        !chmod($tmp,0600) || !rename($tmp,$meta))
+        !chmod($tmp,0644) || !rename($tmp,$meta))
         throw new RuntimeException('Unable to create media session');
     // FFmpeg's image2 muxer atomically renames a complete PNG over the same
     // destination while -re preserves real-time source timing. The synthetic
