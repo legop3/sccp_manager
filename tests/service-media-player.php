@@ -8,6 +8,7 @@ foreach(['../admin','123','/etc/passwd','abcdef'] as $bad) {
     catch(InvalidArgumentException $expected){}
 }
 $player=file_get_contents(__DIR__.'/../scripts/phone-media-play.php');
+$images=file_get_contents(__DIR__.'/../scripts/phone-media-images.php');
 $library=file_get_contents(__DIR__.'/../sccpManClasses/serviceMediaLibrary.php');
 $service=file_get_contents(__DIR__.'/../serviceApps/media-player/Service.php');
 $admin=file_get_contents(__DIR__.'/../views/content.services.php');
@@ -19,8 +20,11 @@ playerCheck(str_contains($player,'application AudioSocket ') &&
     str_contains($player,"'-atomic_writing','1'") &&
     str_contains($player,"'-update','1'") &&
     str_contains($player,"showfreqs=s=296x156") &&
-    str_contains($player,'$screens->push($url)') &&
-    str_contains($player,'is_file($ack)') &&
+    str_contains($player,'phone-media-images.php') &&
+    !str_contains($player,'$screens->push($url)') &&
+    str_contains($images,'$screens->push($url)') &&
+    str_contains($images,'is_file($ack)') &&
+    str_contains($images,'image URL unavailable') &&
     str_contains($player,'unpack(\'n\',substr($incomingBuffer,1,2))'),
     'One-process live audio/video and fetch-driven display must be preserved');
 playerCheck(str_contains($library,'is_uploaded_file') &&

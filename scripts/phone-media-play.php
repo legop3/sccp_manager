@@ -24,8 +24,6 @@ try {
     $bootstrap_settings['freepbx_auth']=false;
     require_once '/etc/freepbx.conf';
     $module=\FreePBX::create()->Sccp_manager;
-    require_once __DIR__.'/../sccpManClasses/serviceAppScreens.php';
-    $screens=new \FreePBX\modules\Sccp_manager\serviceAppScreens($module,$device);
     $run=bin2hex(random_bytes(8));
     $secret=bin2hex(random_bytes(16));
     $uuid=bin2hex(random_bytes(16));
@@ -66,10 +64,6 @@ try {
        !hash_equals($uuidBytes,substr($handshake,3,16)))
         throw new RuntimeException('AudioSocket handshake mismatch');
     stream_set_blocking($socket,false);
-    $base=$module->phonecontent->baseUrl($device);
-    $url=$base.'/media-frame.php?'.http_build_query([
-        'phone'=>$device,'session'=>$run,'key'=>$secret
-    ],'','&',PHP_QUERY_RFC3986);
     $cmd=['/usr/bin/ffmpeg','-hide_banner','-loglevel','error','-nostdin',
         '-re','-protocol_whitelist','file,pipe','-i',$source];
     if(!empty($entry['video'])) {
@@ -88,12 +82,19 @@ try {
         2=>['file','/dev/null','w']],$pipes);
     if(!is_resource($ff))throw new RuntimeException('could not start ffmpeg');
     stream_set_blocking($pipes[1],false);
+    // Start independent PHP LCD transport. HTTP pushes can take seconds;
+    // they must never run in the 20 ms AudioSocket PCM send loop.
+    // FFmpeg remains ONE process producing both PCM and the latest PNG.
+    $imageWorker=__DIR__.'/phone-media-images.php';
+    if(!is_file($imageWorker))
+        throw new RuntimeException('LCD transport worker missing');
+    $imageCmd='/usr/bin/php '.escapeshellarg($imageWorker).' '.
+        escapeshellarg($device).' '.escapeshellarg($run).' '.escapeshellarg($secret);
+    exec($imageCmd.' >/dev/null 2>&1 </dev/null &');
     $limit=microtime(true)+min(14400,(float)$entry['duration'])+15;
     $next=microtime(true);
     $buffer='';
     $pending='';
-    $sent=0;
-    $startedImage=false;
     $incomingBuffer='';
     while(microtime(true)<$limit && !is_file($stop)) {
         // AudioSocket is framed. TCP reads can split packets or begin inside
@@ -131,13 +132,6 @@ try {
             $written=@fwrite($socket,$pending);
             if($written===false)break;
             if($written>0)$pending=substr($pending,$written);
-        }
-        if(!$startedImage && is_file($frame)) {
-            // First frame must already be readable before phone push.
-            if($screens->push($url))$startedImage=true;
-        } elseif($startedImage && is_file($ack)) {
-            @unlink($ack);
-            if(!$screens->push($url))break;
         }
         $status=proc_get_status($ff);
         if(!$status['running'] && feof($pipes[1]) && strlen($buffer)<320 && $pending==='')break;
