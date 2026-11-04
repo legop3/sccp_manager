@@ -28,7 +28,7 @@ final class serviceAppScreens {
      * Caller tracks file paths for cleanup; only server-generated content.
      * Success means the phone accepted the push, NOT that it displayed it.
      */
-    public static function document($url) {
+    public static function document($url,$stopUrl=null) {
         if(!is_string($url) ||
             !preg_match('~^http://[0-9.]+/sccp-manager/(?:[a-z0-9-]+\\.png|media-frame\\.php\\?phone=SEP[A-F0-9]{12}&session=[a-f0-9]{16}&key=[a-f0-9]{32})$~D',$url))
             throw new \InvalidArgumentException('Invalid media PNG URL');
@@ -36,7 +36,7 @@ final class serviceAppScreens {
             '<CiscoIPPhoneImageFile><Title>media test</Title>'.
             '<LocationX>0</LocationX><LocationY>0</LocationY>'.
             '<URL>'.htmlspecialchars($url,ENT_XML1|ENT_QUOTES,'UTF-8').
-            '</URL></CiscoIPPhoneImageFile>';
+            '</URL>'.($stopUrl!==null ? '<SoftKeyItem><Name>Stop</Name><URL>'.htmlspecialchars($stopUrl,ENT_XML1|ENT_QUOTES,'UTF-8').'</URL><Position>1</Position></SoftKeyItem>' : '').'</CiscoIPPhoneImageFile>';
     }
     public function frame($name,$png,array &$files) {
         if (!preg_match('/^[a-z0-9-]{1,90}$/D',(string)$name))
@@ -74,8 +74,8 @@ final class serviceAppScreens {
         return $this->push($url);
     }
     /** Same URL on every push. One push is issued only after the prior GET ends. */
-    public function push($url) {
-        $document=self::document($url);
+    public function push($url,$stopUrl=null) {
+        $document=self::document($url,$stopUrl);
         if(!function_exists('curl_init'))throw new \RuntimeException('cURL required for image push');
         $ch=curl_init('http://'.$this->ip.'/CGI/Execute');
         if(!$ch)throw new \RuntimeException('Cannot initialize phone push');
