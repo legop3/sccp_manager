@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.173</version>
+	<version>17.1.174</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.174 * - Remove 12 fps synthetic-source bottleneck; keep phone fetches uncapped and driven by HTTP completion
 		 * Version 17.1.173 * - Trigger every adaptive media push from completed image GET without waiting for a newly generated frame
 		 * Version 17.1.172 * - Publish adaptive media endpoint during upgrades, allow VPN/NAT phone image fetches, and check first frame URL before push
 		 * Version 17.1.171 * - Adaptive same-URL FFmpeg video test paced by completed handset image GETs

@@ -29,7 +29,9 @@ mediaCheck(str_contains($worker,"'-atomic_writing','1'") &&
     str_contains($worker,'if(is_file($ack))') &&
     str_contains($worker,'$screens->push($url)'),
     'Adaptive worker must wait for GET and use atomic latest-frame update');
-mediaCheck(!str_contains($worker,'usleep(750000)') &&
+mediaCheck(str_contains($worker,'testsrc2=size=296x156:rate=120') &&
+    !str_contains($worker,'testsrc2=size=296x156:rate=12') &&
+    !str_contains($worker,'usleep(750000)') &&
     !str_contains($worker,'seq=') &&
     !str_contains($worker,'$lastInode') &&
     !str_contains($worker,'fileinode($frame)') &&
@@ -55,7 +57,7 @@ if(is_executable('/usr/bin/ffmpeg')) {
     unlink($tmp);
     $path=$tmp.'.png';
     $cmd=['/usr/bin/ffmpeg','-hide_banner','-loglevel','error','-nostdin',
-        '-f','lavfi','-i','testsrc2=size=296x156:rate=12',
+        '-f','lavfi','-i','testsrc2=size=296x156:rate=120',
         '-frames:v','2','-an','-c:v','png','-f','image2','-update','1',
         '-atomic_writing','1','-y',$path];
     $proc=proc_open($cmd,[0=>['file','/dev/null','r'],

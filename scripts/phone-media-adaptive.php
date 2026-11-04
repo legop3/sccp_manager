@@ -38,9 +38,10 @@ try {
         !chmod($tmp,0600) || !rename($tmp,$meta))
         throw new RuntimeException('Unable to create media session');
     // FFmpeg's image2 muxer atomically renames a complete PNG over the same
-    // destination while -re keeps the source's real-time 12 fps timeline.
+    // destination while -re preserves real-time source timing. The synthetic
+    // test source runs at a high rate; phone pushes have no FPS limit.
     $cmd=['/usr/bin/ffmpeg','-hide_banner','-loglevel','error','-nostdin',
-        '-re','-f','lavfi','-i','testsrc2=size=296x156:rate=12',
+        '-re','-f','lavfi','-i','testsrc2=size=296x156:rate=120',
         '-t','18','-an','-c:v','png','-f','image2',
         '-update','1','-atomic_writing','1','-y',$frame];
     $process=proc_open($cmd,[
