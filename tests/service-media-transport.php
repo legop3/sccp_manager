@@ -9,7 +9,7 @@ if(!@$d->loadXML($xml,LIBXML_NONET) ||
     $d->documentElement->tagName!=='CiscoIPPhoneImageFile' ||
     $d->getElementsByTagName('URL')->item(0)->textContent!==$png)
     throw new RuntimeException('Direct image XML payload invalid');
-if($d->getElementsByTagName('Title')->item(0)->textContent!=='media test')
+if($d->getElementsByTagName('Title')->item(0)->textContent!=='media player')
     throw new RuntimeException('Media screen label must be lowercase');
 foreach(['https://example.org/file.png','http://10.0.0.1/x.png',
          'http://10.0.0.1/sccp-manager/../admin.png'] as $bad) {
