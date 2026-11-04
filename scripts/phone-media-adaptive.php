@@ -14,8 +14,12 @@ if(!preg_match('/^SEP[A-F0-9]{12}$/D',$device))exit(1);
 $live=isset($argv[2],$argv[3]);
 $liveRun=(string)($argv[2]??'');
 $liveKey=(string)($argv[3]??'');
+$stopUrl=$live?(string)($argv[4]??''):null;
+$menuUrl=$live?(string)($argv[5]??''):null;
 if($live && (!preg_match('/^[a-f0-9]{16}$/D',$liveRun) ||
-   !preg_match('/^[a-f0-9]{32}$/D',$liveKey)))exit(1);
+   !preg_match('/^[a-f0-9]{32}$/D',$liveKey) ||
+   !is_string($stopUrl) || !is_string($menuUrl) ||
+   strlen($stopUrl)>1024 || strlen($menuUrl)>1024))exit(1);
 $root='/var/spool/asterisk';
 $lockPath=$root.'/sccp-media-test-'.$device.'.lock';
 if(!$live) {
@@ -112,7 +116,7 @@ try {
         // has not replaced the latest PNG yet. Never wait for a new inode.
         // No second push can occur while the preceding image GET is in flight.
         if(is_file($ack) && !is_link($ack))@unlink($ack);
-        if(!$screens->push($url)) {
+        if(!$screens->push($url,$stopUrl,$menuUrl)) {
             error_log('SCCP adaptive media: CGI push rejected');
             break;
         }
