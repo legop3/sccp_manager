@@ -30,7 +30,7 @@ mediaCheck(str_contains($worker,"'-atomic_writing','1'") &&
     str_contains($worker,'$screens->push($url)'),
     'Adaptive worker must wait for GET and use atomic latest-frame update');
 mediaCheck(str_contains($worker,'testsrc2=size=296x156:rate=120') &&
-    !str_contains($worker,'testsrc2=size=296x156:rate=12') &&
+    !str_contains($worker,"testsrc2=size=296x156:rate=12'") &&
     !str_contains($worker,'usleep(750000)') &&
     !str_contains($worker,'seq=') &&
     !str_contains($worker,'$lastInode') &&
