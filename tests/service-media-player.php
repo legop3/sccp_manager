@@ -8,7 +8,7 @@ foreach(['../admin','123','/etc/passwd','abcdef'] as $bad) {
     catch(InvalidArgumentException $expected){}
 }
 $player=file_get_contents(__DIR__.'/../scripts/phone-media-play.php');
-$images=file_get_contents(__DIR__.'/../scripts/phone-media-images.php');
+$images=file_get_contents(__DIR__.'/../scripts/phone-media-adaptive.php');
 $library=file_get_contents(__DIR__.'/../sccpManClasses/serviceMediaLibrary.php');
 $service=file_get_contents(__DIR__.'/../serviceApps/media-player/Service.php');
 $admin=file_get_contents(__DIR__.'/../views/content.services.php');
@@ -21,11 +21,11 @@ playerCheck(str_contains($player,'application AudioSocket ') &&
     str_contains($player,"'-update','1'") &&
     str_contains($player,"showfreqs=s=296x156") &&
     str_contains($player,'format=pal8') &&
-    str_contains($player,'phone-media-images.php') &&
+    str_contains($player,'phone-media-adaptive.php') &&
     !str_contains($player,'$screens->push($url)') &&
     str_contains($images,'$screens->push($url)') &&
     str_contains($images,'is_file($ack)') &&
-    str_contains($images,'image URL unavailable') &&
+    str_contains($images,'Media image endpoint failed HTTP preflight:') &&
     str_contains($images,"$"."record('error'") &&
     str_contains($images,"$"."record('first push accepted") &&
     str_contains($player,"$"."imageProcess=proc_open") &&
