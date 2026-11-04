@@ -19,7 +19,7 @@ playerCheck(str_contains($player,'application AudioSocket ') &&
     str_contains($player,"'-update','1'") &&
     str_contains($player,"showfreqs=s=296x156") &&
     str_contains($player,'$screens->push($url)') &&
-    str_contains($player,'if(is_file($ack))') &&
+    str_contains($player,'is_file($ack)') &&
     str_contains($player,"unpack('n',substr($incomingBuffer,1,2))"),
     'One-process live audio/video and fetch-driven display must be preserved');
 playerCheck(str_contains($library,'is_uploaded_file') &&
