@@ -90,7 +90,7 @@ try {
     }
     $record('finished',$sent.' static frames pushed');
     error_log(sprintf('SCCP media images %s: %d static PNG pushes',$device,$sent));
-} catch(\\Throwable $e) {
+} catch(\Throwable $e) {
     $record('error',$e->getMessage());
     error_log('SCCP media images '.$device.': '.$e->getMessage());
 } finally {
