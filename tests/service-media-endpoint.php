@@ -22,7 +22,7 @@ $runner=$dir.'/run.php';
 try {
     $png=base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lWkAAAAASUVORK5CYII=');
     file_put_contents($framePath,$png);
-    $modified=str_replace("$"."root='/var/spool/asterisk';",
+    $modified=str_replace("$"."root=__DIR__;",
         "$"."root=".var_export($dir,true).";",$source);
     checkFrame($modified!==$source,'Cannot override test frame root');
     file_put_contents($script,$modified);
