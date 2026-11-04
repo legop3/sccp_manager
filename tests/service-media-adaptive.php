@@ -27,7 +27,7 @@ $media=file_get_contents(__DIR__.'/../serviceApps/media-player/Service.php');
 mediaCheck(str_contains($worker,"'-atomic_writing','1'") &&
     str_contains($worker,"'-update','1'") &&
     str_contains($worker,'if(is_file($ack))') &&
-    str_contains($worker,'$screens->push($url)'),
+    str_contains($worker,'$screens->push($url,$stopUrl,$menuUrl)'),
     'Adaptive worker must wait for GET and use atomic latest-frame update');
 mediaCheck(str_contains($worker,'testsrc2=size=296x156:rate=120') &&
     !str_contains($worker,"testsrc2=size=296x156:rate=12'") &&
