@@ -4,15 +4,14 @@ return static function(array $ctx,array $q) {
     $media=$ctx['media'];
     $op=(string)($q['op']??'list');
     if($op==='stop') {
-        $stopped=$media->stop();
-        return $ctx['text']('media player',$stopped?'playback stopped':'nothing is playing');
+        $media->stop();
+        return $ctx['text']('media player','stopping playback');
     }
     if($op==='play') {
         try {
             $line=(string)($ctx['line']??'');
-            $media->play((string)($q['file']??''),$line,
-                $ctx['route'](['op'=>'stop']),$ctx['route'](['op'=>'list']));
-            return $ctx['text']('media player','starting playback. use the stop softkey on the video screen.');
+            $media->play((string)($q['file']??''),$line);
+            return $ctx['text']('media player','starting playback. hang up to stop, or open this service again.');
         }catch(\Throwable $e) {
             error_log('SCCP media service: '.$e->getMessage());
             return $ctx['text']('media player',strtolower($e->getMessage()));
