@@ -30,9 +30,9 @@ mediaCheck(str_contains($worker, '$exitReason=\'deadline\'') &&
     str_contains($worker, '$exitReason=\'stop_file\'') &&
     str_contains($worker, '$exitReason=\'session_metadata_missing\'') &&
     str_contains($worker, '++$rejected;') &&
-    str_contains($worker, '++$consecutiveRejects;') &&
-    str_contains($worker, 'usleep(min(2000000,250000*$consecutiveRejects))') &&
-    str_contains($worker, '$consecutiveRejects=0;') &&
+    str_contains($worker, 'usleep(100000);') &&
+    !str_contains($worker, 'consecutiveRejects') &&
+    !str_contains($worker, 'usleep(min(2000000,') &&
     !str_contains($worker, '$exitReason=\'cgi_push_rejected\'') &&
     str_contains($worker, "' rejected pushes; reason='") &&
     str_contains($worker,'$screens->push($url)'),
