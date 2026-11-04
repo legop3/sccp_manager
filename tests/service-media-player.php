@@ -23,16 +23,15 @@ playerCheck(str_contains($player,'application AudioSocket ') &&
     str_contains($player,'format=pal8') &&
     str_contains($player,'phone-media-images.php') &&
     !str_contains($player,'$screens->push($url)') &&
-    str_contains($images,'$screens->frame($name,$png,$files)') &&
-    str_contains($images,'$screens->cleanup([$old])') &&
-    str_contains($images,'$lastHash') &&
-    !str_contains($images,'/media-frame.php?') &&
+    str_contains($images,'$screens->push($url)') &&
+    str_contains($images,'is_file($ack)') &&
+    str_contains($images,'image URL unavailable') &&
     str_contains($images,"$"."record('error'") &&
-    str_contains($images,"$"."record('phone image pushes accepted") &&
+    str_contains($images,"$"."record('first push accepted") &&
     str_contains($player,"$"."imageProcess=proc_open") &&
     !str_contains($player,"$"."imageCmd.' >/dev/null") &&
     str_contains($player,'unpack(\'n\',substr($incomingBuffer,1,2))'),
-    'One-process audio and tested static PNG image transport must be preserved');
+    'One-process live audio/video and fetch-driven display must be preserved');
 playerCheck(str_contains($library,'is_uploaded_file') &&
     str_contains($library,'move_uploaded_file') &&
     str_contains($library,'ffprobe') &&
