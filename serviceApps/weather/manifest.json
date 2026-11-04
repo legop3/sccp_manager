@@ -1,21 +1,21 @@
 {
   "id": "weather",
-  "name": "Weather",
-  "description": "Built-in Weather service",
+  "name": "weather",
+  "description": "built-in weather service",
   "enabledByDefault": true,
   "builtin": true,
   "order": 10,
   "settings": {
     "name": {
       "type": "text",
-      "label": "Location name",
-      "default": "Columbus, OH",
+      "label": "location name",
+      "default": "columbus, oh",
       "minLength": 1,
       "maxLength": 64
     },
     "lat": {
       "type": "number",
-      "label": "Latitude",
+      "label": "latitude",
       "default": 39.9612,
       "min": -90,
       "max": 90,
@@ -23,7 +23,7 @@
     },
     "lon": {
       "type": "number",
-      "label": "Longitude",
+      "label": "longitude",
       "default": -82.9988,
       "min": -180,
       "max": 180,

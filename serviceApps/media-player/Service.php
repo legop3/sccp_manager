@@ -7,14 +7,14 @@ return static function(array $ctx,array $q) {
     if(($q['op']??'')==='benchmark'){
         try {
             $ctx['media']->benchmark($ctx['config']['test_frames']);
-            return $ctx['text']('Media Player',
-                'Starting audio call and image speed test. Check the screen and PBX logs for actual frame rate.');
+            return $ctx['text']('media player',
+                'starting audio call and image speed test. check the screen and pbx logs for actual frame rate.');
         }catch(\Throwable $e){
             error_log('SCCP media player: '.$e->getMessage());
-            return $ctx['text']('Media Player','Frame test could not start.');
+            return $ctx['text']('media player','frame test could not start.');
         }
     }
-    return $ctx['menu']('Media Player',[
-        ['Audio + Video Speed Test',$ctx['route'](['op'=>'benchmark'])]
+    return $ctx['menu']('media player',[
+        ['audio + video speed test',$ctx['route'](['op'=>'benchmark'])]
     ]);
 };

@@ -6,7 +6,7 @@
 return static function(array $ctx,array $q) {
     $op=(string)($q['op']??'');
     if($op!=='' && $op!=='increment')
-        return $ctx['text']('Count','Unknown counter action.');
+        return $ctx['text']('count','unknown counter action.');
 
     $count=$ctx['storage']->transaction(static function(array &$state)use($op) {
         $value=$state['count']??0;
@@ -27,8 +27,8 @@ return static function(array $ctx,array $q) {
         return $value;
     });
 
-    return $ctx['menu']('Count: '.$count,[
-        ['Add 1',$ctx['route'](['op'=>'increment'])],
-        ['Refresh',$ctx['route']()]
+    return $ctx['menu']('count: '.$count,[
+        ['add 1',$ctx['route'](['op'=>'increment'])],
+        ['refresh',$ctx['route']()]
     ]);
 };

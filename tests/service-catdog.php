@@ -61,18 +61,18 @@ $menu=function(array $query=[])use($fn,&$ctx) {
 };
 $entries=$menu();
 $labels=array_column($entries,0);
-checkCatdog(in_array('Send a cat',$labels,true) && in_array('Send a dog',$labels,true),
+checkCatdog(in_array('send a cat',$labels,true) && in_array('send a dog',$labels,true),
     'Both animals should be available initially');
-checkCatdog(in_array('Refresh status',$labels,true) &&
-    in_array('Services',$labels,true),'Expected navigation entries missing');
+checkCatdog(in_array('refresh status',$labels,true) &&
+    in_array('services',$labels,true),'Expected navigation entries missing');
 checkCatdog(str_contains(end($entries)[1],'app=home'),
     'Services entry must leave catdog');
 
 $storage->remaining=3730;
 $entries=$menu();
-checkCatdog(str_contains(implode(' ',array_column($entries,0)),'Ready in 1h 3m'),
+checkCatdog(str_contains(implode(' ',array_column($entries,0)),'ready in 1h 3m'),
     'Cooldown must be shown in hours and minutes');
-checkCatdog(!in_array('Send a cat',array_column($entries,0),true),
+checkCatdog(!in_array('send a cat',array_column($entries,0),true),
     'Cannot offer an action during cooldown');
 $menu(['op'=>'cat']);
 checkCatdog($storage->claims===1 && !$notifications->calls,
@@ -81,8 +81,8 @@ checkCatdog($storage->claims===1 && !$notifications->calls,
 $storage->remaining=0;
 $ctx['config']['allow_cats']=false;
 $entries=$menu();
-checkCatdog(!in_array('Send a cat',array_column($entries,0),true) &&
-    in_array('Send a dog',array_column($entries,0),true),
+checkCatdog(!in_array('send a cat',array_column($entries,0),true) &&
+    in_array('send a dog',array_column($entries,0),true),
     'Disabled animals must disappear from the menu');
 $menu(['op'=>'cat']);
 checkCatdog($storage->claims===1,'Disabled animals must not claim cooldown');
@@ -152,7 +152,7 @@ $entries=$menu(['op'=>'cat']);
 checkCatdog($storage->remaining===3600,'Success must retain cooldown');
 checkCatdog(count($notifications->calls)===1,'Only one notification request expected');
 checkCatdog($notifications->calls[0]['scope']==='self','Scope setting ignored');
-checkCatdog(str_contains(implode(' ',array_column($entries,0)),'Yours next'),
+checkCatdog(str_contains(implode(' ',array_column($entries,0)),'yours next'),
     'Sender must be told its popup follows the menu response');
 checkCatdog($notifications->calls[0]['deferRequester']===true,
     'catdog must schedule sender popup after its XML response');
@@ -164,7 +164,7 @@ $notifications->deferred=1;
 $entries=$menu(['op'=>'dog']);
 checkCatdog($storage->refunds===0 && $storage->remaining===3600,
     'Unacknowledged deliveries must not create duplicate retries');
-checkCatdog(str_contains(implode(' ',array_column($entries,0)),'Yours next'),
+checkCatdog(str_contains(implode(' ',array_column($entries,0)),'yours next'),
     'Sender should still receive deferred popup when other pushes are rejected');
 
 $storage->remaining=0;
@@ -178,6 +178,6 @@ $notifications->connected=1;
 $entries=$menu(['op'=>'dog']);
 checkCatdog($storage->refunds===2 && $storage->remaining===0,
     'Failed image source should refund cooldown');
-checkCatdog(str_contains(implode(' ',array_column($entries,0)),'Try dog again'),
+checkCatdog(str_contains(implode(' ',array_column($entries,0)),'try dog again'),
     'Image failure should offer retry');
 echo "catdog image, menu and delivery tests passed\n";

@@ -1,12 +1,12 @@
 {
   "id": "carrot-try",
   "name": "carrot try",
-  "description": "Roll for a carrot; winners notify every connected phone",
+  "description": "roll for a carrot; winners notify every connected phone",
   "enabledByDefault": false,
   "settings": {
     "one_in": {
       "type": "integer",
-      "label": "Winning chance (1 in N)",
+      "label": "winning chance (1 in n)",
       "default": 235,
       "min": 2,
       "max": 100000

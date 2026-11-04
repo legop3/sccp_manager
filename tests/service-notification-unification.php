@@ -64,7 +64,7 @@ namespace {
         $id='SEP00000000000'.($i+1);
         verifyNotify($item['device']===$id,'Delivery must select the actual session device');
         verifyNotify($item['ip']==='10.254.77.1'.($i+1),'Delivery must use the VPN session IP');
-        verifyNotify(str_contains($item['message']->payload()['actions']['Open'],$id),
+        verifyNotify(str_contains($item['message']->payload()['actions']['open'],$id),
             'Open URL must be generated per recipient');
     }
     verifyNotify(Renderer::$rendered[0]['appearance']['theme']==='custom',
@@ -130,7 +130,7 @@ namespace {
         verifyNotify(count(Queue::$sent)===2 &&
             Queue::$sent[1]['device']==='SEP000000000001',
             'Originating handset must get its own notification after XML response');
-        $action=Queue::$sent[1]['message']->payload()['actions']['Open']??'';
+        $action=Queue::$sent[1]['message']->payload()['actions']['open']??'';
         verifyNotify(str_contains($action,'SEP000000000001'),
             'Deferred sender action must be authenticated for itself');
         echo "Deferred sender notification fired after response flush\n";

@@ -34,25 +34,25 @@ try {
     file_put_contents($temp,json_encode(['count'=>19,'other'=>'keep']));
     $one=countStore($temp);
     [$doc,$raw]=countResponse($fn,$one);
-    countAssert(str_contains($raw,'Count: 19'),'Existing counter was reset');
+    countAssert(str_contains($raw,'count: 19'),'Existing counter was reset');
     $names=[];
     foreach($doc->getElementsByTagName('MenuItem') as $item)
         $names[]=$item->getElementsByTagName('Name')->item(0)->textContent;
-    countAssert($names===['Add 1','Refresh'],'Only Add 1 and Refresh are allowed');
+    countAssert($names===['add 1','refresh'],'Only Add 1 and Refresh are allowed');
     countAssert(json_decode(file_get_contents($temp),true)['count']===19,
         'Viewing the counter changed its value');
     [, $raw]=countResponse($fn,$one,'increment');
-    countAssert(str_contains($raw,'Count: 20'),'Increment did not add exactly one');
+    countAssert(str_contains($raw,'count: 20'),'Increment did not add exactly one');
     $two=countStore($temp);
     [, $raw]=countResponse($fn,$two);
-    countAssert(str_contains($raw,'Count: 20'),
+    countAssert(str_contains($raw,'count: 20'),
         'Counter not persistent across storage instances');
 
     [, $bad]=countResponse($fn,$two,'reset');
-    countAssert(str_contains($bad,'Unknown counter action'),
+    countAssert(str_contains($bad,'unknown counter action'),
         'Reset must not be supported');
     [, $bad]=countResponse($fn,$two,'decrement');
-    countAssert(str_contains($bad,'Unknown counter action'),
+    countAssert(str_contains($bad,'unknown counter action'),
         'Decrease must not be supported');
     countAssert(json_decode(file_get_contents($temp),true)['count']===20,
         'Unsupported actions changed persistent state');
@@ -81,7 +81,7 @@ try {
         }
         $two=countStore($temp);
         [, $raw]=countResponse($fn,$two);
-        countAssert(str_contains($raw,'Count: 92'),
+        countAssert(str_contains($raw,'count: 92'),
             'Concurrent increments were lost');
     }
 

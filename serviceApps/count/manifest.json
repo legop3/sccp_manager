@@ -1,6 +1,6 @@
 {
   "id": "count",
   "name": "count",
-  "description": "One permanent shared counter; only Add 1 and Refresh",
+  "description": "one permanent shared counter; only add 1 and refresh",
   "enabledByDefault": false
 }

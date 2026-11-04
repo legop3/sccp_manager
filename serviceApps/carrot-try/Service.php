@@ -1,11 +1,11 @@
 <?php
 return static function(array $ctx,array $q) {
     if(($q['op']??'')!=='roll')return $ctx['menu']('carrot try',[
-        ['Roll (1 in '.$ctx['config']['one_in'].')',$ctx['route'](['op'=>'roll'])]
+        ['roll (1 in '.$ctx['config']['one_in'].')',$ctx['route'](['op'=>'roll'])]
     ]);
     $roll=$ctx['randomInt']??'random_int';
-    if($roll(1,$ctx['config']['one_in'])!==1)return $ctx['text']('carrot try','No carrot this time.');
-    if(!function_exists('imagecreatetruecolor'))return $ctx['text']('carrot try','Missing PHP GD');
+    if($roll(1,$ctx['config']['one_in'])!==1)return $ctx['text']('carrot try','no carrot this time.');
+    if(!function_exists('imagecreatetruecolor'))return $ctx['text']('carrot try','missing php gd');
     $im=imagecreatetruecolor(296,156);
     imagefilledrectangle($im,0,0,295,155,imagecolorallocate($im,24,58,40));
     $orange=imagecolorallocate($im,255,139,36);$green=imagecolorallocate($im,70,225,86);
@@ -15,10 +15,10 @@ return static function(array $ctx,array $q) {
     imagefilledpolygon($im,[149,25,187,0,164,37],3,$green);
     ob_start();imagepng($im);$img=ob_get_clean();imagedestroy($im);
     [$sent,$total,$deferred]=$ctx['notifications']->broadcast(
-        'CARROT!','You won the carrot lottery',$img,'all',$ctx['device'],true
+        'carrot!','you won the carrot lottery',$img,'all',$ctx['device'],true
     );
-    if($total===0)return $ctx['text']('carrot try','CARROT! No connected phones found.');
+    if($total===0)return $ctx['text']('carrot try','carrot! no connected phones found.');
     if($deferred>0)return $ctx['text']('carrot try',
-        'CARROT! You will see it too. Others accepted '.$sent.'.');
-    return $ctx['text']('carrot try','CARROT! Accepted by '.$sent.' of '.$total.' phones.');
+        'carrot! you will see it too. others accepted '.$sent.'.');
+    return $ctx['text']('carrot try','carrot! accepted by '.$sent.' of '.$total.' phones.');
 };

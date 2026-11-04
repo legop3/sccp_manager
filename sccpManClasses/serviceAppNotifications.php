@@ -80,7 +80,7 @@ final class serviceAppNotifications {
         if($soundId!=='' && $sound===null)
             throw new \InvalidArgumentException('Notification sound must be an uploaded ringtone');
         $fields+=['title'=>'Notification','primary'=>'','secondary'=>'',
-            'detail'=>'','timestamp'=>date('m/d/Y g:i A')];
+            'detail'=>'','timestamp'=>strtolower(date('m/d/Y g:i A'))];
         $module=$this->module;
         $app=$this->id;
         $sendOne=static function($device,$ip)use($module,$app,$fields,$appearance,$actions,$sound) {
@@ -132,7 +132,7 @@ final class serviceAppNotifications {
             'image'=>$image],$scope,
             function($device) {
                 $url=$this->module->phoneservices->url($device);
-                return ['Open'=>$url.'&app='.rawurlencode($this->id)];
+                return ['open'=>$url.'&app='.rawurlencode($this->id)];
             },'', $requester,$deferRequester?$requester:null);
     }
 

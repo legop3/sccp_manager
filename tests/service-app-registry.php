@@ -5,7 +5,7 @@ $r=new serviceRegistry();
 $a=$r->manifests();
 foreach(['catdog','carrot-try','count','talking-clock','media-player'] as $id)
     if(!isset($a[$id]))throw new RuntimeException('Missing service '.$id);
-$menu=serviceRegistry::menu('Services',[['A & B','http://example.org/?x=1&y=2']]);
+$menu=serviceRegistry::menu('services',[['a & b','http://example.org/?x=1&y=2']]);
 $xml=new DOMDocument();
 if(!@$xml->loadXML($menu,LIBXML_NONET))throw new RuntimeException('Bad menu XML');
 if($xml->getElementsByTagName('URL')->item(0)->textContent!=='http://example.org/?x=1&y=2')

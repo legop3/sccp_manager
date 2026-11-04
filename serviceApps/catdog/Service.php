@@ -14,11 +14,11 @@ return static function(array $ctx,array $query) {
 
     $remaining=static function($seconds) {
         $minutes=(int)ceil(max(0,$seconds)/60);
-        if($minutes<=0)return 'Ready now';
-        if($minutes<60)return 'Ready in '.$minutes.' min';
+        if($minutes<=0)return 'ready now';
+        if($minutes<60)return 'ready in '.$minutes.' min';
         $hours=intdiv($minutes,60);
         $mins=$minutes%60;
-        return 'Ready in '.$hours.'h'.($mins?' '.$mins.'m':'');
+        return 'ready in '.$hours.'h'.($mins?' '.$mins.'m':'');
     };
     $home=static function($notice='')use($settings,$route,$menu,$storage,$user,$remaining) {
         $wait=$storage->cooldownRemaining($user);
@@ -28,23 +28,23 @@ return static function(array $ctx,array $query) {
             $entries[] = [$remaining($wait),$route(['op'=>'status'])];
         } else {
             if(!empty($settings['allow_cats']))
-                $entries[]=['Send a cat',$route(['op'=>'cat'])];
+                $entries[]=['send a cat',$route(['op'=>'cat'])];
             if(!empty($settings['allow_dogs']))
-                $entries[]=['Send a dog',$route(['op'=>'dog'])];
+                $entries[]=['send a dog',$route(['op'=>'dog'])];
             if(empty($settings['allow_cats']) && empty($settings['allow_dogs']))
-                $entries[]=['Cats and dogs disabled',$route(['op'=>'status'])];
+                $entries[]=['cats and dogs disabled',$route(['op'=>'status'])];
         }
-        $entries[]=['Refresh status',$route(['op'=>'status'])];
-        $entries[]=['Services',$route(['app'=>'home'])];
+        $entries[]=['refresh status',$route(['op'=>'status'])];
+        $entries[]=['services',$route(['app'=>'home'])];
         return $menu('catdog',$entries);
     };
 
     if($op==='' || $op==='status')return $home();
 
-    if(!in_array($op,['cat','dog'],true))return $home('Unknown choice');
+    if(!in_array($op,['cat','dog'],true))return $home('unknown choice');
     if(($op==='cat' && empty($settings['allow_cats'])) ||
        ($op==='dog' && empty($settings['allow_dogs'])))
-        return $home(ucfirst($op).' pictures are disabled');
+        return $home($op.' pictures are disabled');
 
     $wait=$storage->cooldown($user,(int)$settings['cooldown_minutes']*60);
     if($wait>0)return $home($remaining($wait));
@@ -57,39 +57,39 @@ return static function(array $ctx,array $query) {
         $storage->releaseCooldown($user);
         error_log('SCCP catdog image fetch: '.$e->getMessage());
         return $menu('catdog',[
-            ['Picture unavailable',$route()],
-            ['Try '.($op==='cat'?'cat':'dog').' again',$route(['op'=>$op])],
-            ['Services',$route(['app'=>'home'])]
+            ['picture unavailable',$route()],
+            ['try '.($op==='cat'?'cat':'dog').' again',$route(['op'=>$op])],
+            ['services',$route(['app'=>'home'])]
         ]);
     }
 
     try {
         [$accepted,$connected,$deferred]=$ctx['notifications']->broadcast(
-            'Random '.ucfirst($op),
-            'A random '.$op.' has arrived!',
+            'random '.$op,
+            'a new '.$op.' is here',
             $image,$settings['delivery'],$ctx['device'],true
         );
     }catch(\Throwable $e) {
         // Notification errors can occur *after* the queue has saved an entry.
         // Do not refund the cooldown and create duplicate notifications.
         error_log('SCCP catdog delivery: '.$e->getMessage());
-        return $home('Delivery error; check notifications');
+        return $home('delivery error; check notifications');
     }
 
     if($connected===0) {
         // No recipient exists: nothing was placed in the queue.
         $storage->releaseCooldown($user);
-        return $home('No connected target phones');
+        return $home('no connected target phones');
     }
     if($deferred>0) {
         // The requesting handset gets its popup after the XML response
         // finishes. Do not claim its push was already acknowledged.
-        return $home('Yours next; others accepted '.$accepted);
+        return $home('yours next; others accepted '.$accepted);
     }
     if($accepted===$connected) {
-        return $home(ucfirst($op).' sent to '.$accepted.' phone'.($accepted===1?'':'s'));
+        return $home($op.' sent to '.$accepted.' phone'.($accepted===1?'':'s'));
     }
     // The shared queue retains entries even when a handset rejects its HTTP
     // push. Never call this an unsent picture or offer an immediate retry.
-    return $home('Accepted '.$accepted.'/'.$connected.'; check inbox');
+    return $home('accepted '.$accepted.'/'.$connected.'; check inbox');
 };

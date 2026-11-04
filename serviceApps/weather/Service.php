@@ -19,13 +19,13 @@ return static function(array $ctx,array $q) {
                 'daily'=>'temperature_2m_max,temperature_2m_min','temperature_unit'=>'fahrenheit',
                 'wind_speed_unit'=>'mph','timezone'=>'auto','forecast_days'=>4]);
             $data=json_decode($legacy->fetch($api),true);
-            if(!is_array($data)||!isset($data['current'])){$legacy->xml('Weather','Forecast unavailable.');return;}
+            if(!is_array($data)||!isset($data['current'])){$legacy->xml('weather','forecast unavailable.');return;}
             $c=$data['current'];$d=$data['daily']??[];
-            $rows=[(string)($settings['name']??'Weather'),'Current: '.($c['temperature_2m']??'?').' F',
-                'Humidity: '.($c['relative_humidity_2m']??'?').'%',
-                'Wind: '.($c['wind_speed_10m']??'?').' mph','Forecast:'];
-            foreach(($d['time']??[]) as $i=>$date)$rows[]=$date.' '.($d['temperature_2m_min'][$i]??'?').' - '.($d['temperature_2m_max'][$i]??'?').' F';
-            $legacy->xml('Weather',implode("\n",$rows));return;
+            $rows=[strtolower((string)($settings['name']??'weather')),'current: '.($c['temperature_2m']??'?').' f',
+                'humidity: '.($c['relative_humidity_2m']??'?').'%',
+                'wind: '.($c['wind_speed_10m']??'?').' mph','forecast:'];
+            foreach(($d['time']??[]) as $i=>$date)$rows[]=$date.' '.($d['temperature_2m_min'][$i]??'?').' - '.($d['temperature_2m_max'][$i]??'?').' f';
+            $legacy->xml('weather',implode("\n",$rows));return;
         }
         };
         $render();

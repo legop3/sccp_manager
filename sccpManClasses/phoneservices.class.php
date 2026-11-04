@@ -14,20 +14,20 @@ class phoneservices {
     private function esc($s) {return htmlspecialchars((string)$s, ENT_XML1|ENT_QUOTES, 'UTF-8');}
     private function xml($name,$data) {
         echo '<?xml version="1.0" encoding="UTF-8"?>';
-        echo '<CiscoIPPhoneText><Title>'.$this->esc(substr($name,0,32)).'</Title><Text>'.$this->esc($data).'</Text>' . ($this->notificationNavigation && $this->notificationNavigation->active() ? '<Prompt>Notification menu</Prompt>'.$this->queueSoftkey() : '') . '</CiscoIPPhoneText>';
+        echo '<CiscoIPPhoneText><Title>'.$this->esc(substr(strtolower($name),0,32)).'</Title><Text>'.$this->esc(strtolower($data)).'</Text>' . ($this->notificationNavigation && $this->notificationNavigation->active() ? '<Prompt>notification menu</Prompt>'.$this->queueSoftkey() : '') . '</CiscoIPPhoneText>';
     }
     private function menu($title,$entries) {
         echo '<?xml version="1.0" encoding="UTF-8"?>';
-        echo '<CiscoIPPhoneMenu><Title>'.$this->esc(substr($title,0,32)).'</Title><Prompt>'.'Select an item'.'</Prompt>';
+        echo '<CiscoIPPhoneMenu><Title>'.$this->esc(substr(strtolower($title),0,32)).'</Title><Prompt>'.'select an item'.'</Prompt>';
         foreach($entries as $entry) {
-            echo '<MenuItem><Name>'.$this->esc(substr($entry[0],0,64)).'</Name><URL>'.$this->esc($entry[1]).'</URL></MenuItem>';
+            echo '<MenuItem><Name>'.$this->esc(substr(strtolower($entry[0]),0,64)).'</Name><URL>'.$this->esc($entry[1]).'</URL></MenuItem>';
         }
         echo $this->queueSoftkey('menu').'</CiscoIPPhoneMenu>';
     }
     private function form($title,$url,$label,$param,$mode='A') {
         echo '<?xml version="1.0" encoding="UTF-8"?>';
-        echo '<CiscoIPPhoneInput><Title>'.$this->esc($title).'</Title><Prompt>'.$this->esc($label).'</Prompt><URL>'.$this->esc($url).'</URL>';
-        echo '<InputItem><DisplayName>'.$this->esc($label).'</DisplayName><QueryString>'.$this->esc($param).'</QueryString><InputFlags>'.$this->esc($mode).'</InputFlags></InputItem>'.$this->queueSoftkey('input').'</CiscoIPPhoneInput>';
+        echo '<CiscoIPPhoneInput><Title>'.$this->esc($title).'</Title><Prompt>'.$this->esc(strtolower($label)).'</Prompt><URL>'.$this->esc($url).'</URL>';
+        echo '<InputItem><DisplayName>'.$this->esc(strtolower($label)).'</DisplayName><QueryString>'.$this->esc($param).'</QueryString><InputFlags>'.$this->esc($mode).'</InputFlags></InputItem>'.$this->queueSoftkey('input').'</CiscoIPPhoneInput>';
     }
     private function requestUrl($query) {
         $base=$this->module->phonecontent->requestBaseUrl();
@@ -67,10 +67,10 @@ class phoneservices {
         $flags=$this->module->phonemenus->serviceFlags();
         $app=(string)($q['app']??'');
         if($app==='' || $app==='home') {
-            $entries=[['Screen Off',$route(['app'=>'screenoff'])]];
+            $entries=[['screen off',$route(['app'=>'screenoff'])]];
             foreach($registry->manifests() as $id=>$meta)
                 if(!empty($flags[$id]))$entries[]=[(string)$meta['name'],$route(['app'=>$id])];
-            $this->menu('Services',$entries);
+            $this->menu('services',$entries);
             return;
         }
         if($app==='screenoff') {
@@ -79,11 +79,11 @@ class phoneservices {
             return;
         }
         if(empty($flags[$app])) {
-            $this->xml('Services','This service is disabled.');
+            $this->xml('services','this service is disabled.');
             return;
         }
         if(!isset($registry->manifests()[$app])) {
-            $this->xml('Services','Unknown service.');
+            $this->xml('services','unknown service.');
             return;
         }
         $registry->handle($app,$q,$device,$identity,$route,$this->notificationNavigation);

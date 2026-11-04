@@ -37,14 +37,14 @@ final class serviceRegistry {
     public static function text($title,$body) {
         $e=static function($s){return htmlspecialchars((string)$s,ENT_XML1|ENT_QUOTES,'UTF-8');};
         return '<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneText><Title>'.
-            $e(substr($title,0,32)).'</Title><Text>'.$e($body).'</Text></CiscoIPPhoneText>';
+            $e(substr(strtolower($title),0,32)).'</Title><Text>'.$e(strtolower($body)).'</Text></CiscoIPPhoneText>';
     }
     public static function menu($title,$entries) {
         $e=static function($s){return htmlspecialchars((string)$s,ENT_XML1|ENT_QUOTES,'UTF-8');};
         $xml='<?xml version="1.0" encoding="UTF-8"?><CiscoIPPhoneMenu><Title>'.
-            $e(substr($title,0,32)).'</Title><Prompt>Select an item</Prompt>';
+            $e(substr(strtolower($title),0,32)).'</Title><Prompt>select an item</Prompt>';
         foreach(array_slice($entries,0,30) as $item)
-            $xml.='<MenuItem><Name>'.$e(substr((string)$item[0],0,64)).
+            $xml.='<MenuItem><Name>'.$e(substr(strtolower((string)$item[0]),0,64)).
                 '</Name><URL>'.$e($item[1]).'</URL></MenuItem>';
         return $xml.'</CiscoIPPhoneMenu>';
     }

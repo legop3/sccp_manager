@@ -29,17 +29,17 @@ $call=$delivery->calls[0];
 checkCarrot($call['scope']==='all','Winning carrot must reach every connected handset');
 checkCarrot($call['sender']==='SEP000000000001' && $call['defer']===true,
     'Winning carrot must include originating handset after menu response');
-checkCarrot(str_contains($result,'You will see it too'),
+checkCarrot(str_contains($result,'you will see it too'),
     'Sender should get confirmation that their notification will display');
 checkCarrot(substr($call['image'],0,8)==="\x89PNG\r\n\x1a\n",
     'Carrot should still supply its image to the existing notification renderer');
 $ctx['randomInt']=static fn($low,$high)=>$high;
 $lose=$fn($ctx,['op'=>'roll']);
-checkCarrot(str_contains($lose,'No carrot this time') && count($delivery->calls)===1,
+checkCarrot(str_contains($lose,'no carrot this time') && count($delivery->calls)===1,
     'Losing rolls must not send notifications');
 $delivery->reply=[0,0,0];
 $ctx['randomInt']=static fn($low,$high)=>1;
 $empty=$fn($ctx,['op'=>'roll']);
-checkCarrot(str_contains($empty,'No connected phones found'),
+checkCarrot(str_contains($empty,'no connected phones found'),
     'Disconnected phone result must not imply delivery');
 echo "carrot try broadcasts to everyone including the sender; wins and losses verified\n";

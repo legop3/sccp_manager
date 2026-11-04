@@ -7,8 +7,8 @@ $flags=$this->phonemenus->serviceFlags();
 $escape=static function($value){return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');};
 ?>
 <div class="container-fluid">
-<h3>Phone Services</h3>
-<p>Enable services and configure them here. The Services button shows enabled apps; Messages and Directories keep their dedicated phone menus.</p>
+<h3>phone services</h3>
+<p>enable services and configure them here. the services button shows enabled apps; messages and directories keep their dedicated phone menus.</p>
 <form method="post" action="config.php?display=sccp_content#services">
 <input type="hidden" name="content_action" value="services_save">
 <div class="panel-group" id="service-app-settings">
@@ -19,13 +19,13 @@ $escape=static function($value){return htmlspecialchars((string)$value,ENT_QUOTE
 <details class="panel panel-default" style="margin-bottom:10px" <?php echo !empty($fields)?'':'open'; ?>>
 <summary class="panel-heading" style="cursor:pointer;list-style-position:inside">
 <strong><?php echo $escape($manifest['name']); ?></strong>
-<span class="text-muted"> — <?php echo $escape($manifest['description']??'Phone service'); ?></span>
-<span class="pull-right text-muted"><?php echo !empty($flags[$id])?'Enabled':'Disabled'; ?></span>
+<span class="text-muted"> — <?php echo $escape($manifest['description']??'phone service'); ?></span>
+<span class="pull-right text-muted"><?php echo !empty($flags[$id])?'enabled':'disabled'; ?></span>
 </summary>
 <div class="panel-body">
 <div class="checkbox"><label>
 <input type="checkbox" name="services[<?php echo $escape($id); ?>]" value="1" <?php echo !empty($flags[$id])?'checked':''; ?> />
-<strong>Enabled in phone Services menu</strong>
+<strong>enabled in phone services menu</strong>
 </label></div>
 <?php if($fields): ?>
 <div class="row">
@@ -62,13 +62,13 @@ required />
 <?php endforeach; ?>
 </div>
 <?php else: ?>
-<p class="text-muted">This service has no additional settings.</p>
+<p class="text-muted">this service has no additional settings.</p>
 <?php endif; ?>
 </div>
 </details>
 <?php endforeach; ?>
 </div>
-<button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> Save Services</button>
+<button class="btn btn-primary" type="submit"><i class="fa fa-save"></i> save services</button>
 </form>
-<p class="help-block" style="margin-top:12px">Application settings apply on the next action. Services menu changes appear on the next press. Signed phone settings are refreshed on save.</p>
+<p class="help-block" style="margin-top:12px">application settings apply on the next action. services menu changes appear on the next press. signed phone settings are refreshed on save.</p>
 </div>
