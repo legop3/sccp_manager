@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.201</version>
+	<version>17.1.202</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.202 * - Display player frame XML via the same HTTP Execute flow as notifications; one Stop softkey; preserve video/audio workers
 		 * Version 17.1.201 * - Match notification image Prompt/Stop softkey XML and prevent control URL errors interrupting video
 		 * Version 17.1.200 * - Isolated Stop softkey in live frame XML; preserve v17.1.198 playback files byte for byte
 		 * Version 17.1.199 * - Add one Stop softkey to player image XML; retain 1-second adaptive retry
