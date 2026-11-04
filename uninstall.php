@@ -6,7 +6,7 @@ if (!defined('FREEPBX_IS_AUTH')) {
 }
 
 global $db;
-// Disable the module-managed wake-up call runner when the module is removed.
+// Clean up any leftover cron from old releases of the alarm service.
 $servicesCron='/etc/cron.d/sccp-manager-services';
 if (is_file($servicesCron) && !is_link($servicesCron)) @unlink($servicesCron);
 $version = FreePBX::Config()->get('ASTVERSION');

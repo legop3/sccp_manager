@@ -1,6 +1,6 @@
 <?php
 namespace FreePBX\modules\Sccp_manager;
-/** Shared compatibility functionality for the existing phone services. */
+/** Shared XML navigation and cached HTTP fetches for legacy Weather service. */
 final class serviceLegacySupport {
     public $module;
     private $notificationNavigation;

@@ -114,11 +114,6 @@ namespace {
         !str_contains($legacy,'phoneNotifications::graphic(') &&
         !str_contains($legacy,'new notificationQueue('),
         'Legacy notification renderer or sender still exists');
-    foreach(['messages/Service.php','games/Service.php','alarms/Tick.php'] as $path) {
-        $source=file_get_contents(__DIR__.'/../serviceApps/'.$path);
-        verifyNotify(str_contains($source,'->send(') && !str_contains($source,'->push('),
-            'Legacy sender bypasses serviceAppNotifications: '.$path);
-    }
     $adapter=file_get_contents(__DIR__.'/../sccpManClasses/serviceAppNotifications.php');
     verifyNotify(str_contains($adapter,'phoneNotifications::graphic(') &&
         str_contains($adapter,'new notificationMessage(') &&

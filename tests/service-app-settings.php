@@ -11,13 +11,11 @@ function settingsAssert($ok,$message) {
 }
 $m=new ServiceSettingsFixture();
 $m->saved['phonecontent_weather']=['name'=>'My Town','lat'=>40.124,'lon'=>-83.42];
-$m->saved['phonecontent_news_feed']='https://feeds.npr.org/1001/rss.xml';
 $config=new serviceAppConfig($m);
 $defs=$config->definitions();
-foreach(['weather','news','catdog','carrot-try','talking-clock','media-player'] as $id)
+foreach(['weather','catdog','carrot-try','talking-clock','media-player'] as $id)
     settingsAssert(!empty($defs[$id]),'Missing declared options: '.$id);
 settingsAssert($config->get('weather')['name']==='My Town','Weather location not preserved');
-settingsAssert($config->get('news')['feed']==='https://feeds.npr.org/1001/rss.xml','News source not preserved');
 settingsAssert($config->get('catdog')['cooldown_minutes']===60,'Default cooldown missing');
 $post=[];
 foreach($defs as $id=>$fields) {
@@ -42,8 +40,6 @@ settingsAssert($prepared['talking-clock']['format']==='24h','Format setting not 
 $old=$config->apply($prepared);
 settingsAssert($m->saved['phonecontent_weather']['name']==='Somewhere Else',
     'Weather app did not save to original config key');
-settingsAssert($m->saved['phonecontent_news_feed']==='https://feeds.npr.org/1001/rss.xml',
-    'News app did not retain original saved feed');
 settingsAssert($config->get('media-player')['test_frames']===48,'Media benchmark option not saved');
 settingsAssert($config->get('catdog')['cooldown_minutes']===12,'App option not persisted');
 $config->restore($old);
@@ -52,10 +48,6 @@ settingsAssert($m->saved['phonecontent_weather']['name']==='My Town',
 $invalid=$post;
 $invalid['catdog']['cooldown_minutes']='0';
 try {$config->prepare($invalid);throw new RuntimeException('Out-of-range cooldown accepted');}
-catch(InvalidArgumentException $expected){}
-$invalid=$post;
-$invalid['news']['feed']='https://example.org/rss';
-try {$config->prepare($invalid);throw new RuntimeException('Unapproved news feed accepted');}
 catch(InvalidArgumentException $expected){}
 $invalid=$post;
 $invalid['weather']['lat']='91';

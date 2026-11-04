@@ -69,27 +69,28 @@ if (!function_exists('sccp_manager_content_install')) {
         @chgrp($dir, 'asterisk');
         @chmod($dir, 0755);
         outn('<li>Phone Content: static Cisco directory/preview path ready.</li>');
-        // Persist message inboxes and wake-up call schedules under Asterisk state.
-        $store='/var/spool/asterisk/sccp-manager-services.json';
-        if (!file_exists($store) && !is_link($store)) {
-            @file_put_contents($store, json_encode(array('messages'=>array(), 'alarms'=>array())), LOCK_EX);
-        }
-        if (is_file($store) && !is_link($store)) {
-            @chown($store,'asterisk'); @chgrp($store,'asterisk'); @chmod($store,0600);
-        }
-        // Root-only scheduled registration. This does not start a new daemon.
-        $tick=__DIR__.'/scripts/phone-services-tick.php';
-        $cron='/etc/cron.d/sccp-manager-services';
-        if (is_file($tick) && !is_link($cron)) {
-            $line="* * * * * asterisk /usr/bin/php ". $tick ." >/dev/null 2>&1\n";
-            if (@file_put_contents($cron,$line,LOCK_EX)!==false) {
-                @chmod($cron,0644);
-                outn('<li>Built-in phone services: message storage and wake-up call scheduler ready.</li>');
-            } else {
-                outn('<li>Phone services: unable to install scheduled wake-up call check.</li>');
+        // Module Admin may overlay new releases without deleting old files.
+        // Retire only the exact built-in app files; never remove service state.
+        foreach (['games'=>['Service.php','manifest.json'],
+                  'alarms'=>['Service.php','Tick.php','manifest.json'],
+                  'news'=>['Service.php','manifest.json'],
+                  'messages'=>['Service.php','manifest.json']] as $id=>$files) {
+            $appDir=__DIR__.'/serviceApps/'.$id;
+            if (!is_dir($appDir) || is_link($appDir)) continue;
+            foreach ($files as $name) {
+                $file=$appDir.'/'.$name;
+                if (is_file($file) && !is_link($file)) @unlink($file);
             }
+            @rmdir($appDir);
         }
-
+        // Remove the obsolete alarms-only cron job on module upgrade.
+        // Do not erase existing service state: a future Messages replacement
+        // may need to migrate it, and the user did not ask to delete data.
+        $oldServicesCron='/etc/cron.d/sccp-manager-services';
+        if (is_file($oldServicesCron) && !is_link($oldServicesCron)) {
+            if (!@unlink($oldServicesCron))
+                outn('<li>Could not remove obsolete phone alarm scheduler cron job.</li>');
+        }
 
         // FreePBX 17 keeps extensions_custom.conf across fwconsole reloads.
         // Install an isolated, module-owned dialplan file and a single include.

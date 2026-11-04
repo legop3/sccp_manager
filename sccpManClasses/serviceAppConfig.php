@@ -3,8 +3,8 @@ namespace FreePBX\modules\Sccp_manager;
 
 /**
  * Validated, manifest-defined settings for the Services UI and applications.
- * Settings are always namespaced by service ID. Weather and News retain their
- * existing FreePBX config keys to avoid migration or loss of existing choices.
+ * Settings are namespaced by service ID. Weather retains its existing
+ * FreePBX config key for compatibility.
  */
 final class serviceAppConfig {
     private $module;
@@ -38,10 +38,6 @@ final class serviceAppConfig {
         if($id==='weather') {
             $saved=$this->module->getConfig('phonecontent_weather');
             return is_array($saved)?$saved:[];
-        }
-        if($id==='news') {
-            $saved=$this->module->getConfig('phonecontent_news_feed');
-            return is_string($saved) && $saved!==''?['feed'=>$saved]:[];
         }
         $saved=$this->module->getConfig('phonecontent_service_settings_'.$id);
         return is_array($saved)?$saved:[];
@@ -133,7 +129,6 @@ final class serviceAppConfig {
         $writes=[];
         foreach($changes as $id=>$values) {
             if($id==='weather')$writes['phonecontent_weather']=$values;
-            elseif($id==='news')$writes['phonecontent_news_feed']=$values['feed'];
             else $writes['phonecontent_service_settings_'.$id]=$values;
         }
         $before=[];

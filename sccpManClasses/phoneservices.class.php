@@ -89,10 +89,4 @@ class phoneservices {
         $registry->handle($app,$q,$device,$identity,$route,$this->notificationNavigation);
     }
 
-    /** Keep the scheduled entrypoint stable; the alarms app owns the task. */
-    public function tick() {
-        $tick=require __DIR__.'/../serviceApps/alarms/Tick.php';
-        if(!is_callable($tick))throw new \RuntimeException('Alarms scheduler unavailable');
-        $tick($this->module);
-    }
 }

@@ -1,8 +1,0 @@
-{
-  "id": "messages",
-  "name": "Messages",
-  "description": "Built-in Messages service",
-  "enabledByDefault": true,
-  "builtin": true,
-  "order": 20
-}
