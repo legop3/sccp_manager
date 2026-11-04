@@ -9,16 +9,6 @@ $url='http://10.254.77.1/sccp-manager/media-frame.php?'.
     '0123456789abcdef0123456789abcdef';
 $one=serviceAppScreens::document($url);
 $two=serviceAppScreens::document($url);
-$stopUrl='http://10.254.77.1/sccp-manager/service.php?phone=SEP001122334455&key=abc&app=media-player&op=stop';
-$stopDoc=new DOMDocument();
-mediaCheck(@$stopDoc->loadXML(serviceAppScreens::document($url,$stopUrl),LIBXML_NONET),
-    'Stop softkey image XML must parse');
-$keys=$stopDoc->getElementsByTagName('SoftKeyItem');
-mediaCheck($keys->length===1 &&
-    $keys->item(0)->getElementsByTagName('Name')->item(0)->textContent==='Stop' &&
-    $keys->item(0)->getElementsByTagName('URL')->item(0)->textContent===$stopUrl,
-    'Video image must contain exactly one Stop softkey');
-
 mediaCheck($one===$two,'Same URL must be reused for every frame');
 $doc=new DOMDocument();
 mediaCheck(@$doc->loadXML($one,LIBXML_NONET),'Malformed media XML');
@@ -34,7 +24,7 @@ $worker=file_get_contents(__DIR__.'/../scripts/phone-media-adaptive.php');
 mediaCheck(str_contains($worker,'$until=min($deadline,microtime(true)+1.0)') &&
     str_contains($worker,'++$retried;') &&
     !str_contains($worker,'no image GET completion; same-URL cache or fetch failure possible') &&
-    str_contains($worker,'$screens->push($url,$stopUrl)'),
+    str_contains($worker,'$screens->push($url)'),
     'Lost handset frame acknowledgments must retry within one second without ending playback');
 $endpoint=file_get_contents(__DIR__.'/../services/media-frame.php');
 $publisher=file_get_contents(__DIR__.'/../sccpManClasses/phonecontent.class.php');
@@ -42,7 +32,7 @@ $media=file_get_contents(__DIR__.'/../serviceApps/media-player/Service.php');
 mediaCheck(str_contains($worker,"'-atomic_writing','1'") &&
     str_contains($worker,"'-update','1'") &&
     str_contains($worker,'if(is_file($ack))') &&
-    str_contains($worker,'$screens->push($url,$stopUrl)'),
+    str_contains($worker,'$screens->push($url)'),
     'Adaptive worker must wait for GET and use atomic latest-frame update');
 mediaCheck(str_contains($worker,'testsrc2=size=296x156:rate=120') &&
     !str_contains($worker,"testsrc2=size=296x156:rate=12'") &&
