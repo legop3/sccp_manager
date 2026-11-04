@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.190</version>
+	<version>17.1.191</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.191 * - Publish player and adaptive-test frames, ACKs, and minimal hashed session tickets alongside HTTP endpoint so Apache can read and serve them
 		 * Version 17.1.190 * - Restore adaptive same-URL GET-acknowledged image worker without benchmark frame pacing
 		 * Version 17.1.189 * - Actually make hashed media session ticket Apache-readable, fixing frame HTTP 404 permission mismatch
 		 * Version 17.1.188 * - Correct media endpoint regression test string literals
