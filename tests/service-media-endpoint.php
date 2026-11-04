@@ -56,7 +56,7 @@ try {
     ]));
     @unlink($ackPath);
     $params=['phone'=>$device,'session'=>$run,'key'=>$key,
-        'view'=>'screen','stopkey'=>str_repeat('a',64)];
+        'view'=>'screen'];
     $runnerCode="<?php\n".'$_GET='.var_export($params,true).";\n".
         '$_SERVER[\'HTTP_HOST\']=\'10.254.77.1\';'."\n".
         "require ".var_export($script,true).";\n";
@@ -70,11 +70,10 @@ try {
     $doc=new DOMDocument();
     checkFrame(@$doc->loadXML($body,LIBXML_NONET) &&
         $doc->documentElement->tagName==='CiscoIPPhoneImageFile' &&
-        $doc->getElementsByTagName('SoftKeyItem')->length===1 &&
-        $doc->getElementsByTagName('Prompt')->length===1 &&
-        str_contains($body,'op=stop') &&
+        $doc->getElementsByTagName('SoftKeyItem')->length===0 &&
+        $doc->getElementsByTagName('Prompt')->length===0 &&
         !is_file($ackPath),
-        'Image XML response must have Stop without acknowledging image GET');
+        'Image XML response must have no controls and must not acknowledge image GET');
 }finally{
     foreach(glob($dir.'/*')?:[] as $file)@unlink($file);
     @rmdir($dir);
