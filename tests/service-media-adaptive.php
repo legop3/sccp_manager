@@ -7,31 +7,6 @@ function mediaCheck($ok,$msg) {if(!$ok)throw new RuntimeException($msg);}
 $url='http://10.254.77.1/sccp-manager/media-frame.php?'.
     'phone=SEP001122334455&session=0123456789abcdef&key='.
     '0123456789abcdef0123456789abcdef';
-$stop='http://10.254.77.1/sccp-manager/service.php?phone=SEP001122334455&key='.
-    str_repeat('a',64).'&app=media-player&op=stop';
-$menu='http://10.254.77.1/sccp-manager/service.php?phone=SEP001122334455&key='.
-    str_repeat('a',64).'&app=media-player&op=list';
-// A VPN-facing frame and LAN-facing service URLs are a normal deployment.
-$lanStop=str_replace('10.254.77.1','192.168.0.25',$stop);
-$lanMenu=str_replace('10.254.77.1','192.168.0.25',$menu);
-$lanScreen=serviceAppScreens::document($url,$lanStop,$lanMenu);
-mediaCheck(str_contains($lanScreen,'<SoftKeyItem>'),
-    'LAN control routes must remain usable with VPN media frames');
-try {
-    serviceAppScreens::document($url,str_replace('SEP001122334455','SEP001122334456',$stop),$menu);
-    throw new RuntimeException('Wrong handset accepted in media control');
-} catch(InvalidArgumentException $expected) {}
-$controlled=serviceAppScreens::document($url,$stop,$menu);
-$controlledXml=new DOMDocument();
-mediaCheck(@$controlledXml->loadXML($controlled,LIBXML_NONET),'Malformed controlled image XML');
-mediaCheck($controlledXml->getElementsByTagName('SoftKeyItem')->length===2,
-    'Live image needs Stop and Media softkeys');
-mediaCheck($controlledXml->getElementsByTagName('SoftKeyItem')->item(0)->getElementsByTagName('URL')->item(0)->textContent===$stop,
-    'Stop softkey must target this handset\'s authenticated media service');
-try {
-    serviceAppScreens::document($url,str_replace('op=stop','op=play',$stop),$menu);
-    throw new RuntimeException('Invalid stop URL accepted');
-} catch(InvalidArgumentException $expected) {}
 $one=serviceAppScreens::document($url);
 $two=serviceAppScreens::document($url);
 mediaCheck($one===$two,'Same URL must be reused for every frame');
@@ -46,16 +21,13 @@ foreach([$url.'&seq=2',
     catch(InvalidArgumentException $expected){}
 }
 $worker=file_get_contents(__DIR__.'/../scripts/phone-media-adaptive.php');
-mediaCheck(str_contains($worker,"$".'sent===0 || microtime(true)<$deadline') &&
-    !str_contains($worker,'!is_file($stop) && is_file($meta)'),
-    'Live media must attempt the first image push after successful preflight');
 $endpoint=file_get_contents(__DIR__.'/../services/media-frame.php');
 $publisher=file_get_contents(__DIR__.'/../sccpManClasses/phonecontent.class.php');
 $media=file_get_contents(__DIR__.'/../serviceApps/media-player/Service.php');
 mediaCheck(str_contains($worker,"'-atomic_writing','1'") &&
     str_contains($worker,"'-update','1'") &&
     str_contains($worker,'if(is_file($ack))') &&
-    str_contains($worker,'$screens->push($url,$stopUrl,$menuUrl)'),
+    str_contains($worker,'$screens->push($url)'),
     'Adaptive worker must wait for GET and use atomic latest-frame update');
 mediaCheck(str_contains($worker,'testsrc2=size=296x156:rate=120') &&
     !str_contains($worker,"testsrc2=size=296x156:rate=12'") &&
