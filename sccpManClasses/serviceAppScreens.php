@@ -28,6 +28,16 @@ final class serviceAppScreens {
      * Caller tracks file paths for cleanup; only server-generated content.
      * Success means the phone accepted the push, NOT that it displayed it.
      */
+    public static function document($url) {
+        if(!is_string($url) ||
+            !preg_match('~^http://[0-9.]+/sccp-manager/[a-z0-9-]+\\.png$~D',$url))
+            throw new \InvalidArgumentException('Invalid media PNG URL');
+        return '<?xml version="1.0" encoding="UTF-8"?>'.
+            '<CiscoIPPhoneImageFile><Title>media test</Title>'.
+            '<LocationX>0</LocationX><LocationY>0</LocationY>'.
+            '<URL>'.htmlspecialchars($url,ENT_XML1|ENT_QUOTES,'UTF-8').
+            '</URL></CiscoIPPhoneImageFile>';
+    }
     public function frame($name,$png,array &$files) {
         if (!preg_match('/^[a-z0-9-]{1,90}$/D',(string)$name))
             throw new \InvalidArgumentException('Invalid frame name');
@@ -35,31 +45,40 @@ final class serviceAppScreens {
             substr($png,0,8)!=="\x89PNG\r\n\x1a\n")
             throw new \InvalidArgumentException('Invalid PNG frame');
         $image=$this->root.'/'.$name.'.png';
-        $xmlFile=$this->root.'/'.$name.'.xml';
-        if (is_link($image) || is_link($xmlFile) || file_exists($image) || file_exists($xmlFile))
+        // Deliver the small display XML directly to the handset. The phone
+        // then has only one PNG URL to fetch; static .xml MIME mismatches and
+        // out-of-order follow-up XML downloads cannot break the frame.
+        if(is_link($image) || file_exists($image))
             throw new \RuntimeException('Frame path already exists');
         if(file_put_contents($image,$png,LOCK_EX)!==strlen($png))
             throw new \RuntimeException('Unable to publish image frame');
         $files[]=$image;
         @chmod($image,0644);
-        $esc=static function($s){return htmlspecialchars($s,ENT_XML1|ENT_QUOTES,'UTF-8');};
-        $document='<?xml version="1.0" encoding="UTF-8"?>'.
-            '<CiscoIPPhoneImageFile><Title>Video Test</Title>'.
-            '<LocationX>0</LocationX><LocationY>0</LocationY>'.
-            '<URL>'.$esc($this->base.'/'.$name.'.png').'</URL></CiscoIPPhoneImageFile>';
-        if(file_put_contents($xmlFile,$document,LOCK_EX)!==strlen($document))
-            throw new \RuntimeException('Unable to publish frame document');
-        $files[]=$xmlFile;
-        @chmod($xmlFile,0644);
-        $execute='<CiscoIPPhoneExecute><ExecuteItem URL="'.
-            $esc($this->base.'/'.$name.'.xml').'"/></CiscoIPPhoneExecute>';
+        $url=$this->base.'/'.$name.'.png';
+        $document=self::document($url);
+        // Check the published image really is available over HTTP.
+        if(!function_exists('curl_init'))throw new \RuntimeException('cURL required for frame delivery');
+        $check=curl_init($url);
+        if(!$check)throw new \RuntimeException('Cannot check published frame URL');
+        try {
+            curl_setopt_array($check,[
+                CURLOPT_RETURNTRANSFER=>true,
+                CURLOPT_CONNECTTIMEOUT=>2,
+                CURLOPT_TIMEOUT=>4,
+                CURLOPT_FOLLOWLOCATION=>false
+            ]);
+            $served=curl_exec($check);
+            $status=(int)curl_getinfo($check,CURLINFO_RESPONSE_CODE);
+        } finally { curl_close($check); }
+        if($status!==200 || !is_string($served) || $served!==$png)
+            throw new \RuntimeException('Published frame URL unavailable (HTTP '.$status.')');
         if(!function_exists('curl_init'))throw new \RuntimeException('cURL required for image push');
         $ch=curl_init('http://'.$this->ip.'/CGI/Execute');
         if(!$ch)throw new \RuntimeException('Cannot initialize phone push');
         try {
             curl_setopt_array($ch,[
                 CURLOPT_POST=>true,
-                CURLOPT_POSTFIELDS=>http_build_query(['XML'=>$execute]),
+                CURLOPT_POSTFIELDS=>http_build_query(['XML'=>$document]),
                 CURLOPT_HTTPAUTH=>CURLAUTH_BASIC,
                 CURLOPT_USERPWD=>'sccpnotify:',
                 CURLOPT_CONNECTTIMEOUT=>2,
@@ -69,8 +88,12 @@ final class serviceAppScreens {
             $response=curl_exec($ch);
             $code=(int)curl_getinfo($ch,CURLINFO_RESPONSE_CODE);
         } finally {curl_close($ch);}
-        return $code===200 && is_string($response) &&
+        $accepted=$code===200 && is_string($response) &&
             strpos($response,'CiscoIPPhoneError')===false;
+        if(!$accepted)
+            error_log('SCCP media frame rejected: HTTP '.$code.' '.
+                substr(trim((string)$response),0,120));
+        return $accepted;
     }
     public function cleanup(array $files) {
         foreach($files as $path) {

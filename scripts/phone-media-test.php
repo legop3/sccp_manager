@@ -3,7 +3,7 @@
  * Experimental Cisco 7945G animation benchmark.
  * Runs detached under Asterisk user after an authenticated media service action.
  * Audio is a regular SCCP call; image frames are HTTP XML pushes.
- * Hard limits: 32 frames, one worker/device, no user-supplied shell input.
+ * Hard limits: 120 frames, one worker/device, no user-supplied shell input.
  */
 ini_set('display_errors','0');
 if(PHP_SAPI!=='cli')exit(1);
@@ -43,22 +43,30 @@ try {
             imagefilledrectangle($im,0,0,295,155,$bg);
             $x=12+($n*8)%260;
             imagefilledellipse($im,$x,76,52,52,$fg);
-            imagestring($im,5,16,10,'SCCP VIDEO TEST',$white);
-            imagestring($im,4,16,136,'Frame '.($n+1).'/'.$frames,$white);
+            imagestring($im,5,16,10,'media test',$white);
+            imagestring($im,4,16,136,'frame '.($n+1).'/'.$frames,$white);
             ob_start();
             try { $ok=imagepng($im);$frame=ob_get_contents(); }
             finally { ob_end_clean(); imagedestroy($im); }
             if(!$ok || !is_string($frame))
                 throw new RuntimeException('Unable to encode frame');
-            if($screens->frame('media-demo-'.$run.'-'.$n,$frame,$files))$sent++;
-            // No fixed delay: the handset's CGI response determines the pace.
+            if(!$screens->frame('media-demo-'.$run.'-'.$n,$frame,$files)) {
+                // An accepted CGI request does not prove the image rendered.
+                // Stop on failure instead of flooding the screen with errors.
+                error_log('SCCP media test: stopping after rejected push at frame '.($n+1));
+                break;
+            }
+            ++$sent;
+            // 7945G fetches and renders PNGs asynchronously. CGI acceptance
+            // alone is NOT backpressure; do not overwhelm its HTTP client.
+            if($n+1<$frames)usleep(750000);
         }
         $seconds=max(0.001,microtime(true)-$start);
-        error_log(sprintf('SCCP media frame test %s: %d/32 accepted in %.2fs (%.2f push/s)',
+        error_log(sprintf('SCCP media frame test %s: %d/%d accepted in %.2fs (%.2f push/s)',
             $device,$sent,$frames,$seconds,$sent/$seconds));
     } finally {
         // Allow the phone time to fetch the final image before cleanup.
-        sleep(10);
+        sleep(30);
         $screens->cleanup($files);
     }
 } catch(\Throwable $e) {

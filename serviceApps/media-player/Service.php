@@ -8,7 +8,7 @@ return static function(array $ctx,array $q) {
         try {
             $ctx['media']->benchmark($ctx['config']['test_frames']);
             return $ctx['text']('media player',
-                'starting audio call and image speed test. check the screen and pbx logs for actual frame rate.');
+                'starting audio call and frame test. frames should appear one at a time; check pbx logs for push results.');
         }catch(\Throwable $e){
             error_log('SCCP media player: '.$e->getMessage());
             return $ctx['text']('media player','frame test could not start.');
