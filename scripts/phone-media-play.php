@@ -8,6 +8,7 @@ if(PHP_SAPI!=='cli')exit(1);
 $device=(string)($argv[1]??'');
 $id=(string)($argv[2]??'');
 $line=(string)($argv[3]??'');
+$stopUrl=(string)($argv[4]??'');
 if(!preg_match('/^SEP[A-F0-9]{12}$/D',$device) ||
    !preg_match('/^[a-f0-9]{24}$/D',$id) ||
    !preg_match('/^[0-9]{1,16}$/D',$line))exit(1);
@@ -105,7 +106,7 @@ try {
     $imageStatus=$root.'/sccp-media-'.$device.'-images.json';
     if(is_link($imageStatus))throw new RuntimeException('unsafe image status path');
     @unlink($imageStatus); // retire the prior session's result
-    $imageProcess=proc_open(['/usr/bin/php',$imageWorker,$device,$run,$secret],[
+    $imageProcess=proc_open(['/usr/bin/php',$imageWorker,$device,$run,$secret,$stopUrl],[
         0=>['file','/dev/null','r'],
         1=>['file','/dev/null','w'],
         2=>['file','/dev/null','w']
