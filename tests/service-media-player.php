@@ -26,10 +26,10 @@ playerCheck(str_contains($player,'application AudioSocket ') &&
     str_contains($images,'$screens->push($url)') &&
     str_contains($images,'is_file($ack)') &&
     str_contains($images,'image URL unavailable') &&
-    str_contains($images,"$"+"record('error'") &&
-    str_contains($images,"$"+"record('first push accepted") &&
-    str_contains($player,"$"+"imageProcess=proc_open") &&
-    !str_contains($player,"$"+"imageCmd.' >/dev/null") &&
+    str_contains($images,"$"."record('error'") &&
+    str_contains($images,"$"."record('first push accepted") &&
+    str_contains($player,"$"."imageProcess=proc_open") &&
+    !str_contains($player,"$"."imageCmd.' >/dev/null") &&
     str_contains($player,'unpack(\'n\',substr($incomingBuffer,1,2))'),
     'One-process live audio/video and fetch-driven display must be preserved');
 playerCheck(str_contains($library,'is_uploaded_file') &&
@@ -42,7 +42,7 @@ playerCheck(str_contains($library,'is_uploaded_file') &&
     'Media uploads must remain private and validated');
 playerCheck(str_contains($service,"'op'=>'play'") &&
     str_contains($service,"'op'=>'stop'") &&
-    str_contains($service,"$"+"media->imageStatus()") &&
+    str_contains($service,"$"."media->imageStatus()") &&
     str_contains($admin,'command=media_chunk') &&
     str_contains($admin,'file.slice(') &&
     str_contains($ajax,"case 'media_chunk':") &&
