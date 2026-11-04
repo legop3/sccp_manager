@@ -40,7 +40,7 @@ final class serviceAppScreens {
             '<CiscoIPPhoneImageFile><Title>media test</Title>'.
             '<LocationX>0</LocationX><LocationY>0</LocationY>'.
             '<URL>'.htmlspecialchars($url,ENT_XML1|ENT_QUOTES,'UTF-8').
-            '</URL>'.($stopUrl!==null ? '<SoftKeyItem><Name>Stop</Name><URL>'.htmlspecialchars($stopUrl,ENT_XML1|ENT_QUOTES,'UTF-8').'</URL><Position>1</Position></SoftKeyItem>' : '').'</CiscoIPPhoneImageFile>';
+            '</URL>'.($stopUrl!==null ? '<Prompt>media player</Prompt><SoftKeyItem><Name>Stop</Name><URL>'.htmlspecialchars($stopUrl,ENT_XML1|ENT_QUOTES,'UTF-8').'</URL><Position>1</Position></SoftKeyItem>' : '').'</CiscoIPPhoneImageFile>';
     }
     public function frame($name,$png,array &$files) {
         if (!preg_match('/^[a-z0-9-]{1,90}$/D',(string)$name))
@@ -83,12 +83,17 @@ final class serviceAppScreens {
         // and other image pushes keep their original XML unchanged.
         $stopUrl=null;
         if(str_contains($url,'/media-frame.php?')) {
-            $stopUrl=$this->base.'/service.php?'.http_build_query([
-                'phone'=>$this->device,
-                'key'=>$this->module->phonevoicemail->tokenForDevice($this->device),
-                'app'=>'media-player',
-                'op'=>'stop'
-            ],'','&',PHP_QUERY_RFC3986);
+            try {
+                $stopUrl=$this->base.'/service.php?'.http_build_query([
+                    'phone'=>$this->device,
+                    'key'=>$this->module->phonevoicemail->tokenForDevice($this->device),
+                    'app'=>'media-player',
+                    'op'=>'stop'
+                ],'','&',PHP_QUERY_RFC3986);
+            } catch(\Throwable $e) {
+                // Failure to prepare a control must never prevent video.
+                $stopUrl=null;
+            }
         }
         $document=self::document($url,$stopUrl);
         if(!function_exists('curl_init'))throw new \RuntimeException('cURL required for image push');
