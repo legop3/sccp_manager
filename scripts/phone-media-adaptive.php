@@ -107,12 +107,18 @@ try {
     // The preflight GET is not a handset fetch.
     if(is_file($ack) && !is_link($ack))@unlink($ack);
     $sent=0;$loaded=0;$retried=0;
-    while(microtime(true)<$deadline && (!$live || (!is_file($stop) && is_file($meta)))) {
+    $exitReason='unknown';
+    while(true) {
+        // Capture the exact condition that ends delivery, at the moment it happens.
+        if(microtime(true)>=$deadline) {$exitReason='deadline';break;}
+        if($live && is_file($stop)) {$exitReason='stop_file';break;}
+        if($live && !is_file($meta)) {$exitReason='session_metadata_missing';break;}
         // Each completed handset GET permits the next push, even if FFmpeg
         // has not replaced the latest PNG yet. Never wait for a new inode.
         // No second push can occur while the preceding image GET is in flight.
         if(is_file($ack) && !is_link($ack))@unlink($ack);
         if(!$screens->push($url)) {
+            $exitReason='cgi_push_rejected';
             error_log('SCCP adaptive media: CGI push rejected');
             break;
         }
@@ -135,14 +141,14 @@ try {
         if(!$received) {
             // No ACK within one second: force another push of the current
             // latest-frame URL. Do not interrupt the separate audio stream.
-            if($live && (is_file($stop) || !is_file($meta)))break;
+            if($live && (is_file($stop) || !is_file($meta)))continue;
             ++$retried;
             if($retried===1 || $retried%20===0)
                 $record('retrying image delivery',$retried.' timed-out GET waits');
             continue;
         }
     }
-    $record('finished',$sent.' pushes; '.$loaded.' GETs; '.$retried.' retries');
+    $record('finished',$sent.' pushes; '.$loaded.' GETs; '.$retried.' retries; reason='.$exitReason);
     error_log(sprintf('SCCP adaptive media %s: %d pushes, %d completed image GETs',
         $device,$sent,$loaded));
 } catch(\Throwable $e) {
