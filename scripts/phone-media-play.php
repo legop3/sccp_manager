@@ -95,10 +95,11 @@ try {
         2=>['file','/dev/null','w']],$pipes);
     if(!is_resource($ff))throw new RuntimeException('could not start ffmpeg');
     stream_set_blocking($pipes[1],false);
+    // Run the exact proven adaptive test's transport against real FFmpeg PNGs.
     // Start independent PHP LCD transport. HTTP pushes can take seconds;
     // they must never run in the 20 ms AudioSocket PCM send loop.
     // FFmpeg remains ONE process producing both PCM and the latest PNG.
-    $imageWorker=__DIR__.'/phone-media-images.php';
+    $imageWorker=__DIR__.'/phone-media-adaptive.php';
     if(!is_file($imageWorker))
         throw new RuntimeException('LCD transport worker missing');
     $imageStatus=$root.'/sccp-media-'.$device.'-images.json';
