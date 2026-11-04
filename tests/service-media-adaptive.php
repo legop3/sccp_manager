@@ -50,8 +50,8 @@ mediaCheck(str_contains($worker,'Media image endpoint failed HTTP preflight:'),
     'Worker must check published image endpoint before pushing');
 mediaCheck(str_contains($publisher,"'/media-frame.php'"),
     'Phone content publisher must install the live media endpoint');
-mediaCheck(str_contains($media,'adaptiveTest()'),
-    'Services menu must expose adaptive test');
+mediaCheck(str_contains($media,"'op'=>'play'") && str_contains($media,"'op'=>'stop'"),
+    'Services menu must expose real media playback and stop');
 if(is_executable('/usr/bin/ffmpeg')) {
     $tmp=tempnam(sys_get_temp_dir(),'sccp-media-test-');
     unlink($tmp);
