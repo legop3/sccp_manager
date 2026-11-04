@@ -40,7 +40,7 @@ try {
         JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);
     $tmp=$meta.'.'.$run.'.tmp';
     if(file_put_contents($tmp,$state,LOCK_EX)!==strlen($state) ||
-       !chmod($tmp,0600) || !rename($tmp,$meta))
+       !chmod($tmp,0644) || !rename($tmp,$meta))
         throw new RuntimeException('cannot register media session');
     $server=@stream_socket_server('tcp://127.0.0.1:0',$errno,$error,STREAM_SERVER_BIND|STREAM_SERVER_LISTEN);
     if(!$server)throw new RuntimeException('cannot open local audio socket: '.$error);
