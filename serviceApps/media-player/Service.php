@@ -4,17 +4,17 @@
  * XML image pushes. No claim of true video decoding or synchronized playback.
  */
 return static function(array $ctx,array $q) {
-    if(($q['op']??'')==='benchmark'){
+    if(($q['op']??'')==='adaptive') {
         try {
-            $ctx['media']->benchmark($ctx['config']['test_frames']);
+            $ctx['media']->adaptiveTest();
             return $ctx['text']('media player',
-                'starting audio call and frame test. frames should appear one at a time; check pbx logs for push results.');
-        }catch(\Throwable $e){
-            error_log('SCCP media player: '.$e->getMessage());
-            return $ctx['text']('media player','frame test could not start.');
+                'starting an adaptive video test. each finished image download requests the next frame.');
+        } catch(\Throwable $e) {
+            error_log('SCCP adaptive media: '.$e->getMessage());
+            return $ctx['text']('media player','adaptive test unavailable: '.strtolower($e->getMessage()));
         }
     }
     return $ctx['menu']('media player',[
-        ['audio + video speed test',$ctx['route'](['op'=>'benchmark'])]
+        ['play adaptive video test',$ctx['route'](['op'=>'adaptive'])]
     ]);
 };

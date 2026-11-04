@@ -1,15 +1,6 @@
 {
   "id": "media-player",
   "name": "media player",
-  "description": "call-based audio with rapidly updated image frames (experimental)",
-  "enabledByDefault": false,
-  "settings": {
-    "test_frames": {
-      "type": "integer",
-      "label": "benchmark image frames",
-      "default": 32,
-      "min": 1,
-      "max": 120
-    }
-  }
+  "description": "adaptive frame test using a single reusable image url",
+  "enabledByDefault": false
 }

@@ -30,7 +30,7 @@ final class serviceAppScreens {
      */
     public static function document($url) {
         if(!is_string($url) ||
-            !preg_match('~^http://[0-9.]+/sccp-manager/[a-z0-9-]+\\.png$~D',$url))
+            !preg_match('~^http://[0-9.]+/sccp-manager/(?:[a-z0-9-]+\\.png|media-frame\\.php\\?phone=SEP[A-F0-9]{12}&session=[a-f0-9]{16}&key=[a-f0-9]{32})$~D',$url))
             throw new \InvalidArgumentException('Invalid media PNG URL');
         return '<?xml version="1.0" encoding="UTF-8"?>'.
             '<CiscoIPPhoneImageFile><Title>media test</Title>'.
@@ -55,7 +55,6 @@ final class serviceAppScreens {
         $files[]=$image;
         @chmod($image,0644);
         $url=$this->base.'/'.$name.'.png';
-        $document=self::document($url);
         // Check the published image really is available over HTTP.
         if(!function_exists('curl_init'))throw new \RuntimeException('cURL required for frame delivery');
         $check=curl_init($url);
@@ -72,6 +71,11 @@ final class serviceAppScreens {
         } finally { curl_close($check); }
         if($status!==200 || !is_string($served) || $served!==$png)
             throw new \RuntimeException('Published frame URL unavailable (HTTP '.$status.')');
+        return $this->push($url);
+    }
+    /** Same URL on every push. One push is issued only after the prior GET ends. */
+    public function push($url) {
+        $document=self::document($url);
         if(!function_exists('curl_init'))throw new \RuntimeException('cURL required for image push');
         $ch=curl_init('http://'.$this->ip.'/CGI/Execute');
         if(!$ch)throw new \RuntimeException('Cannot initialize phone push');
@@ -95,6 +99,8 @@ final class serviceAppScreens {
                 substr(trim((string)$response),0,120));
         return $accepted;
     }
+    /** IP resolved from the same active SCCP session as CGI pushes. */
+    public function ip() { return $this->ip; }
     public function cleanup(array $files) {
         foreach($files as $path) {
             if (is_string($path) && dirname($path)===$this->root &&

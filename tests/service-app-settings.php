@@ -13,7 +13,7 @@ $m=new ServiceSettingsFixture();
 $m->saved['phonecontent_weather']=['name'=>'My Town','lat'=>40.124,'lon'=>-83.42];
 $config=new serviceAppConfig($m);
 $defs=$config->definitions();
-foreach(['weather','catdog','carrot-try','talking-clock','media-player'] as $id)
+foreach(['weather','catdog','carrot-try','talking-clock'] as $id)
     settingsAssert(!empty($defs[$id]),'Missing declared options: '.$id);
 settingsAssert($config->get('weather')['name']==='My Town','Weather location not preserved');
 settingsAssert($config->get('catdog')['cooldown_minutes']===60,'Default cooldown missing');
@@ -32,7 +32,6 @@ $post['catdog']['cooldown_minutes']='12';
 $post['catdog']['allow_dogs']='1';
 $post['carrot-try']['one_in']='500';
 $post['talking-clock']['format']='24h';
-$post['media-player']['test_frames']='48';
 $prepared=$config->prepare($post);
 settingsAssert($prepared['catdog']['cooldown_minutes']===12,'Integer setting not validated');
 settingsAssert($prepared['carrot-try']['one_in']===500,'Odds setting not validated');
@@ -40,7 +39,6 @@ settingsAssert($prepared['talking-clock']['format']==='24h','Format setting not 
 $old=$config->apply($prepared);
 settingsAssert($m->saved['phonecontent_weather']['name']==='Somewhere Else',
     'Weather app did not save to original config key');
-settingsAssert($config->get('media-player')['test_frames']===48,'Media benchmark option not saved');
 settingsAssert($config->get('catdog')['cooldown_minutes']===12,'App option not persisted');
 $config->restore($old);
 settingsAssert($m->saved['phonecontent_weather']['name']==='My Town',
