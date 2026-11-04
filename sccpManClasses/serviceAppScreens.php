@@ -79,12 +79,10 @@ final class serviceAppScreens {
     }
     /** Same URL on every push. One push is issued only after the prior GET ends. */
     public function push($url) {
-        // Like the working notification push: CGI executes an HTTP URL, then
-        // the phone fetches its ImageFile XML (with the Stop softkey).
-        // Leave direct image pushes unchanged for the synthetic test.
+        // Use the working notification-style HTTP XML fetch for live frames.
+        // The call hangup stops playback; no on-screen controls are needed.
         if(str_contains($url,'/media-frame.php?')) {
-            $token=$this->module->phonevoicemail->tokenForDevice($this->device);
-            $xmlUrl=$url.'&view=screen&stopkey='.$token;
+            $xmlUrl=$url.'&view=screen';
             $document='<CiscoIPPhoneExecute><ExecuteItem URL="'.
                 htmlspecialchars($xmlUrl,ENT_XML1|ENT_QUOTES,'UTF-8').
                 '"/></CiscoIPPhoneExecute>';
