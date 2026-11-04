@@ -79,23 +79,18 @@ final class serviceAppScreens {
     }
     /** Same URL on every push. One push is issued only after the prior GET ends. */
     public function push($url) {
-        // Only the live media player receives Stop; synthetic image tests
-        // and other image pushes keep their original XML unchanged.
-        $stopUrl=null;
+        // Like the working notification push: CGI executes an HTTP URL, then
+        // the phone fetches its ImageFile XML (with the Stop softkey).
+        // Leave direct image pushes unchanged for the synthetic test.
         if(str_contains($url,'/media-frame.php?')) {
-            try {
-                $stopUrl=$this->base.'/service.php?'.http_build_query([
-                    'phone'=>$this->device,
-                    'key'=>$this->module->phonevoicemail->tokenForDevice($this->device),
-                    'app'=>'media-player',
-                    'op'=>'stop'
-                ],'','&',PHP_QUERY_RFC3986);
-            } catch(\Throwable $e) {
-                // Failure to prepare a control must never prevent video.
-                $stopUrl=null;
-            }
+            $token=$this->module->phonevoicemail->tokenForDevice($this->device);
+            $xmlUrl=$url.'&view=screen&stopkey='.$token;
+            $document='<CiscoIPPhoneExecute><ExecuteItem URL="'.
+                htmlspecialchars($xmlUrl,ENT_XML1|ENT_QUOTES,'UTF-8').
+                '"/></CiscoIPPhoneExecute>';
+        } else {
+            $document=self::document($url);
         }
-        $document=self::document($url,$stopUrl);
         if(!function_exists('curl_init'))throw new \RuntimeException('cURL required for image push');
         $ch=curl_init('http://'.$this->ip.'/CGI/Execute');
         if(!$ch)throw new \RuntimeException('Cannot initialize phone push');
