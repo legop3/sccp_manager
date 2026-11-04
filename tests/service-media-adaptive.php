@@ -9,6 +9,17 @@ $url='http://10.254.77.1/sccp-manager/media-frame.php?'.
     '0123456789abcdef0123456789abcdef';
 $one=serviceAppScreens::document($url);
 $two=serviceAppScreens::document($url);
+$stop='http://10.254.77.1/sccp-manager/service.php?phone=SEP001122334455&key=token&app=media-player&op=stop';
+$controlled=serviceAppScreens::document($url,$stop);
+$stopXml=new DOMDocument();
+mediaCheck(@$stopXml->loadXML($controlled,LIBXML_NONET) &&
+    $stopXml->getElementsByTagName('SoftKeyItem')->length===1 &&
+    $stopXml->getElementsByTagName('SoftKeyItem')->item(0)
+        ->getElementsByTagName('URL')->item(0)->textContent===$stop,
+    'Live frame document has exactly one Stop softkey');
+mediaCheck(substr_count(serviceAppScreens::document($url),'<SoftKeyItem>')===0,
+    'Uncontrolled test image retains original XML');
+
 mediaCheck($one===$two,'Same URL must be reused for every frame');
 $doc=new DOMDocument();
 mediaCheck(@$doc->loadXML($one,LIBXML_NONET),'Malformed media XML');
