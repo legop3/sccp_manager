@@ -11,6 +11,16 @@ $stop='http://10.254.77.1/sccp-manager/service.php?phone=SEP001122334455&key='.
     str_repeat('a',64).'&app=media-player&op=stop';
 $menu='http://10.254.77.1/sccp-manager/service.php?phone=SEP001122334455&key='.
     str_repeat('a',64).'&app=media-player&op=list';
+// A VPN-facing frame and LAN-facing service URLs are a normal deployment.
+$lanStop=str_replace('10.254.77.1','192.168.0.25',$stop);
+$lanMenu=str_replace('10.254.77.1','192.168.0.25',$menu);
+$lanScreen=serviceAppScreens::document($url,$lanStop,$lanMenu);
+mediaCheck(str_contains($lanScreen,'<SoftKeyItem>'),
+    'LAN control routes must remain usable with VPN media frames');
+try {
+    serviceAppScreens::document($url,str_replace('SEP001122334455','SEP001122334456',$stop),$menu);
+    throw new RuntimeException('Wrong handset accepted in media control');
+} catch(InvalidArgumentException $expected) {}
 $controlled=serviceAppScreens::document($url,$stop,$menu);
 $controlledXml=new DOMDocument();
 mediaCheck(@$controlledXml->loadXML($controlled,LIBXML_NONET),'Malformed controlled image XML');
