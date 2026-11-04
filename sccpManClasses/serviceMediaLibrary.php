@@ -37,17 +37,25 @@ final class serviceMediaLibrary {
             !is_uploaded_file($upload['tmp_name']))
             throw new \InvalidArgumentException('select a valid media file');
         $size=(int)($upload['size']??0);
-        if($size<1 || $size>262144000)
-            throw new \InvalidArgumentException('media must be under 250 mib');
+        if($size<1)
+            throw new \InvalidArgumentException('media file is empty');
         if(!is_dir(self::ROOT) || is_link(self::ROOT) || !is_writable(self::ROOT))
             throw new \RuntimeException('media library is not installed');
-        $original=basename((string)($upload['name']??'media'));
+        return self::ingest($upload['tmp_name'],(string)($upload['name']??'media'),true);
+    }
+    /** Commit either a verified PHP upload or an assembled private chunk file. */
+    private static function ingest($source,$original,$uploaded=false) {
+        if(!is_string($source) || !is_file($source) || is_link($source))
+            throw new \InvalidArgumentException('invalid media source');
+        $size=filesize($source);
+        if($size===false || $size<1)throw new \InvalidArgumentException('empty media');
+        $original=basename((string)$original);
         $name=trim(preg_replace('/[\x00-\x1f\x7f]/','',$original));
         if($name==='' || strlen($name)>180)$name=substr($name,0,180)?:'media';
         $id=bin2hex(random_bytes(12));
         $dest=self::ROOT.'/'.$id.'.media';
         $meta=self::ROOT.'/'.$id.'.json';
-        if(!move_uploaded_file($upload['tmp_name'],$dest))
+        if(!($uploaded?move_uploaded_file($source,$dest):rename($source,$dest)))
             throw new \RuntimeException('unable to save uploaded media');
         @chmod($dest,0640);
         try {
@@ -71,6 +79,76 @@ final class serviceMediaLibrary {
             return $row;
         }catch(\Throwable $e){
             @unlink($dest);@unlink($meta);throw $e;
+        }
+    }
+    /**
+     * Accept 256 KiB chunks through FreePBX's authenticated BMO AJAX route.
+     * Chunks are sequential and bound to the current admin PHP session.
+     * No arbitrary full-file size restriction, only free disk space.
+     */
+    public static function chunk($request,$upload) {
+        $id=(string)($request['upload_id']??'');
+        $index=filter_var($request['index']??null,FILTER_VALIDATE_INT);
+        $finish=(string)($request['finish']??'')==='1';
+        if(!preg_match('/^[a-f0-9]{24}$/D',$id) || $index===false || $index<0)
+            throw new \InvalidArgumentException('invalid upload request');
+        $session=session_id();
+        if($session==='')throw new \RuntimeException('admin upload session unavailable');
+        $path=self::ROOT.'/.upload-'.$id.'.part';
+        $statePath=self::ROOT.'/.upload-'.$id.'.json';
+        $lockPath=self::ROOT.'/.upload-'.$id.'.lock';
+        if(!is_dir(self::ROOT) || is_link(self::ROOT) || !is_writable(self::ROOT))
+            throw new \RuntimeException('media storage is unavailable');
+        foreach([$path,$statePath,$lockPath] as $p)if(is_link($p))
+            throw new \RuntimeException('invalid upload storage');
+        $lock=@fopen($lockPath,'c+');
+        if(!$lock || !flock($lock,LOCK_EX))throw new \RuntimeException('upload busy');
+        try {
+            $state=is_file($statePath)?json_decode((string)@file_get_contents($statePath),true):null;
+            if($state!==null && (!is_array($state) ||
+                !hash_equals((string)($state['session']??''),hash('sha256',$session))))
+                throw new \RuntimeException('upload session mismatch');
+            if(!$state) {
+                if($index!==0 || $finish)throw new \InvalidArgumentException('missing first chunk');
+                $name=basename((string)($request['filename']??'media'));
+                if($name==='' || strlen($name)>180)throw new \InvalidArgumentException('invalid media filename');
+                $state=['session'=>hash('sha256',$session),'next'=>0,
+                    'name'=>$name,'time'=>time(),'bytes'=>0];
+            }
+            if(time()-(int)$state['time']>3600)
+                throw new \RuntimeException('upload expired; start again');
+            if($index!==(int)$state['next'])
+                throw new \InvalidArgumentException('chunk out of order');
+            if($finish) {
+                if(!is_file($path) || (int)$state['bytes']<1)
+                    throw new \InvalidArgumentException('empty uploaded file');
+                $row=self::ingest($path,$state['name'],false);
+                @unlink($statePath);
+                return ['done'=>true,'file'=>$row];
+            }
+            if(!is_array($upload) || ($upload['error']??-1)!==UPLOAD_ERR_OK ||
+                !is_uploaded_file((string)($upload['tmp_name']??'')) ||
+                ($upload['size']??0)<1 || ($upload['size']??0)>262144)
+                throw new \InvalidArgumentException('invalid upload chunk; check php limits');
+            $handle=@fopen($path,$index===0?'wb':'ab');
+            if(!$handle)throw new \RuntimeException('cannot open chunk storage');
+            $in=@fopen($upload['tmp_name'],'rb');
+            if(!$in){fclose($handle);throw new \RuntimeException('cannot read uploaded chunk');}
+            $copied=stream_copy_to_stream($in,$handle);
+            fclose($in);
+            fflush($handle);
+            fclose($handle);
+            if($copied!==(int)$upload['size'])
+                throw new \RuntimeException('incomplete uploaded chunk');
+            @chmod($path,0640);
+            $state['next']++;
+            $state['bytes']+=$copied;
+            if(file_put_contents($statePath,json_encode($state,JSON_THROW_ON_ERROR),LOCK_EX)===false)
+                throw new \RuntimeException('cannot save upload progress');
+            @chmod($statePath,0600);
+            return ['done'=>false,'bytes'=>$state['bytes'],'next'=>$state['next']];
+        }finally {
+            flock($lock,LOCK_UN);fclose($lock);
         }
     }
     private static function probe($path) {

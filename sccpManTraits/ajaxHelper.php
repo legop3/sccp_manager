@@ -8,6 +8,7 @@ trait ajaxHelper {
         // Called first by BMO. Must return true or request will be aborted.
         // See https://wiki.freepbx.org/display/FOP/BMO+Ajax+Calls
         switch ($req) {
+            case 'media_chunk':
             case 'notification_preview':
             case 'backupsettings':
             case 'savesettings':
@@ -55,6 +56,16 @@ trait ajaxHelper {
         $msg = array();
         $cmd_id = $request['command'];
         switch ($cmd_id) {
+            case 'media_chunk':
+                try {
+                    require_once __DIR__.'/../sccpManClasses/serviceMediaLibrary.php';
+                    $result=\FreePBX\modules\Sccp_manager\serviceMediaLibrary::chunk(
+                        $_POST,$_FILES['chunk']??null);
+                    return ['status'=>true,'result'=>$result];
+                } catch (\Throwable $e) {
+                    error_log('SCCP media upload: '.$e->getMessage());
+                    return ['status'=>false,'message'=>$e->getMessage()];
+                }
             case 'notification_preview':
                 $config=new \FreePBX\modules\Sccp_manager\notificationConfig($this);
                 $appearance=$config->previewAppearance((array)($request['appearance']??[]));

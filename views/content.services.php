@@ -80,15 +80,63 @@ $mediaItems=\FreePBX\modules\Sccp_manager\serviceMediaLibrary::rows();
 <hr/>
 <h3>media library</h3>
 <p>upload audio or video for the phones. ffmpeg reads the original file; playback is streamed live.</p>
-<form method="post" action="config.php?display=sccp_content#services" enctype="multipart/form-data">
-<input type="hidden" name="content_action" value="media_upload"/>
+<form id="sccp-media-upload" enctype="multipart/form-data">
 <div class="row"><div class="col-sm-8">
-<input class="form-control" type="file" name="media" required/>
-<p class="help-block">maximum 250 mib per file; media must have audio and a finite duration.</p>
+<input class="form-control" type="file" name="media" required />
+<p class="help-block">upload size is limited by available server storage, not a module file-size cap.</p>
 </div><div class="col-sm-4">
 <button class="btn btn-primary" type="submit"><i class="fa fa-upload"></i> upload media</button>
 </div></div>
+<div id="sccp-media-upload-progress" role="status" aria-live="polite" style="margin-top:8px"></div>
 </form>
+<script>
+(function(){
+    var form=document.getElementById('sccp-media-upload');
+    if(!form)return;
+    form.addEventListener('submit',async function(ev){
+        ev.preventDefault();
+        var file=form.querySelector('input[type="file"]').files[0];
+        if(!file)return;
+        var status=document.getElementById('sccp-media-upload-progress');
+        var button=form.querySelector('button[type="submit"]');
+        button.disabled=true;
+        var uploadId=Array.from(crypto.getRandomValues(new Uint8Array(12)),
+            function(x){return x.toString(16).padStart(2,'0');}).join('');
+        var size=262144;
+        var chunks=Math.ceil(file.size/size);
+        if(!chunks){status.textContent='empty media file';button.disabled=false;return;}
+        try {
+            async function send(index,finished){
+                var data=new FormData();
+                data.append('upload_id',uploadId);
+                data.append('index',String(index));
+                data.append('filename',file.name);
+                data.append('finish',finished?'1':'0');
+                if(!finished)data.append('chunk',file.slice(index*size,Math.min((index+1)*size,file.size)),'part');
+                var response=await fetch('ajax.php?module=sccp_manager&command=media_chunk',{
+                    method:'POST',body:data,credentials:'same-origin'
+                });
+                if(!response.ok)throw new Error('upload request failed (http '+response.status+')');
+                var result=await response.json();
+                if(!result.status)throw new Error(result.message||'upload failed');
+                return result.result;
+            }
+            for(var i=0;i<chunks;i++){
+                await send(i,false);
+                status.textContent='uploading '+Math.round((i+1)*100/chunks)+'%';
+            }
+            status.textContent='checking media format...';
+            await send(chunks,true);
+            status.textContent='upload complete';
+            window.location.reload();
+        } catch(e) {
+            status.textContent='upload failed: '+e.message;
+        } finally {
+            button.disabled=false;
+        }
+    });
+})();
+</script>
 <?php if($mediaItems): ?>
 <table class="table table-striped">
 <thead><tr><th>file</th><th>type</th><th>length</th><th></th></tr></thead><tbody>

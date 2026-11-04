@@ -13,6 +13,7 @@ $service=file_get_contents(__DIR__.'/../serviceApps/media-player/Service.php');
 $admin=file_get_contents(__DIR__.'/../views/content.services.php');
 $page=file_get_contents(__DIR__.'/../page.sccp_content.php');
 $install=file_get_contents(__DIR__.'/../install.php');
+$ajax=file_get_contents(__DIR__.'/../sccpManTraits/ajaxHelper.php');
 playerCheck(str_contains($player,'application AudioSocket ') &&
     str_contains($player,"'pipe:1'") &&
     str_contains($player,"'-atomic_writing','1'") &&
@@ -25,12 +26,16 @@ playerCheck(str_contains($player,'application AudioSocket ') &&
 playerCheck(str_contains($library,'is_uploaded_file') &&
     str_contains($library,'move_uploaded_file') &&
     str_contains($library,'ffprobe') &&
-    str_contains($library,'262144000') &&
+    str_contains($library,'public static function chunk(') &&
+    str_contains($library,'upload session mismatch') &&
+    !str_contains($library,'262144000') &&
     !str_contains($library,'/var/www/html'),
     'Media uploads must remain private and validated');
 playerCheck(str_contains($service,"'op'=>'play'") &&
     str_contains($service,"'op'=>'stop'") &&
-    str_contains($admin,'media_upload') &&
+    str_contains($admin,'command=media_chunk') &&
+    str_contains($admin,'file.slice(') &&
+    str_contains($ajax,"case 'media_chunk':") &&
     str_contains($admin,'media_delete') &&
     str_contains($page,'media_upload') &&
     str_contains($install,'sccp-manager-media'),
