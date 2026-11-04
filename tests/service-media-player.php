@@ -22,7 +22,7 @@ playerCheck(str_contains($player,'application AudioSocket ') &&
     str_contains($player,"showfreqs=s=296x156") &&
     str_contains($player,'format=pal8') &&
     str_contains($player,'phone-media-adaptive.php') &&
-    str_contains($player,"$"."imageWorker,$device,$run,$secret,$stopUrl,$menuUrl") &&
+    str_contains($player,'$imageWorker,$device,$run,$secret,$stopUrl,$menuUrl') &&
     str_contains($player,'$stopUrl') && str_contains($player,'$menuUrl') &&
     !str_contains($player,'$screens->push($url)') &&
     str_contains($images,'$screens->push($url,$stopUrl,$menuUrl)') &&
