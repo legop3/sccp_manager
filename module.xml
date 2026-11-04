@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.186</version>
+	<version>17.1.187</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.187 * - Restore cross-user Apache access to media frame session tickets and verify original GET/ACK transport against authenticated real PNG
 		 * Version 17.1.186 * - Correct PHP regression assertion string concatenation
 		 * Version 17.1.185 * - Supervise independent image worker and expose its precise frame/push/fetch failure on now-playing screen
 		 * Version 17.1.184 * - Generate indexed 8-bit Cisco-compatible PNG frames for real video and audio visualizers

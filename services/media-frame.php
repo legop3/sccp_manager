@@ -21,7 +21,9 @@ if(!is_file($metaPath) || is_link($metaPath)) {
 }
 $meta=json_decode((string)@file_get_contents($metaPath),true);
 if(!is_array($meta) || ($meta['run']??'')!==$run ||
-    !is_string($meta['key']??null) || !hash_equals($meta['key'],$key) ||
+    !((is_string($meta['key_hash']??null) &&
+        hash_equals($meta['key_hash'],hash('sha256',$key))) ||
+      (is_string($meta['key']??null) && hash_equals($meta['key'],$key))) ||
     // The signed per-run URL is the authorization credential. The HTTP
     // source address can differ from the SCCP connection across VPN/NAT.
     (int)($meta['expires']??0)<time()) {

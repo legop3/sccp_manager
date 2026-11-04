@@ -35,7 +35,7 @@ try {
     $stop=$root.'/sccp-media-'.$device.'-'.$run.'.stop';
     if(is_link($meta) || is_link($frame) || is_link($ack) || is_link($stop))
         throw new RuntimeException('unsafe media session path');
-    $state=json_encode(['run'=>$run,'key'=>$secret,'expires'=>time()+max(90,(int)$entry['duration']+45),
+    $state=json_encode(['run'=>$run,'key_hash'=>hash('sha256',$secret),'expires'=>time()+max(90,(int)$entry['duration']+45),
         'file'=>$id,'name'=>$entry['name'],'started'=>time(),'device'=>$device],
         JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);
     $tmp=$meta.'.'.$run.'.tmp';

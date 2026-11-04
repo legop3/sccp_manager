@@ -32,7 +32,9 @@ $active=static function()use($metaPath,$run,$key,$stop) {
     if(is_file($stop) || !is_file($metaPath) || is_link($metaPath))return false;
     $meta=json_decode((string)@file_get_contents($metaPath),true);
     return is_array($meta) && ($meta['run']??null)===$run &&
-        is_string($meta['key']??null) && hash_equals($meta['key'],$key) &&
+        ((is_string($meta['key_hash']??null) &&
+          hash_equals($meta['key_hash'],hash('sha256',$key))) ||
+         (is_string($meta['key']??null) && hash_equals($meta['key'],$key))) &&
         (int)($meta['expires']??0)>=time();
 };
 try {
