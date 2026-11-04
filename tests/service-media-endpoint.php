@@ -4,7 +4,7 @@ $source=file_get_contents(__DIR__.'/../services/media-frame.php');
 $player=file_get_contents(__DIR__.'/../scripts/phone-media-play.php');
 $images=file_get_contents(__DIR__.'/../scripts/phone-media-images.php');
 function checkFrame($ok,$reason){if(!$ok)throw new RuntimeException($reason);}
-checkFrame(str_contains($player,'!chmod($tmp,0644)') &&
+checkFrame(str_contains($player,'!chmod($httpTemp,0644)') &&
     str_contains($player,'\'key_hash\'=>hash(\'sha256\',$secret)') &&
     str_contains($images,'hash_equals($meta[\'key_hash\'],hash(\'sha256\',$key))') &&
     str_contains($source,'hash_equals($meta[\'key_hash\'],hash(\'sha256\',$key))'),
