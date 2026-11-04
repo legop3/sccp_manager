@@ -46,6 +46,9 @@ foreach([$url.'&seq=2',
     catch(InvalidArgumentException $expected){}
 }
 $worker=file_get_contents(__DIR__.'/../scripts/phone-media-adaptive.php');
+mediaCheck(str_contains($worker,"$".'sent===0 || microtime(true)<$deadline') &&
+    !str_contains($worker,'!is_file($stop) && is_file($meta)'),
+    'Live media must attempt the first image push after successful preflight');
 $endpoint=file_get_contents(__DIR__.'/../services/media-frame.php');
 $publisher=file_get_contents(__DIR__.'/../sccpManClasses/phonecontent.class.php');
 $media=file_get_contents(__DIR__.'/../serviceApps/media-player/Service.php');
