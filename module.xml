@@ -1,7 +1,7 @@
 <module>
 	<rawname>sccp_manager</rawname>
 	<name>SCCP Manager</name>
-	<version>17.1.197</version>
+	<version>17.1.198</version>
 	<type>setup</type>
 	<category>SCCP Connectivity</category>
 	<publisher>legop3 (based on nortien)</publisher>
@@ -14,6 +14,7 @@
 		<sccp_content sort="4">Phone Content</sccp_content>
 	</menuitems>
 	<changelog>
+		 * Version 17.1.198 * - Retry latest adaptive video frame after one second without a handset GET acknowledgment instead of stopping playback
 		 * Version 17.1.197 * - Exact rollback of media player source and tests to confirmed-working v17.1.192; remove broken playback softkeys
 		 * Version 17.1.196 * - Ensure adaptive live video attempts its first CGI push after successful PNG preflight instead of silently finishing with 0 pushes
 		 * Version 17.1.195 * - Preserve media softkeys across LAN/VPN host differences and match working notification image prompt layout
