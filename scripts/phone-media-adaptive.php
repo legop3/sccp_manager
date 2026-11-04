@@ -106,7 +106,7 @@ try {
     $record('pushing images');
     // The preflight GET is not a handset fetch.
     if(is_file($ack) && !is_link($ack))@unlink($ack);
-    $sent=0;$loaded=0;
+    $sent=0;$loaded=0;$retried=0;
     while(microtime(true)<$deadline && (!$live || (!is_file($stop) && is_file($meta)))) {
         // Each completed handset GET permits the next push, even if FFmpeg
         // has not replaced the latest PNG yet. Never wait for a new inode.
@@ -118,7 +118,9 @@ try {
         }
         ++$sent;
         if($sent===1)$record('first push accepted; waiting for phone GET');
-        $until=min($deadline,microtime(true)+5);
+        // Keep the GET-driven fast path, but don't stall for up to five seconds
+        // or abandon the rest of playback when an ACK is lost.
+        $until=min($deadline,microtime(true)+1.0);
         $received=false;
         while(microtime(true)<$until) {
             if(is_file($ack)) {
@@ -131,11 +133,16 @@ try {
             usleep(10000); // ACK polling, NOT a fixed push frame interval.
         }
         if(!$received) {
-            error_log('SCCP adaptive media: no image GET completion; same-URL cache or fetch failure possible');
-            break;
+            // No ACK within one second: force another push of the current
+            // latest-frame URL. Do not interrupt the separate audio stream.
+            if($live && (is_file($stop) || !is_file($meta)))break;
+            ++$retried;
+            if($retried===1 || $retried%20===0)
+                $record('retrying image delivery',$retried.' timed-out GET waits');
+            continue;
         }
     }
-    $record('finished',$sent.' pushes; '.$loaded.' GETs');
+    $record('finished',$sent.' pushes; '.$loaded.' GETs; '.$retried.' retries');
     error_log(sprintf('SCCP adaptive media %s: %d pushes, %d completed image GETs',
         $device,$sent,$loaded));
 } catch(\Throwable $e) {
