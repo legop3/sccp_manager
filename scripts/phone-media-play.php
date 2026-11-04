@@ -70,11 +70,11 @@ try {
         $cmd=array_merge($cmd,['-map','0:a:0','-vn','-ac','1','-ar','8000',
             '-c:a','pcm_s16le','-f','s16le','pipe:1',
             '-map','0:v:0','-an','-vf',
-            'scale=296:156:force_original_aspect_ratio=decrease,pad=296:156:(ow-iw)/2:(oh-ih)/2',
+            'scale=296:156:force_original_aspect_ratio=decrease,pad=296:156:(ow-iw)/2:(oh-ih)/2,format=pal8',
             '-c:v','png','-f','image2','-update','1','-atomic_writing','1','-y',$frame]);
     } else {
         $cmd=array_merge($cmd,['-filter_complex',
-            '[0:a:0]asplit=2[pcm][visual];[visual]showfreqs=s=296x156:mode=bar:rate=30,format=rgb24[v]',
+            '[0:a:0]asplit=2[pcm][visual];[visual]showfreqs=s=296x156:mode=bar:rate=30,format=pal8[v]',
             '-map','[pcm]','-ac','1','-ar','8000','-c:a','pcm_s16le','-f','s16le','pipe:1',
             '-map','[v]','-c:v','png','-f','image2','-update','1','-atomic_writing','1','-y',$frame]);
     }

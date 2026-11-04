@@ -20,6 +20,7 @@ playerCheck(str_contains($player,'application AudioSocket ') &&
     str_contains($player,"'-atomic_writing','1'") &&
     str_contains($player,"'-update','1'") &&
     str_contains($player,"showfreqs=s=296x156") &&
+    str_contains($player,'format=pal8') &&
     str_contains($player,'phone-media-images.php') &&
     !str_contains($player,'$screens->push($url)') &&
     str_contains($images,'$screens->push($url)') &&
@@ -71,11 +72,11 @@ if(is_executable('/usr/bin/ffmpeg')) {
             if($hasVideo)$cmd=array_merge($cmd,
                 ['-map','0:a:0','-vn','-ac','1','-ar','8000','-c:a','pcm_s16le',
                  '-f','s16le',$pcm,'-map','0:v:0','-an','-vf',
-                 'scale=296:156:force_original_aspect_ratio=decrease,pad=296:156:(ow-iw)/2:(oh-ih)/2',
+                 'scale=296:156:force_original_aspect_ratio=decrease,pad=296:156:(ow-iw)/2:(oh-ih)/2,format=pal8',
                  '-c:v','png','-f','image2','-update','1','-atomic_writing','1','-y',$png]);
             else $cmd=array_merge($cmd,
                 ['-filter_complex',
-                '[0:a:0]asplit=2[pcm][visual];[visual]showfreqs=s=296x156:mode=bar:rate=30,format=rgb24[v]',
+                '[0:a:0]asplit=2[pcm][visual];[visual]showfreqs=s=296x156:mode=bar:rate=30,format=pal8[v]',
                  '-map','[pcm]','-ac','1','-ar','8000','-c:a','pcm_s16le',
                  '-f','s16le',$pcm,'-map','[v]','-c:v','png','-f','image2',
                  '-update','1','-atomic_writing','1','-y',$png]);
@@ -83,6 +84,7 @@ if(is_executable('/usr/bin/ffmpeg')) {
                 1=>['file','/dev/null','w'],2=>['file','/dev/null','w']],$pipes);
             playerCheck(is_resource($p) && proc_close($p)===0,'FFmpeg dual-output failed');
             playerCheck(is_file($png) && substr(file_get_contents($png),0,8)==="\x89PNG\r\n\x1a\n" &&
+                ord(file_get_contents($png)[25])===3 &&
                 is_file($pcm) && filesize($pcm)>=6400,
                 'FFmpeg must produce PCM and PNG simultaneously');
         }
