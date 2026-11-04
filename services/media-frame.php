@@ -15,13 +15,19 @@ if(!preg_match('/^SEP[A-F0-9]{12}$/D',$device) ||
 }
 $root='/var/spool/asterisk';
 $metaPath=$root.'/sccp-media-'.$device.'.json';
-if(!is_file($metaPath) || is_link($metaPath)) {http_response_code(404);exit;}
+if(!is_file($metaPath) || is_link($metaPath)) {
+    error_log('SCCP adaptive media HTTP: session metadata unavailable');
+    http_response_code(404); exit;
+}
 $meta=json_decode((string)@file_get_contents($metaPath),true);
 if(!is_array($meta) || ($meta['run']??'')!==$run ||
     !is_string($meta['key']??null) || !hash_equals($meta['key'],$key) ||
-    !is_string($meta['ip']??null) ||
-    !hash_equals($meta['ip'],(string)($_SERVER['REMOTE_ADDR']??'')) ||
-    (int)($meta['expires']??0)<time()) {http_response_code(404);exit;}
+    // The signed per-run URL is the authorization credential. The HTTP
+    // source address can differ from the SCCP connection across VPN/NAT.
+    (int)($meta['expires']??0)<time()) {
+    error_log('SCCP adaptive media HTTP: session expired or invalid');
+    http_response_code(404); exit;
+}
 $path=$root.'/sccp-media-'.$device.'-'.$run.'.png';
 if(!is_file($path) || is_link($path)) {http_response_code(503);exit;}
 $bytes=@file_get_contents($path);

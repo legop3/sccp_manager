@@ -56,6 +56,26 @@ try {
     $url=$base.'/media-frame.php?'.http_build_query([
         'phone'=>$device,'session'=>$run,'key'=>$secret
     ],'','&',PHP_QUERY_RFC3986);
+    // Verify that this update actually published the HTTP frame endpoint.
+    // A missing endpoint previously caused one 404 and no subsequent frames.
+    if(!function_exists('curl_init'))throw new RuntimeException('PHP cURL is unavailable');
+    $probe=curl_init($url);
+    if(!$probe)throw new RuntimeException('Cannot check media frame endpoint');
+    try {
+        curl_setopt_array($probe,[
+            CURLOPT_RETURNTRANSFER=>true,
+            CURLOPT_CONNECTTIMEOUT=>2,
+            CURLOPT_TIMEOUT=>4,
+            CURLOPT_FOLLOWLOCATION=>false
+        ]);
+        $body=curl_exec($probe);
+        $http=(int)curl_getinfo($probe,CURLINFO_RESPONSE_CODE);
+    } finally {curl_close($probe);}
+    if($http!==200 || !is_string($body) ||
+        substr($body,0,8)!=="\x89PNG\r\n\x1a\n")
+        throw new RuntimeException('Media image endpoint failed HTTP preflight: '.$http);
+    // The preflight GET is not a handset fetch.
+    if(is_file($ack) && !is_link($ack))@unlink($ack);
     $sent=0;$loaded=0;$lastInode=0;
     while(microtime(true)<$deadline) {
         clearstatcache(true,$frame);

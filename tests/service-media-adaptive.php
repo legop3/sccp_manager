@@ -34,8 +34,14 @@ mediaCheck(!str_contains($worker,'usleep(750000)') &&
 mediaCheck(str_contains($endpoint,"header('Cache-Control: no-store") &&
     str_contains($endpoint,"header('Content-Type: image/png')") &&
     str_contains($endpoint,'hash_equals($meta[\'key\'],$key)') &&
-    str_contains($endpoint,'hash_equals($meta[\'ip\']'),
+    !str_contains($endpoint,'hash_equals($meta[\'ip\']'),
     'Image endpoint must serve real PNG bytes with session validation');
+$installer=file_get_contents(__DIR__.'/../install.php');
+mediaCheck(str_contains($installer,"$".'frameTarget=$dir.\'/media-frame.php\'') &&
+    str_contains($installer,'@rename($staged,$frameTarget)'),
+    'Module upgrade must install the HTTP image endpoint');
+mediaCheck(str_contains($worker,'Media image endpoint failed HTTP preflight:'),
+    'Worker must check published image endpoint before pushing');
 mediaCheck(str_contains($publisher,"'/media-frame.php'"),
     'Phone content publisher must install the live media endpoint');
 mediaCheck(str_contains($media,'adaptiveTest()'),

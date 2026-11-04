@@ -69,6 +69,35 @@ if (!function_exists('sccp_manager_content_install')) {
         @chgrp($dir, 'asterisk');
         @chmod($dir, 0755);
         outn('<li>Phone Content: static Cisco directory/preview path ready.</li>');
+
+        // Module Admin upgrades may return before publishDirectory() runs.
+        // Keep the adaptive media endpoint installed when the new service
+        // becomes available, including on upgrades of existing PBX systems.
+        $frameEndpoint=__DIR__.'/services/media-frame.php';
+        $frameTarget=$dir.'/media-frame.php';
+        if (is_file($frameEndpoint) && !is_link($frameEndpoint) &&
+            !is_link($frameTarget) && (!file_exists($frameTarget) || is_file($frameTarget))) {
+            $frameBody=@file_get_contents($frameEndpoint);
+            if (is_string($frameBody)) {
+                $staged=@tempnam($dir,'.sccp-media-');
+                if ($staged!==false) {
+                    $wrote=@file_put_contents($staged,$frameBody,LOCK_EX);
+                    if ($wrote===strlen($frameBody)) {
+                        @chmod($staged,0644);
+                        @chown($staged,'asterisk');
+                        @chgrp($staged,'asterisk');
+                        if (!@rename($staged,$frameTarget))
+                            outn('<li>Phone Content: could not publish media frame endpoint.</li>');
+                    } else {
+                        outn('<li>Phone Content: could not write media frame endpoint.</li>');
+                    }
+                    if (is_file($staged)) @unlink($staged);
+                } else {
+                    outn('<li>Phone Content: could not stage media frame endpoint.</li>');
+                }
+            }
+        }
+
         // Module Admin may overlay new releases without deleting old files.
         // Retire only the exact built-in app files; never remove service state.
         foreach (['games'=>['Service.php','manifest.json'],
