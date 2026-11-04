@@ -16,7 +16,7 @@ use FreePBX\modules\Sccp_manager\serviceMediaLibrary as Library;
 $root='/var/spool/asterisk';
 $lock=@fopen($root.'/sccp-media-test-'.$device.'.lock','c+');
 if(!$lock || !flock($lock,LOCK_EX|LOCK_NB))exit(0);
-$ff=null;$socket=null;$server=null;$meta='';$frame='';$ack='';$stop='';
+$ff=null;$imageProcess=null;$socket=null;$server=null;$meta='';$frame='';$ack='';$stop='';
 try {
     $entry=Library::find($id);
     $source=Library::path($id);
@@ -88,9 +88,16 @@ try {
     $imageWorker=__DIR__.'/phone-media-images.php';
     if(!is_file($imageWorker))
         throw new RuntimeException('LCD transport worker missing');
-    $imageCmd='/usr/bin/php '.escapeshellarg($imageWorker).' '.
-        escapeshellarg($device).' '.escapeshellarg($run).' '.escapeshellarg($secret);
-    exec($imageCmd.' >/dev/null 2>&1 </dev/null &');
+    $imageStatus=$root.'/sccp-media-'.$device.'-images.json';
+    if(is_link($imageStatus))throw new RuntimeException('unsafe image status path');
+    @unlink($imageStatus); // retire the prior session's result
+    $imageProcess=proc_open(['/usr/bin/php',$imageWorker,$device,$run,$secret],[
+        0=>['file','/dev/null','r'],
+        1=>['file','/dev/null','w'],
+        2=>['file','/dev/null','w']
+    ],$imagePipes);
+    if(!is_resource($imageProcess))
+        throw new RuntimeException('failed to launch image delivery worker');
     $limit=microtime(true)+min(14400,(float)$entry['duration'])+15;
     $next=microtime(true);
     $buffer='';
@@ -146,6 +153,11 @@ try {
         if($status['running'])proc_terminate($ff);
         if(isset($pipes[1]) && is_resource($pipes[1]))fclose($pipes[1]);
         proc_close($ff);
+    }
+    if(is_resource($imageProcess)) {
+        $imageState=proc_get_status($imageProcess);
+        if($imageState['running'])proc_terminate($imageProcess);
+        proc_close($imageProcess);
     }
     if(is_resource($socket))fclose($socket);
     if(is_resource($server))fclose($server);

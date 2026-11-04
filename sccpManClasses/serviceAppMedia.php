@@ -41,6 +41,12 @@ final class serviceAppMedia {
            (int)($item['expires']??0)<time())return null;
         return $item;
     }
+    public function imageStatus() {
+        $path='/var/spool/asterisk/sccp-media-'.$this->device.'-images.json';
+        if(!is_file($path) || is_link($path))return null;
+        $info=json_decode((string)@file_get_contents($path),true);
+        return is_array($info) && isset($info['phase']) ? $info : null;
+    }
     public function stop() {
         $item=$this->nowPlaying();
         if(!$item)return false;

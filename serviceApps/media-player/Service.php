@@ -22,8 +22,12 @@ return static function(array $ctx,array $q) {
         $entries[]=['stop playback',$ctx['route'](['op'=>'stop'])];
         $entries[]=['now playing: '.(string)($now['name']??'media'),
             $ctx['route'](['op'=>'status'])];
-        if($op==='status')
-            return $ctx['text']('media player','playing: '.(string)($now['name']??'media'));
+        if($op==='status') {
+            $status=$media->imageStatus();
+            $image=is_array($status)?(' screen: '.(string)($status['phase']??'unknown').
+                ' '.(string)($status['detail']??'')):' screen: no image status yet';
+            return $ctx['text']('media player','playing: '.(string)($now['name']??'media').$image);
+        }
     }
     foreach($media->library() as $row)
         $entries[]=[(string)$row['name'],$ctx['route'](['op'=>'play','file'=>$row['id']])];
