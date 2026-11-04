@@ -111,7 +111,13 @@ try {
     // The preflight GET is not a handset fetch.
     if(is_file($ack) && !is_link($ack))@unlink($ack);
     $sent=0;$loaded=0;
-    while(microtime(true)<$deadline && (!$live || (!is_file($stop) && is_file($meta)))) {
+    // The HTTP ticket and first PNG have already passed the preflight check.
+    // Always attempt the first push while the live call has not been stopped.
+    // Rechecking the public ticket in this hot loop silently discarded valid
+    // live sessions as "finished, 0 pushes" without ever contacting the phone.
+    // The HTTP frame endpoint independently validates the ticket on every GET.
+    while(($sent===0 || microtime(true)<$deadline) &&
+          (!$live || !is_file($stop))) {
         // Each completed handset GET permits the next push, even if FFmpeg
         // has not replaced the latest PNG yet. Never wait for a new inode.
         // No second push can occur while the preceding image GET is in flight.
