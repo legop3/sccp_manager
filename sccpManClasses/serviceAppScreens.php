@@ -10,7 +10,11 @@ final class serviceAppScreens {
     private $root;
     private $base;
     private $ip;
+    private $module;
+    private $device;
     public function __construct($module,$device) {
+        $this->module=$module;
+        $this->device=$device;
         if (!phonevoicemail::validDevice($device))
             throw new \InvalidArgumentException('Invalid handset');
         $ips=(new notificationDelivery($module))->devices();
@@ -74,7 +78,18 @@ final class serviceAppScreens {
         return $this->push($url);
     }
     /** Same URL on every push. One push is issued only after the prior GET ends. */
-    public function push($url,$stopUrl=null) {
+    public function push($url) {
+        // Only the live media player receives Stop; synthetic image tests
+        // and other image pushes keep their original XML unchanged.
+        $stopUrl=null;
+        if(str_contains($url,'/media-frame.php?')) {
+            $stopUrl=$this->base.'/service.php?'.http_build_query([
+                'phone'=>$this->device,
+                'key'=>$this->module->phonevoicemail->tokenForDevice($this->device),
+                'app'=>'media-player',
+                'op'=>'stop'
+            ],'','&',PHP_QUERY_RFC3986);
+        }
         $document=self::document($url,$stopUrl);
         if(!function_exists('curl_init'))throw new \RuntimeException('cURL required for image push');
         $ch=curl_init('http://'.$this->ip.'/CGI/Execute');
