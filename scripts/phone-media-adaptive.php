@@ -10,12 +10,27 @@ ini_set('display_errors','0');
 if(PHP_SAPI!=='cli')exit(1);
 $device=(string)($argv[1]??'');
 if(!preg_match('/^SEP[A-F0-9]{12}$/D',$device))exit(1);
+// The player supplies a live run and key; the synthetic benchmark supplies neither.
+$live=isset($argv[2],$argv[3]);
+$liveRun=(string)($argv[2]??'');
+$liveKey=(string)($argv[3]??'');
+if($live && (!preg_match('/^[a-f0-9]{16}$/D',$liveRun) ||
+   !preg_match('/^[a-f0-9]{32}$/D',$liveKey)))exit(1);
 $root='/var/spool/asterisk';
 $lockPath=$root.'/sccp-media-test-'.$device.'.lock';
-if(is_link($lockPath))exit(1);
-$lock=@fopen($lockPath,'c+');
-if(!$lock || !flock($lock,LOCK_EX|LOCK_NB))exit(0);
+if(!$live) {
+    if(is_link($lockPath))exit(1);
+    $lock=@fopen($lockPath,'c+');
+    if(!$lock || !flock($lock,LOCK_EX|LOCK_NB))exit(0);
+}
 $process=null;$frame='';$meta='';$ack='';
+$stop=$root.'/sccp-media-'.$device.'-'.$liveRun.'.stop';
+$statusFile=$root.'/sccp-media-'.$device.'-images.json';
+$record=static function($phase,$detail='')use($live,$statusFile,$liveRun) {
+    if(!$live || is_link($statusFile))return;
+    $payload=json_encode(['run'=>$liveRun,'phase'=>$phase,'detail'=>substr((string)$detail,0,180),'at'=>time()]);
+    if(is_string($payload))@file_put_contents($statusFile,$payload,LOCK_EX);
+};
 try {
     if(!is_executable('/usr/bin/ffmpeg'))
         throw new RuntimeException('ffmpeg is not installed at /usr/bin/ffmpeg');
@@ -24,8 +39,8 @@ try {
     $module=\FreePBX::create()->Sccp_manager;
     require_once __DIR__.'/../sccpManClasses/serviceAppScreens.php';
     $screens=new \FreePBX\modules\Sccp_manager\serviceAppScreens($module,$device);
-    $run=bin2hex(random_bytes(8));
-    $secret=bin2hex(random_bytes(16));
+    $run=$live?$liveRun:bin2hex(random_bytes(8));
+    $secret=$live?$liveKey:bin2hex(random_bytes(16));
     $publicRoot=$module->phonecontent->publicPath();
     if(!is_dir($publicRoot) || is_link($publicRoot) || !is_writable($publicRoot))
         throw new RuntimeException('HTTP frame directory unavailable');
@@ -34,27 +49,37 @@ try {
     $ack=$publicRoot.'/sccp-media-'.$device.'-'.$run.'.ack';
     if(is_link($frame) || is_link($meta) || is_link($ack))
         throw new RuntimeException('Unsafe media file path');
-    $state=json_encode(['run'=>$run,'key_hash'=>hash('sha256',$secret),'ip'=>$screens->ip(),
-        'expires'=>time()+40],JSON_UNESCAPED_SLASHES);
-    $tmp=$meta.'.'.$run.'.tmp';
-    if(file_put_contents($tmp,$state,LOCK_EX)!==strlen($state) ||
-        !chmod($tmp,0644) || !rename($tmp,$meta))
-        throw new RuntimeException('Unable to create media session');
+    if($live) {
+        $state=json_decode((string)@file_get_contents($meta),true);
+        if(!is_array($state) || ($state['run']??null)!==$run ||
+            !hash_equals((string)($state['key_hash']??''),hash('sha256',$secret)))
+            throw new RuntimeException('Player session does not match adaptive transport');
+    } else {
+        $state=json_encode(['run'=>$run,'key_hash'=>hash('sha256',$secret),'ip'=>$screens->ip(),
+            'expires'=>time()+40],JSON_UNESCAPED_SLASHES);
+        $tmp=$meta.'.'.$run.'.tmp';
+        if(file_put_contents($tmp,$state,LOCK_EX)!==strlen($state) ||
+            !chmod($tmp,0644) || !rename($tmp,$meta))
+            throw new RuntimeException('Unable to create media session');
+    }
     // FFmpeg's image2 muxer atomically renames a complete PNG over the same
     // destination while -re preserves real-time source timing. The synthetic
     // test source runs at a high rate; phone pushes have no FPS limit.
-    $cmd=['/usr/bin/ffmpeg','-hide_banner','-loglevel','error','-nostdin',
-        '-re','-f','lavfi','-i','testsrc2=size=296x156:rate=120',
-        '-t','18','-an','-c:v','png','-f','image2',
-        '-update','1','-atomic_writing','1','-y',$frame];
-    $process=proc_open($cmd,[
-        0=>['file','/dev/null','r'],
-        1=>['file','/dev/null','w'],
-        2=>['file','/dev/null','w']
-    ],$pipes);
-    if(!is_resource($process))throw new RuntimeException('Unable to start ffmpeg');
-    $deadline=microtime(true)+23;
-    while(microtime(true)<$deadline && !is_file($frame))usleep(20000);
+    if(!$live) {
+        $cmd=['/usr/bin/ffmpeg','-hide_banner','-loglevel','error','-nostdin',
+            '-re','-f','lavfi','-i','testsrc2=size=296x156:rate=120',
+            '-t','18','-an','-c:v','png','-f','image2',
+            '-update','1','-atomic_writing','1','-y',$frame];
+        $process=proc_open($cmd,[
+            0=>['file','/dev/null','r'],
+            1=>['file','/dev/null','w'],
+            2=>['file','/dev/null','w']
+        ],$pipes);
+        if(!is_resource($process))throw new RuntimeException('Unable to start ffmpeg');
+    }
+    $deadline=$live?(float)($state['expires']??time()):microtime(true)+23;
+    $record('waiting for first frame');
+    while(microtime(true)<$deadline && !is_file($frame) && (!$live || !is_file($stop)))usleep(20000);
     if(!is_file($frame))throw new RuntimeException('ffmpeg produced no frames');
     $base=$module->phonecontent->baseUrl($device);
     $url=$base.'/media-frame.php?'.http_build_query([
@@ -78,10 +103,11 @@ try {
     if($http!==200 || !is_string($body) ||
         substr($body,0,8)!=="\x89PNG\r\n\x1a\n")
         throw new RuntimeException('Media image endpoint failed HTTP preflight: '.$http);
+    $record('pushing images');
     // The preflight GET is not a handset fetch.
     if(is_file($ack) && !is_link($ack))@unlink($ack);
     $sent=0;$loaded=0;
-    while(microtime(true)<$deadline) {
+    while(microtime(true)<$deadline && (!$live || (!is_file($stop) && is_file($meta)))) {
         // Each completed handset GET permits the next push, even if FFmpeg
         // has not replaced the latest PNG yet. Never wait for a new inode.
         // No second push can occur while the preceding image GET is in flight.
@@ -91,6 +117,7 @@ try {
             break;
         }
         ++$sent;
+        if($sent===1)$record('first push accepted; waiting for phone GET');
         $until=min($deadline,microtime(true)+5);
         $received=false;
         while(microtime(true)<$until) {
@@ -98,6 +125,7 @@ try {
                 $received=true;
                 @unlink($ack);
                 ++$loaded;
+                if($loaded===1 || $loaded%50===0)$record('phone fetching images',$loaded.' GETs');
                 break;
             }
             usleep(10000); // ACK polling, NOT a fixed push frame interval.
@@ -107,9 +135,11 @@ try {
             break;
         }
     }
+    $record('finished',$sent.' pushes; '.$loaded.' GETs');
     error_log(sprintf('SCCP adaptive media %s: %d pushes, %d completed image GETs',
         $device,$sent,$loaded));
 } catch(\Throwable $e) {
+    $record('error',$e->getMessage());
     error_log('SCCP adaptive media: '.$e->getMessage());
 } finally {
     if(is_resource($process)) {
@@ -117,13 +147,15 @@ try {
         if($status['running'])proc_terminate($process);
         proc_close($process);
     }
-    if($meta!=='' && is_file($meta) && !is_link($meta)) {
+    if(!$live && $meta!=='' && is_file($meta) && !is_link($meta)) {
         $saved=json_decode((string)@file_get_contents($meta),true);
         if(is_array($saved) && isset($run) && ($saved['run']??'')===$run)
             @unlink($meta);
     }
-    foreach([$ack,$frame] as $file)
-        if($file!=='' && is_file($file) && !is_link($file))@unlink($file);
-    flock($lock,LOCK_UN);
-    fclose($lock);
+    if(!$live) {
+        foreach([$ack,$frame] as $file)
+            if($file!=='' && is_file($file) && !is_link($file))@unlink($file);
+        flock($lock,LOCK_UN);
+        fclose($lock);
+    }
 }
