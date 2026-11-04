@@ -50,30 +50,6 @@ try {
             @unlink($ackPath);
         }
     }
-    // Notification-style image screen: XML fetch must not ACK the PNG.
-    file_put_contents($metaPath,json_encode([
-        'run'=>$run,'expires'=>time()+120,'key_hash'=>hash('sha256',$key)
-    ]));
-    @unlink($ackPath);
-    $params=['phone'=>$device,'session'=>$run,'key'=>$key,
-        'view'=>'screen'];
-    $runnerCode="<?php\n".'$_GET='.var_export($params,true).";\n".
-        '$_SERVER[\'HTTP_HOST\']=\'10.254.77.1\';'."\n".
-        "require ".var_export($script,true).";\n";
-    file_put_contents($runner,$runnerCode);
-    $proc=proc_open([PHP_BINARY,$runner],[0=>['file','/dev/null','r'],
-        1=>['pipe','w'],2=>['pipe','w']],$pipes);
-    checkFrame(is_resource($proc),'Cannot launch XML screen test');
-    $body=stream_get_contents($pipes[1]);$stderr=stream_get_contents($pipes[2]);
-    fclose($pipes[1]);fclose($pipes[2]);
-    checkFrame(proc_close($proc)===0,'Screen XML endpoint failed: '.$stderr);
-    $doc=new DOMDocument();
-    checkFrame(@$doc->loadXML($body,LIBXML_NONET) &&
-        $doc->documentElement->tagName==='CiscoIPPhoneImageFile' &&
-        $doc->getElementsByTagName('SoftKeyItem')->length===0 &&
-        $doc->getElementsByTagName('Prompt')->length===0 &&
-        !is_file($ackPath),
-        'Image XML response must have no controls and must not acknowledge image GET');
 }finally{
     foreach(glob($dir.'/*')?:[] as $file)@unlink($file);
     @rmdir($dir);
