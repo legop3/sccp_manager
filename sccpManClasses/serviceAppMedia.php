@@ -56,7 +56,7 @@ final class serviceAppMedia {
         if(is_link($path))return false;
         return @file_put_contents($path,'stop',LOCK_EX)!==false;
     }
-    public function play($id,$line) {
+    public function play($id,$line,$stopUrl,$menuUrl) {
         require_once __DIR__.'/serviceMediaLibrary.php';
         serviceMediaLibrary::find($id);
         if(!preg_match('/^[0-9]{1,16}$/D',(string)$line))
@@ -70,11 +70,12 @@ final class serviceAppMedia {
         $script=dirname(__DIR__).'/scripts/phone-media-play.php';
         if(!is_file($script))throw new \RuntimeException('media playback worker missing');
         $device=$this->device;
-        register_shutdown_function(static function()use($device,$id,$line,$script){
+        register_shutdown_function(static function()use($device,$id,$line,$script,$stopUrl,$menuUrl){
             if(function_exists('fastcgi_finish_request'))fastcgi_finish_request();
             else {while(ob_get_level()>0)@ob_end_flush();@flush();}
             $cmd='/usr/bin/php '.escapeshellarg($script).' '.
-                escapeshellarg($device).' '.escapeshellarg($id).' '.escapeshellarg($line);
+                escapeshellarg($device).' '.escapeshellarg($id).' '.escapeshellarg($line).' '.
+                escapeshellarg($stopUrl).' '.escapeshellarg($menuUrl);
             exec($cmd.' >/dev/null 2>&1 </dev/null &');
         });
     }
