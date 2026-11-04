@@ -83,7 +83,7 @@ $mediaItems=\FreePBX\modules\Sccp_manager\serviceMediaLibrary::rows();
 <form id="sccp-media-upload" enctype="multipart/form-data">
 <div class="row"><div class="col-sm-8">
 <input class="form-control" type="file" name="media" required />
-<p class="help-block">upload size is limited by available server storage, not a module file-size cap.</p>
+
 </div><div class="col-sm-4">
 <button class="btn btn-primary" type="submit"><i class="fa fa-upload"></i> upload media</button>
 </div></div>
