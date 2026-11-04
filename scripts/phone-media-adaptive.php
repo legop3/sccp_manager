@@ -76,25 +76,16 @@ try {
         throw new RuntimeException('Media image endpoint failed HTTP preflight: '.$http);
     // The preflight GET is not a handset fetch.
     if(is_file($ack) && !is_link($ack))@unlink($ack);
-    $sent=0;$loaded=0;$lastInode=0;
+    $sent=0;$loaded=0;
     while(microtime(true)<$deadline) {
-        clearstatcache(true,$frame);
-        $inode=@fileinode($frame);
-        if(!$inode)break;
-        if($inode===$lastInode) {
-            // Poll FFmpeg's latest-frame generation, not the handset's cadence.
-            $status=proc_get_status($process);
-            if(!$status['running'])break;
-            usleep(10000);
-            continue;
-        }
+        // Each completed handset GET permits the next push, even if FFmpeg
+        // has not replaced the latest PNG yet. Never wait for a new inode.
         // No second push can occur while the preceding image GET is in flight.
         if(is_file($ack) && !is_link($ack))@unlink($ack);
         if(!$screens->push($url)) {
             error_log('SCCP adaptive media: CGI push rejected');
             break;
         }
-        $lastInode=$inode;
         ++$sent;
         $until=min($deadline,microtime(true)+5);
         $received=false;

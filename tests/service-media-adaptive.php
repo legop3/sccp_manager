@@ -30,7 +30,11 @@ mediaCheck(str_contains($worker,"'-atomic_writing','1'") &&
     str_contains($worker,'$screens->push($url)'),
     'Adaptive worker must wait for GET and use atomic latest-frame update');
 mediaCheck(!str_contains($worker,'usleep(750000)') &&
-    !str_contains($worker,'seq='),'Adaptive worker must not use fixed push pacing or cache busting');
+    !str_contains($worker,'seq=') &&
+    !str_contains($worker,'$lastInode') &&
+    !str_contains($worker,'fileinode($frame)') &&
+    !str_contains($worker,'if($inode==='),
+    'Adaptive worker must not wait for new frame generation or use a fixed push interval');
 mediaCheck(str_contains($endpoint,"header('Cache-Control: no-store") &&
     str_contains($endpoint,"header('Content-Type: image/png')") &&
     str_contains($endpoint,'hash_equals($meta[\'key\'],$key)') &&
