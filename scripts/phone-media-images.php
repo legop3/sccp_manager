@@ -45,58 +45,63 @@ try {
     $module=\FreePBX::create()->Sccp_manager;
     require_once __DIR__.'/../sccpManClasses/serviceAppScreens.php';
     $screens=new \FreePBX\modules\Sccp_manager\serviceAppScreens($module,$device);
-    // Use the exact static PNG publication/CGI push path proven by
-    // phone-media-test.php. Do not use the dynamic media-frame.php endpoint.
-    // Audio stays in the independent AudioSocket worker.
+    $base=$module->phonecontent->baseUrl($device);
+    $url=$base.'/media-frame.php?'.http_build_query([
+        'phone'=>$device,'session'=>$run,'key'=>$key
+    ],'','&',PHP_QUERY_RFC3986);
+    // Reject a missing frame or broken HTTP endpoint before pushing the
+    // phone into a permanently "requesting..." screen. Same check as the
+    // previously proven synthetic adaptive test.
     $record('waiting for first frame');
     $ready=microtime(true)+15;
     while($active() && !is_file($frame) && microtime(true)<$ready)usleep(10000);
     if(!$active() || !is_file($frame))
         throw new RuntimeException('first video frame not generated');
-    $record('pushing images via tested static PNG transport');
-    $sent=0;
-    $lastHash='';
-    $files=[];
-    $lastPush=0.0;
+    if(!function_exists('curl_init'))throw new RuntimeException('cURL unavailable');
+    $record('checking frame URL');
+    $check=curl_init($url);
+    if(!$check)throw new RuntimeException('cannot check frame URL');
+    try {
+        curl_setopt_array($check,[
+            CURLOPT_RETURNTRANSFER=>true,
+            CURLOPT_CONNECTTIMEOUT=>2,
+            CURLOPT_TIMEOUT=>4,
+            CURLOPT_FOLLOWLOCATION=>false
+        ]);
+        $bytes=curl_exec($check);
+        $status=(int)curl_getinfo($check,CURLINFO_RESPONSE_CODE);
+    }finally{curl_close($check);}
+    if($status!==200 || !is_string($bytes) ||
+       substr($bytes,0,8)!=="\x89PNG\r\n\x1a\n")
+        throw new RuntimeException('image URL unavailable (HTTP '.$status.')');
+    // Probe's ACK is not a real handset GET.
+    if(is_file($ack) && !is_link($ack))@unlink($ack);
+    $sent=0;$received=0;
+    $record('pushing images');
     while($active()) {
-        $png=@file_get_contents($frame);
-        if(!is_string($png) || strlen($png)<8 ||
-           substr($png,0,8)!=="\\x89PNG\\r\\n\\x1a\\n") {
-            usleep(50000);
-            continue;
-        }
-        $hash=hash('sha256',$png);
-        if($hash===$lastHash) { usleep(50000); continue; }
-        // Preserve the original working test's 750 ms phone-fetch pacing.
-        $elapsed=microtime(true)-$lastPush;
-        if($lastPush>0 && $elapsed<0.75) {
-            usleep((int)((0.75-$elapsed)*1000000));
-            continue;
-        }
-        $name='media-demo-'.$run.'-'.$sent;
-        if(!$screens->frame($name,$png,$files))
-            throw new RuntimeException('phone rejected static image push');
+        if(is_file($ack) && !is_link($ack))@unlink($ack);
+        if(!$screens->push($url))
+            throw new RuntimeException('handset rejected media image push');
         $sent++;
-        $lastHash=$hash;
-        $lastPush=microtime(true);
-        if($sent===1 || $sent%50===0)
-            $record('phone image pushes accepted',$sent.' static frames pushed');
-        // Retain two previous URLs for the 7945G's asynchronous PNG fetch,
-        // but prevent a long playback from filling the public directory.
-        while(count($files)>3) {
-            $old=array_shift($files);
-            $screens->cleanup([$old]);
+        if($sent===1)$record('first push accepted; waiting for phone GET');
+        $until=microtime(true)+5;
+        $loaded=false;
+        while($active() && microtime(true)<$until) {
+            if(is_file($ack) && !is_link($ack)) {
+                @unlink($ack);$received++;$loaded=true;
+                if($received===1 || $received%50===0)$record('phone fetching images', $received.' completed GETs');
+                break;
+            }
+            usleep(10000); // ACK polling only; no image FPS limiter.
+        }
+        if(!$loaded) {
+            if($active())throw new RuntimeException('handset never completed image GET');
+            break;
         }
     }
-    $record('finished',$sent.' static frames pushed');
-    error_log(sprintf('SCCP media images %s: %d static PNG pushes',$device,$sent));
-} catch(\Throwable $e) {
+    $record('finished',$sent.' pushes, '.$received.' completed GETs');
+    error_log(sprintf('SCCP media images %s: %d pushes, %d GETs',$device,$sent,$received));
+}catch(\Throwable $e){
     $record('error',$e->getMessage());
     error_log('SCCP media images '.$device.': '.$e->getMessage());
-} finally {
-    // Keep final URLs briefly: accepted CGI push is not a completed GET.
-    if(isset($files) && is_array($files) && isset($screens)) {
-        sleep(3);
-        $screens->cleanup($files);
-    }
 }
