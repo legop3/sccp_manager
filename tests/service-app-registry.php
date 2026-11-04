@@ -14,7 +14,11 @@ foreach(['catdog','carrot-try','talking-clock'] as $id){
     $fn=require __DIR__.'/../serviceApps/'.$id.'/Service.php';
     $ctx=['route'=>static function($v=[]){return 'http://localhost/?'.http_build_query($v);},
           'menu'=>[serviceRegistry::class,'menu'],
-          'text'=>[serviceRegistry::class,'text']];
+          'text'=>[serviceRegistry::class,'text'],
+          'storage'=>new class {
+              public function cooldownRemaining($user){return 0;}
+          },
+          'user'=>'111'];
     $meta=json_decode(file_get_contents(__DIR__.'/../serviceApps/'.$id.'/manifest.json'),true);
     $ctx['config']=[];
     foreach(($meta['settings']??[]) as $key=>$field)$ctx['config'][$key]=$field['default'];
