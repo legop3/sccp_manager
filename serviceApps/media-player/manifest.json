@@ -1,6 +1,6 @@
 {
   "id": "media-player",
   "name": "media player",
-  "description": "adaptive frame test using a single reusable image url",
+  "description": "stream uploaded audio and video with a live ffmpeg visualizer",
   "enabledByDefault": false
 }

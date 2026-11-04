@@ -72,3 +72,38 @@ required />
 </form>
 <p class="help-block" style="margin-top:12px">application settings apply on the next action. services menu changes appear on the next press. signed phone settings are refreshed on save.</p>
 </div>
+
+<?php
+require_once __DIR__.'/../sccpManClasses/serviceMediaLibrary.php';
+$mediaItems=\FreePBX\modules\Sccp_manager\serviceMediaLibrary::rows();
+?>
+<hr/>
+<h3>media library</h3>
+<p>upload audio or video for the phones. ffmpeg reads the original file; playback is streamed live.</p>
+<form method="post" action="config.php?display=sccp_content#services" enctype="multipart/form-data">
+<input type="hidden" name="content_action" value="media_upload"/>
+<div class="row"><div class="col-sm-8">
+<input class="form-control" type="file" name="media" required/>
+<p class="help-block">maximum 250 mib per file; media must have audio and a finite duration.</p>
+</div><div class="col-sm-4">
+<button class="btn btn-primary" type="submit"><i class="fa fa-upload"></i> upload media</button>
+</div></div>
+</form>
+<?php if($mediaItems): ?>
+<table class="table table-striped">
+<thead><tr><th>file</th><th>type</th><th>length</th><th></th></tr></thead><tbody>
+<?php foreach($mediaItems as $item): ?>
+<tr>
+<td><?php echo $escape($item['name']); ?></td>
+<td><?php echo !empty($item['video'])?'video':'audio'; ?></td>
+<td><?php echo gmdate('H:i:s',(int)$item['duration']); ?></td>
+<td>
+<form method="post" action="config.php?display=sccp_content#services" onsubmit="return confirm('delete this media file?')">
+<input type="hidden" name="content_action" value="media_delete"/>
+<input type="hidden" name="id" value="<?php echo $escape($item['id']); ?>"/>
+<button type="submit" class="btn btn-default btn-sm">delete</button>
+</form>
+</td></tr>
+<?php endforeach; ?>
+</tbody></table>
+<?php endif; ?>

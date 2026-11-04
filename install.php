@@ -70,6 +70,27 @@ if (!function_exists('sccp_manager_content_install')) {
         @chmod($dir, 0755);
         outn('<li>Phone Content: static Cisco directory/preview path ready.</li>');
 
+        // Uploads are private; only session-protected PNGs reach the phone.
+        $mediaDir='/var/spool/asterisk/sccp-manager-media';
+        if ((!is_dir($mediaDir) && !@mkdir($mediaDir,0750,true)) ||
+            is_link($mediaDir)) {
+            outn('<li>media player: could not create private media library.</li>');
+        } else {
+            @chown($mediaDir,'asterisk'); @chgrp($mediaDir,'asterisk');
+            @chmod($mediaDir,0750);
+        }
+        // The worker uses Asterisk's existing application over loopback.
+        // Do not expose a listener or modify the server's SIP/SCCP ports.
+        if (is_executable('/usr/sbin/asterisk')) {
+            $loaded=[];$exit=0;
+            exec('/usr/sbin/asterisk -rx '.
+                escapeshellarg('module show like app_audiosocket.so').' 2>&1',$loaded,$exit);
+            if($exit===0 && !str_contains(implode("\n",$loaded),'app_audiosocket.so'))
+                exec('/usr/sbin/asterisk -rx '.
+                    escapeshellarg('module load app_audiosocket.so').' 2>&1');
+        }
+
+
         // Module Admin upgrades may return before publishDirectory() runs.
         // Keep the adaptive media endpoint installed when the new service
         // becomes available, including on upgrades of existing PBX systems.

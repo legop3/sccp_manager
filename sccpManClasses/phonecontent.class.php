@@ -1118,6 +1118,14 @@ PHP;
     {
         $action = (string) ($post['content_action'] ?? '');
         switch ($action) {
+            case 'media_upload':
+                require_once __DIR__.'/serviceMediaLibrary.php';
+                serviceMediaLibrary::upload($files['media']??null);
+                return 'media uploaded.';
+            case 'media_delete':
+                require_once __DIR__.'/serviceMediaLibrary.php';
+                serviceMediaLibrary::remove((string)($post['id']??''));
+                return 'media deleted.';
             case 'address': $this->setAddress($post['pbx_address'] ?? ''); return 'Directory URL updated.';
             case 'services_save':
                 require_once __DIR__.'/serviceAppConfig.php';

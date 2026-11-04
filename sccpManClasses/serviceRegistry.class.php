@@ -61,6 +61,7 @@ final class serviceRegistry {
         $settings=(new serviceAppConfig($this->module))->get($id);
         $ctx=[
             'device'=>$device,
+            'line'=>(string)($identity['line']??''),
             'config'=>$settings,
             'user'=>(string)($identity['extension']??$device),
             'route'=>function(array $params=[])use($route,$id){

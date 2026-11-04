@@ -1,20 +1,32 @@
 <?php
-/**
- * Proof of transport: genuine SCCP/Asterisk audio call alongside quick
- * XML image pushes. No claim of true video decoding or synchronized playback.
- */
+/** Cisco phone interface for uploaded media. All visible labels lowercase. */
 return static function(array $ctx,array $q) {
-    if(($q['op']??'')==='adaptive') {
+    $media=$ctx['media'];
+    $op=(string)($q['op']??'list');
+    if($op==='stop') {
+        $media->stop();
+        return $ctx['text']('media player','stopping playback');
+    }
+    if($op==='play') {
         try {
-            $ctx['media']->adaptiveTest();
-            return $ctx['text']('media player',
-                'starting an adaptive video test. each finished image download requests the next frame.');
-        } catch(\Throwable $e) {
-            error_log('SCCP adaptive media: '.$e->getMessage());
-            return $ctx['text']('media player','adaptive test unavailable: '.strtolower($e->getMessage()));
+            $line=(string)($ctx['line']??'');
+            $media->play((string)($q['file']??''),$line);
+            return $ctx['text']('media player','starting playback. hang up to stop, or open this service again.');
+        }catch(\Throwable $e) {
+            error_log('SCCP media service: '.$e->getMessage());
+            return $ctx['text']('media player',strtolower($e->getMessage()));
         }
     }
-    return $ctx['menu']('media player',[
-        ['play adaptive video test',$ctx['route'](['op'=>'adaptive'])]
-    ]);
+    $entries=[];
+    if($now=$media->nowPlaying()) {
+        $entries[]=['stop playback',$ctx['route'](['op'=>'stop'])];
+        $entries[]=['now playing: '.(string)($now['name']??'media'),
+            $ctx['route'](['op'=>'status'])];
+        if($op==='status')
+            return $ctx['text']('media player','playing: '.(string)($now['name']??'media'));
+    }
+    foreach($media->library() as $row)
+        $entries[]=[(string)$row['name'],$ctx['route'](['op'=>'play','file'=>$row['id']])];
+    if(!$entries)return $ctx['text']('media player','no media uploaded. add files in sccp manager.');
+    return $ctx['menu']('media player',$entries);
 };
