@@ -32,28 +32,6 @@ if(!is_array($meta) || ($meta['run']??'')!==$run ||
     error_log('SCCP adaptive media HTTP: session expired or invalid');
     http_response_code(404); exit;
 }
-// The notification-style image screen is requested separately from the PNG.
-// The same signed media session authenticates both requests. This screen
-// response does not acknowledge an image GET; only the PNG response does.
-if(($_GET['view']??'')==='screen') {
-    $host=(string)($_SERVER['HTTP_HOST']??'');
-    if(!filter_var($host,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4)) {
-        http_response_code(404); exit;
-    }
-    $base='http://'.$host.'/sccp-manager/';
-    $frameUrl=$base.'media-frame.php?'.http_build_query([
-        'phone'=>$device,'session'=>$run,'key'=>$key
-    ],'','&',PHP_QUERY_RFC3986);
-    $escape=static fn($value)=>htmlspecialchars($value,ENT_XML1|ENT_QUOTES,'UTF-8');
-    header('Content-Type: text/xml; charset=UTF-8');
-    header('Cache-Control: no-store');
-    echo '<?xml version="1.0" encoding="UTF-8"?>'.
-        '<CiscoIPPhoneImageFile><Title>media player</Title>'.
-        '<LocationX>0</LocationX><LocationY>0</LocationY>'.
-        '<URL>'.$escape($frameUrl).'</URL>'.
-        '</CiscoIPPhoneImageFile>';
-    exit;
-}
 $path=$root.'/sccp-media-'.$device.'-'.$run.'.png';
 if(!is_file($path) || is_link($path)) {http_response_code(503);exit;}
 $bytes=@file_get_contents($path);
