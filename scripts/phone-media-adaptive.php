@@ -106,7 +106,7 @@ try {
     $record('pushing images');
     // The preflight GET is not a handset fetch.
     if(is_file($ack) && !is_link($ack))@unlink($ack);
-    $sent=0;$loaded=0;$retried=0;
+    $sent=0;$loaded=0;$retried=0;$rejected=0;$consecutiveRejects=0;
     $exitReason='unknown';
     while(true) {
         // Capture the exact condition that ends delivery, at the moment it happens.
@@ -118,10 +118,17 @@ try {
         // No second push can occur while the preceding image GET is in flight.
         if(is_file($ack) && !is_link($ack))@unlink($ack);
         if(!$screens->push($url)) {
-            $exitReason='cgi_push_rejected';
-            error_log('SCCP adaptive media: CGI push rejected');
-            break;
+            // A single rejected CGI request must not permanently terminate video
+            // while AudioSocket and FFmpeg are still running. Give the phone
+            // time to recover, then retry the same direct image push.
+            ++$rejected;
+            ++$consecutiveRejects;
+            if($rejected===1 || $rejected%10===0)
+                $record('recovering CGI image push',$rejected.' rejected pushes');
+            usleep(min(2000000,250000*$consecutiveRejects));
+            continue;
         }
+        $consecutiveRejects=0;
         ++$sent;
         if($sent===1)$record('first push accepted; waiting for phone GET');
         // Keep the GET-driven fast path, but don't stall for up to five seconds
@@ -148,7 +155,7 @@ try {
             continue;
         }
     }
-    $record('finished',$sent.' pushes; '.$loaded.' GETs; '.$retried.' retries; reason='.$exitReason);
+    $record('finished',$sent.' pushes; '.$loaded.' GETs; '.$retried.' retries; '.$rejected.' rejected pushes; reason='.$exitReason);
     error_log(sprintf('SCCP adaptive media %s: %d pushes, %d completed image GETs',
         $device,$sent,$loaded));
 } catch(\Throwable $e) {
