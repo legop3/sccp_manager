@@ -18,6 +18,7 @@ $ringtones = $pc->ringtones();
             </div>
             <button class="btn btn-primary" type="submit"><i class="fa fa-upload"></i> <?php echo _('Upload'); ?></button>
         </form>
+        <p class="help-block"><?php echo _('Audio is converted automatically to mono 8 kHz u-law. Extended ringtones up to 60 seconds are experimental on physical Cisco 79xx phones; older firmware may reject them.'); ?></p>
         <?php if ($ringtones): ?>
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
