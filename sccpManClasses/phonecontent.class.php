@@ -1018,7 +1018,7 @@ PHP;
 
     public function addRingtone($file, $label)
     {
-        $ext = $this->upload($file, 10 * 1024 * 1024, array('wav', 'mp3', 'ogg', 'flac', 'm4a'));
+        $ext = $this->upload($file, 25 * 1024 * 1024, array('wav', 'mp3', 'ogg', 'flac', 'm4a'));
         $label = trim((string) $label);
         if ($label === '' || strlen($label) > 25) {
             throw new \InvalidArgumentException('Ringtone display name must be 1–25 bytes.');
@@ -1033,7 +1033,7 @@ PHP;
         $id = bin2hex(random_bytes(8));
         $output = $this->tftp . '/PC-' . $id . '.raw';
         $cmd = array($ffmpeg, '-v', 'error', '-nostdin', '-y', '-i',
-            $file['tmp_name'], '-vn', '-ac', '1', '-ar', '8000', '-t', '2.01',
+            $file['tmp_name'], '-vn', '-ac', '1', '-ar', '8000', '-t', '60',
             '-f', 'mulaw', $output);
         $pipes = array();
         $proc = proc_open($cmd, array(
@@ -1051,9 +1051,12 @@ PHP;
             throw new \RuntimeException('Audio conversion failed: ' . substr($stderr, 0, 250));
         }
         $data = file_get_contents($output);
-        // Cisco 79xx: headerless 8kHz 8-bit u-law, 240-16080 samples,
-        // a multiple of 240. 0xFF represents silence at both ends.
-        $length = min(16080, (int) floor(strlen($data) / 240) * 240);
+        // Cisco documents 16080 samples (2.01 s). Community testing
+        // reports extended rings up to ~480000 samples (60 s at 8 kHz).
+        // Output remains headerless 8 kHz, 8-bit mu-law; no audio rate
+        // metadata trick is needed when producing the final bytes directly.
+        // Keep the required 240-sample alignment and silence endpoints.
+        $length = min(480000, (int) floor(strlen($data) / 240) * 240);
         if ($length < 240) {
             @unlink($output);
             throw new \RuntimeException('Ringtone audio is too short.');
